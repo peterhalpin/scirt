@@ -2,7 +2,7 @@
 # Functions for computing bootstrapped LR tests of collaboration models.
 # User beware: functions not written to check or handle input errors.
 
-require("stats4")
+
 #--------------------------------------------------------------------------
 #' Item response function for 2PL
 #'
@@ -88,8 +88,9 @@ AI <- function(alpha, beta, theta1, theta2){
   twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) -  twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
 }
 
+
 #--------------------------------------------------------------------------
-#' Simulate data from a stated model of pairwise collaboration.
+#' Simulate data from a model of pairwise collaboration.
 #'
 #' Simulate data using either the 2PL or a model for pariwise collaboration obtained from the 2PL.
 #' @param model is one of \code{c("twoPL", "Ind", "Min", "Max", "AI") }
@@ -141,6 +142,7 @@ logL <- function(resp, model, alpha, beta, theta1, theta2 = NULL){
 
 
 #--------------------------------------------------------------------------
+#' Internal function used in lr_test; under development.
 
 neg_logL <- function(theta, resp, alpha, beta){
   -1*logL(resp, "twoPL", alpha, beta, theta)
@@ -149,6 +151,8 @@ neg_logL <- function(theta, resp, alpha, beta){
 
 
 #--------------------------------------------------------------------------
+#' Internal function used in lr_test; under development.
+
 ml_twoPL<-function(resp, alpha, beta, method = "ML")
 {
   # resp is the n.person by n.item 1/0 response matrix
@@ -259,10 +263,9 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
 
 
 
-#Scrap --------------------------------------------------------------------------
+#Scraps --------------------------------------------------------------------------
 
 
-#'
 #' #' Integrand of likelihood of a single response pattern and stated model
 #' #'
 #' #' Function is passed to \code{likelihood} to evalute likelihood of a model; see \code{likelihood} for details of args.
@@ -318,8 +321,8 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
 #' #--------------------------------------------------------------------------
 #' #' Computes likelihood ratio test for stated model(s) of pairwise collaboration.
 #' #'
-#' #' Computes a likelihood ratio test for one or more models of pairwise collaboration, using ``assumed to be known'' item parameters. Under the assumption of known item parameters, the collaborative model is a simple hypothesis, and its likelihood is evaluated by integrating the model IRF over the prior distribution of theta for both members. The prior distrubtion is assumed to be Gaussian (or reasonably approximated as such), with mean vector and (diagonal) covariance matrix esimated from the indviduals working in isoloation. The collaborative model is compared to a reference model, which is also a simple hypothesis. The reference model is a  standard is 2PL (with assumed to be known items parameters), with the prior distribtuion of theta given by some trickery yet to be entirely sorted out.
-#'
+
+
 #' #' @param data a matrix of binary response patterns
 #' #' @param model is one or more of \code{c("Ind", "Min", "Max", "AI") }
 #' #' @param alpha the item discriminations of the resp items
