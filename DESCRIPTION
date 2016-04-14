@@ -9,3 +9,5 @@ Description: Supporting functions for bootstrapped likelihood ratio tests of
 License: GNU GENERAL PUBLIC LICENSE
 LazyData: TRUE
 RoxygenNote: 5.0.1
+Imports: stats4
+Depends: R(>= 2.10)

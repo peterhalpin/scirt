@@ -18,6 +18,8 @@ lr_test(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0)
 \item{ind_theta}{the latent trait for each member, as estimated from a non-collaborative form}
 
 \item{col_theta}{the latent trait for each member, as estimated from a collaborative form}
+
+\item{n_boot}{number of bootstraps to use for testing the likelihood ratio.}
 }
 \value{
 A \code{length(ind_theta)/2} by \code{length(model)} matrix, each column of which contains the lr_tests for each model.

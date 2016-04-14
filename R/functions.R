@@ -189,6 +189,7 @@ ml_twoPL<-function(resp, alpha, beta, method = "ML")
 #' @param beta the item difficulties of the resp items
 #' @param ind_theta the latent trait for each member, as estimated from a non-collaborative form
 #' @param col_theta the latent trait for each member, as estimated from a collaborative form
+#' @param n_boot number of bootstraps to use for testing the likelihood ratio.
 #' @return A \code{length(ind_theta)/2} by \code{length(model)} matrix, each column of which contains the lr_tests for each model.
 #'
 
