@@ -182,8 +182,9 @@ ml_twoPL<-function(resp, alpha, beta, method = "ML")
                lower = -4,
                upper = 4
     )
-
     OUT[i,] <- c(logLik(temp), coef(temp)[1], vcov(temp))
+
+    flush.console()
   }
   OUT[,3] <- sqrt(OUT[,3])
   OUT
@@ -228,7 +229,7 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
   }
 
   # logL for reference model
-  ref <- logL(resp, "twoPL", alpha, beta, col_theta[odd])
+  ref <- logL(resp, "twoPL", alpha, beta, col_theta)
   lr <- -2*(mod - ref)
 
   # Bootstrapping (could fancy this up...)
@@ -238,6 +239,9 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
     boot_ind <- rep(1:n_pair, each = n_boot)
 
     for (i in 1:n_model){
+      message(cat("Running bootstraps for model", i, "..."),"\r",appendLF=FALSE)
+      flush.console()
+
       boot_data <- sim_data(model[i], alpha, beta, theta1_long, theta2_long)
       boot_mod <- logL(boot_data, model[i], alpha, beta, theta1_long, theta2_long)
       boot_ref <- ml_twoPL(boot_data, alpha, beta)
@@ -249,17 +253,17 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
 
       # P(lr > obs)
       boot_cdf <- tapply(boot_lr, boot_ind, ecdf)
-      boot_p <-mapply(function(x,y) pobs(x, y), boot_cdf, out[,i])
+      boot_p <-mapply(function(x,y) pobs(x, y), boot_cdf, lr[,i])
 
       # Storage
       temp <- data.frame(cbind(lr[,i], boot_ci[], boot_p))
       names(temp) <- c("lr", "ci_lower", "ci_upper", "p_obs")
       OUT[[i]] <- temp
-      }
+
+    }
   }
   OUT
 }
-
 
 
 
