@@ -13,6 +13,7 @@
 #' @param beta the item difficulties
 #' @param theta the latent trait
 #' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities
+#' @export
 
 twoPL <-function(alpha, beta, theta){
   Z <- matrix(0, nrow = length(theta), ncol = length(alpha))
@@ -32,6 +33,7 @@ twoPL <-function(alpha, beta, theta){
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
 #' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities.
+#' @export
 
 Ind <- function(alpha, beta, theta1, theta2){
   twoPL(alpha, beta, theta1)*twoPL(alpha, beta, theta2)
@@ -48,6 +50,7 @@ Ind <- function(alpha, beta, theta1, theta2){
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
 #' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities.
+#' @export
 
 Min <- function(alpha, beta, theta1, theta2){
   theta <- apply(cbind(theta1, theta2), 1, min, na.rm = T)
@@ -65,6 +68,7 @@ Min <- function(alpha, beta, theta1, theta2){
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
 #' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities
+#' @export
 
 Max <- function(alpha, beta, theta1, theta2){
   theta <- apply(cbind(theta1, theta2), 1, max, na.rm = T)
@@ -82,8 +86,8 @@ Max <- function(alpha, beta, theta1, theta2){
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
 #' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities
+#' @export
 
-#--------------------------------------------------------------------------
 AI <- function(alpha, beta, theta1, theta2){
   twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) -  twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
 }
@@ -99,6 +103,7 @@ AI <- function(alpha, beta, theta1, theta2){
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
 #' @return \code{length(theta1)} by \code{length(alpha)} matrix of binary response patterns
+#' @export
 
 sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
   n_row <- length(theta1)
@@ -129,6 +134,7 @@ sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
 #' @return An \code{nrow(resp)}-vector of log-likleihoods for each response pattern.
+#' @export
 
 logL <- function(resp, model, alpha, beta, theta1, theta2 = NULL){
   if (model == "twoPL"){
@@ -143,6 +149,7 @@ logL <- function(resp, model, alpha, beta, theta1, theta2 = NULL){
 
 #--------------------------------------------------------------------------
 #' Internal function used in lr_test; under development.
+#' @export
 
 neg_logL <- function(theta, resp, alpha, beta){
   -1*logL(resp, "twoPL", alpha, beta, theta)
@@ -152,6 +159,7 @@ neg_logL <- function(theta, resp, alpha, beta){
 
 #--------------------------------------------------------------------------
 #' Internal function used in lr_test; under development.
+#' @export
 
 ml_twoPL<-function(resp, alpha, beta, method = "ML")
 {
@@ -195,7 +203,7 @@ ml_twoPL<-function(resp, alpha, beta, method = "ML")
 #' @param col_theta the latent trait for each member, as estimated from a collaborative form
 #' @param n_boot number of bootstraps to use for testing the likelihood ratio.
 #' @return A \code{length(ind_theta)/2} by \code{length(model)} matrix, each column of which contains the lr_tests for each model.
-#'
+#' @export
 
 lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
 
