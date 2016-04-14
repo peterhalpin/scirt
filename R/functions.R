@@ -18,7 +18,7 @@ twoPL <-function(alpha, beta, theta){
   Z <- matrix(0, nrow = length(theta), ncol = length(alpha))
   Z <- Z + theta
   Z <- t(alpha*(t(Z) - beta))
-  1/(1+exp(-Z))
+  1/(1 + exp(-Z))
 }
 
 
