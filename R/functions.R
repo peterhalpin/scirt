@@ -1,8 +1,8 @@
 # Last update: 04/12/2016
 # Functions for computing bootstrapped LR tests of collaboration models.
-# User beware: functiosn not written to check or handle input errors.
+# User beware: functions not written to check or handle input errors.
 
-
+require("stats4")
 #--------------------------------------------------------------------------
 #' Item response function for 2PL
 #'
@@ -31,7 +31,7 @@ twoPL <-function(alpha, beta, theta){
 #' @param beta the item difficulties
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
-#' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities
+#' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities.
 
 Ind <- function(alpha, beta, theta1, theta2){
   twoPL(alpha, beta, theta1)*twoPL(alpha, beta, theta2)
@@ -47,7 +47,7 @@ Ind <- function(alpha, beta, theta1, theta2){
 #' @param beta the item difficulties
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
-#' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities
+#' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities.
 
 Min <- function(alpha, beta, theta1, theta2){
   theta <- apply(cbind(theta1, theta2), 1, min, na.rm = T)
@@ -58,7 +58,7 @@ Min <- function(alpha, beta, theta1, theta2){
 #--------------------------------------------------------------------------
 #' Item response function for ``the Maximum model"
 #'
-#' Computes a matrix of probabilities for correct responses using the maximum model of collaboration for the members and the 2PL model for the items
+#' Computes a matrix of probabilities for correct responses using the maximum model of collaboration for the members and the 2PL model for the items.
 #'
 #' @param alpha the item discriminations
 #' @param beta the item difficulties
@@ -88,11 +88,38 @@ AI <- function(alpha, beta, theta1, theta2){
   twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) -  twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
 }
 
+#--------------------------------------------------------------------------
+#' Simulate data from a stated model of pairwise collaboration.
+#'
+#' Simulate data using either the 2PL or a model for pariwise collaboration obtained from the 2PL.
+#' @param model is one of \code{c("twoPL", "Ind", "Min", "Max", "AI") }
+#' @param alpha the item discriminations
+#' @param beta the item difficulties
+#' @param theta1 the latent trait for member 1
+#' @param theta2 the latent trait for member 2
+#' @return \code{length(theta1)} by \code{length(alpha)} matrix of binary response patterns
+
+sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
+  n_row <- length(theta1)
+  n_col <- length(alpha)
+  fun <- match.fun(model)
+  Q <- array(runif (n_row * n_col), dim = c(n_row, n_col))
+  if (model == "twoPL"){
+    P <- fun(alpha, beta, theta1)
+  } else {
+    P <- fun(alpha, beta, theta1, theta2)
+  }
+
+  OUT <- ifelse(P > Q, 1, 0)
+  colnames(OUT) <- names(alpha)
+  OUT
+}
+
 
 #--------------------------------------------------------------------------
-#' Log-likelihood of given matrix of binary responses for a stated model
+#' Log-ikelihood of given matrix of binary responses for a stated model, conditional on theta.
 #'
-#' Computes a vector of log-likelihoods for a given matrix binary response patterns.
+#' Computes a vector of likelihoods for a given matrix binary response patterns, for a selection of models for pairwise collaboration, conditional on theta
 #'
 #' @param resp the matrix binary responses
 #' @param model is one of \code{c("twoPL", "Ind", "Min", "Max", "AI") }
@@ -103,43 +130,61 @@ AI <- function(alpha, beta, theta1, theta2){
 #' @return An \code{nrow(resp)}-vector of log-likleihoods for each response pattern.
 
 logL <- function(resp, model, alpha, beta, theta1, theta2 = NULL){
-  if(model == "twoPL"){
+  if (model == "twoPL"){
     p <- twoPL(alpha, beta, theta1)
   }else{
     fun <- match.fun(model)
     p <- fun(alpha, beta, theta1, theta2)
   }
-   apply(log(p)*(resp) + log(1-p)*(1-(resp)), 1, sum, na.rm = T)
+  apply(log(p)*(resp) + log(1-p)*(1-(resp)), 1, sum, na.rm = T)
 }
 
 
 #--------------------------------------------------------------------------
-#' Simulate data from 2PL model.
-#'
-#' Simulate data using the 2PL model.
-#' @param alpha the item discriminations
-#' @param beta the item difficulties
-#' @param theta the values of latent trait to simulate data for
-#' @return \code{length(theta)} by \code{length(alpha)} matrix of binary response patterns
 
-sim_twoPL <- function(alpha, beta, theta = 0){
-  n_row <- length(theta)
-  n_col <- length(alpha)
-  Q <- array(runif(n_row * n_col), dim = c(n_row, n_col))
-	P <- twoPL(alpha, beta, theta)
-	OUT <- ifelse(P > Q, 1, 0)
-	colnames(OUT) <- names(alpha)
-	OUT
+neg_logL <- function(theta, resp, alpha, beta){
+  -1*logL(resp, "twoPL", alpha, beta, theta)
+}
+
+
+
+#--------------------------------------------------------------------------
+ml_twoPL<-function(resp, alpha, beta, method = "ML")
+{
+  # resp is the n.person by n.item 1/0 response matrix
+  # theta is estimated.
+  # method is MLE for now, but can do the same thing for EB
+  # (Need to get mle to accept non-numeric argument?)
+
+  # Storage
+
+  OUT <- matrix(0, nrow = nrow(resp), ncol = 3)
+  colnames(OUT) <- c("logL", "theta", "se")
+
+  for(i in 1:nrow(resp))
+  {
+    temp <- mle(neg_logL,
+               start = list(theta = 0),
+               fixed = list(resp = resp[i,], alpha = alpha, beta = beta),
+               method = "Brent",
+               lower = -4,
+               upper = 4
+    )
+
+    OUT[i,] <- c(logLik(temp), coef(temp)[1], vcov(temp))
+  }
+  OUT[,3] <- sqrt(OUT[,3])
+  OUT
 }
 
 
 #--------------------------------------------------------------------------
 #' Likelihood ratio tests for various models of collaboration.
 #'
-#' Computes a boostrapped likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
+#' Computes a likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
 #'
 #' @param resp the matrix binary data from the \strong{collaborative responses}
-#' @param model is one or more of \code{c("twoPL", "Ind", "Min", "Max", "AI") }
+#' @param model is one or more of \code{c("Ind", "Min", "Max", "AI") }
 #' @param alpha the item discriminations of the resp items
 #' @param beta the item difficulties of the resp items
 #' @param ind_theta the latent trait for each member, as estimated from a non-collaborative form
@@ -147,25 +192,172 @@ sim_twoPL <- function(alpha, beta, theta = 0){
 #' @return A \code{length(ind_theta)/2} by \code{length(model)} matrix, each column of which contains the lr_tests for each model.
 #'
 
-lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta){
+lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
 
   odd <- seq(from = 1, to = length(ind_theta), by = 2)
-	theta1 <- ind_theta[odd]
-	theta2 <- ind_theta[odd+1]
-	n_pairs <- length(odd)
-	n_model <- length(model)
-  model_logL <- data.frame(matrix(0, nrow = n_pairs, ncol = n_model))
+  theta1 <- ind_theta[odd]
+  theta2 <- ind_theta[odd+1]
+  n_pair <- length(odd)
+  n_model <- length(model)
+  mod <- matrix(0, nrow = n_pair, ncol = n_model)
+  OUT <- vector("list", n_model)
+  names(OUT) <- model
 
-	for(i in 1:n_model){
-   model_logL[, i] <-
-     logL(resp, model = model[i], alpha, beta, theta1, theta2)
+  # Helper function for computing P(x > obs)
+  pobs <- function(cdf, obs){
+    1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
   }
 
-  ref_logL <- logL(resp, "twoPL", alpha, beta, col_theta[odd])
+  # logL for collaboration models
+  for (i in 1:n_model){
+    mod[, i] <-
+      logL(resp, model = model[i], alpha, beta, theta1, theta2)
+  }
 
-  out <- -2*(model_logL - ref_logL)
-  colnames(out) <- model
-  out
- }
+  # logL for reference model
+  ref <- logL(resp, "twoPL", alpha, beta, col_theta[odd])
+  lr <- -2*(mod - ref)
+
+  # Bootstrapping (could fancy this up...)
+  if (n_boot > 0){
+    theta1_long <- rep(theta1, each = n_boot)
+    theta2_long <- rep(theta2, each = n_boot)
+    boot_ind <- rep(1:n_pair, each = n_boot)
+
+    for (i in 1:n_model){
+      boot_data <- sim_data(model[i], alpha, beta, theta1_long, theta2_long)
+      boot_mod <- logL(boot_data, model[i], alpha, beta, theta1_long, theta2_long)
+      boot_ref <- ml_twoPL(boot_data, alpha, beta)
+      boot_lr <- -2*(boot_mod - boot_ref[,1])
+
+      # 95% CIs
+      temp <- tapply(boot_lr, boot_ind, function(x) quantile(x, p = c(.025, .975)))
+      boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = n_pair))
+
+      # P(lr > obs)
+      boot_cdf <- tapply(boot_lr, boot_ind, ecdf)
+      boot_p <-mapply(function(x,y) pobs(x, y), boot_cdf, out[,i])
+
+      # Storage
+      temp <- data.frame(cbind(lr[,i], boot_ci[], boot_p))
+      names(temp) <- c("lr", "ci_lower", "ci_upper", "p_obs")
+      OUT[[i]] <- temp
+      }
+  }
+  OUT
+}
 
 
+
+
+
+
+
+
+
+
+
+
+#Scrap --------------------------------------------------------------------------
+
+
+#'
+#' #' Integrand of likelihood of a single response pattern and stated model
+#' #'
+#' #' Function is passed to \code{likelihood} to evalute likelihood of a model; see \code{likelihood} for details of args.
+#' #'
+#' #' @return likelihood*prior
+#' #'
+#' f_cubature <- function(x, resp, model, alpha, beta, theta, se){
+#'   if (model == "twoPL"){
+#'     irf <-  twoPL(alpha, beta, x)
+#'     prior <- dnorm(x, theta, se)
+#'   } else {
+#'     fun <- match.fun(model)
+#'     irf <- fun(alpha, beta, x[1], x[2])
+#'     prior <- dnorm(x[1], theta[1], se[1])*dnorm(x[2], theta[2], se[2])
+#'   }
+#'   lik <- exp(apply(log(irf)*(resp) + log(1-irf)*(1-(resp)), 1, sum, na.rm = T))
+#'   lik*prior
+#' }
+#'
+#' #--------------------------------------------------------------------------
+#' #' Compute the likelihood of a single response pattern for a stated model
+#' #'
+#' #' This function is a wrapper that passes \code{f_cubature} to \code{adaptIntegrate}. Requires package \code{cubature}.
+#' #'
+#' #' @param resp is the response pattern whose likelihood is desired
+#' #' @param model is one of \code{c("twoPL", "Ind", "Min", "Max", "AI") }
+#' #' @param alpha the item discriminations
+#' #' @param beta the item difficulties
+#' #' @param theta is a vector of length 1 or 2 depending on the model
+#' #' @param se is the standard error(s) for theta (required!)
+#' #' @param lim is \code{c(lowerLimit, upperLimit)} passed to adaptIntegrate
+#' #' @returns the output from evaluating adpatIntegrate on f_cubature with the stated args (a named list).
+#'
+#' likelihood <- function(resp, model, alpha, beta, theta, se){
+#'   n_theta <- length(theta)
+#'   lim <- c(min(qnorm(.01, theta, se)), max(qnorm(.99, theta, se)))
+#'
+#'   adaptIntegrate(f_cubature,
+#'                  lowerLimit = rep(lim[1], n_theta),
+#'                  upperLimit = rep(lim[2], n_theta),
+#'                  resp = resp,
+#'                  model = model,
+#'                  alpha = alpha,
+#'                  beta = beta,
+#'                  theta = theta,
+#'                  se = se,
+#'                  maxEval = 500
+#'                  )
+#' }
+#'
+#'
+
+#' #--------------------------------------------------------------------------
+#' #' Computes likelihood ratio test for stated model(s) of pairwise collaboration.
+#' #'
+#' #' Computes a likelihood ratio test for one or more models of pairwise collaboration, using ``assumed to be known'' item parameters. Under the assumption of known item parameters, the collaborative model is a simple hypothesis, and its likelihood is evaluated by integrating the model IRF over the prior distribution of theta for both members. The prior distrubtion is assumed to be Gaussian (or reasonably approximated as such), with mean vector and (diagonal) covariance matrix esimated from the indviduals working in isoloation. The collaborative model is compared to a reference model, which is also a simple hypothesis. The reference model is a  standard is 2PL (with assumed to be known items parameters), with the prior distribtuion of theta given by some trickery yet to be entirely sorted out.
+#'
+#' #' @param data a matrix of binary response patterns
+#' #' @param model is one or more of \code{c("Ind", "Min", "Max", "AI") }
+#' #' @param alpha the item discriminations of the resp items
+#' #' @param beta the item difficulties of the resp items
+#' #' @param ind_theta the latent trait for each member, as estimated from a non-collaborative form
+#' #' @param col_theta the latent trait for each member, as estimated from a collaborative form
+#' #' @return A \code{length(ind_theta)/2} by \code{length(model)} matrix, each column of which contains the lr_tests for each model.
+#'
+#' lr_test <-function(data, model, alpha, beta, ind_theta, ind_se, col_theta, col_se){
+#'   odd <- seq(from = 1, to = length(ind_theta), by = 2)
+#'   even <- odd +1
+#'   n_pair <- length(odd)
+#'   n_model <- length(model)
+#'   mod <- matrix(0, nrow = n_pair, ncol = n_model)
+#'   ref <- mod[,1]
+#'   # likelihoods for each model and each resp pattern -- yick!
+#'   for (i in 1:n_pair){
+#'
+#'     for(j in 1:n_model){
+#'       mod[i, j] <- likelihood(data[i,],
+#'                     model = "Min",
+#'                     alpha,
+#'                     beta,
+#'                     theta = ind_theta[c(odd[i], even[i])],
+#'                     se = ind_se[c(odd[i], even[i])]
+#'                     )$integral
+#'     }
+#'
+#'     ref[i] <- likelihood(data[i,],
+#'                 model = "twoPL",
+#'                 alpha,
+#'                 beta,
+#'                 theta = col_theta[i],
+#'                 se = col_se[i]
+#'                 )$integral
+#'
+#'   }
+#'
+#'   OUT <- -2*(log(mod) - log(ref))
+#'   colnames(OUT) <- model
+#'   OUT
+#' }

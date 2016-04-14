@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{logL}
 \alias{logL}
-\title{Log-likelihood of given matrix of binary responses for a stated model}
+\title{Log-ikelihood of given matrix of binary responses for a stated model, conditional on theta.}
 \usage{
 logL(resp, model, alpha, beta, theta1, theta2 = NULL)
 }
@@ -20,9 +20,9 @@ logL(resp, model, alpha, beta, theta1, theta2 = NULL)
 \item{theta2}{the latent trait for member 2}
 }
 \value{
-\code{nrow(resp)}-vector of log-likleihoods for each response pattern
+An \code{nrow(resp)}-vector of log-likleihoods for each response pattern.
 }
 \description{
-Computes a vector of log-likelihoods for a given matrix binary response patterns.
+Computes a vector of likelihoods for a given matrix binary response patterns, for a selection of models for pairwise collaboration, conditional on theta
 }
 

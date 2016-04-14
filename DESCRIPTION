@@ -3,7 +3,7 @@ Type: Package
 Title: Some functions and data for collaborative outcomes workshop
 Version: 0.1.0
 Author: Peter F Halpin
-Maintainer: peter.halpin [at] nyu [dot] edu
+Maintainer: Peter F Halpin <peter.halpin@nyu.edu>
 Description: Supporting functions for bootstrapped likelihood ratio tests of
     some models of collaboration
 License: GNU GENERAL PUBLIC LICENSE

@@ -19,6 +19,6 @@ Max(alpha, beta, theta1, theta2)
 \code{length(theta)} by \code{length(alpha)} matrix of response probabilities
 }
 \description{
-Computes a matrix of probabilities for correct responses using the maximum model of collaboration for the members and the 2PL model for the items
+Computes a matrix of probabilities for correct responses using the maximum model of collaboration for the members and the 2PL model for the items.
 }
 

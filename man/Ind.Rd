@@ -16,7 +16,7 @@ Ind(alpha, beta, theta1, theta2)
 \item{theta2}{the latent trait for member 2}
 }
 \value{
-\code{length(theta)} by \code{length(alpha)} matrix of response probabilities
+\code{length(theta)} by \code{length(alpha)} matrix of response probabilities.
 }
 \description{
 Computes a matrix of probabilities for correct responses using the independence model of collaboration for the members and the 2PL model for the items.

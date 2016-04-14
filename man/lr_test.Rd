@@ -4,12 +4,12 @@
 \alias{lr_test}
 \title{Likelihood ratio tests for various models of collaboration.}
 \usage{
-lr_test(resp, model, alpha, beta, ind_theta, col_theta)
+lr_test(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0)
 }
 \arguments{
 \item{resp}{the matrix binary data from the \strong{collaborative responses}}
 
-\item{model}{is one or more of \code{c("twoPL", "Ind", "Min", "Max", "AI") }}
+\item{model}{is one or more of \code{c("Ind", "Min", "Max", "AI") }}
 
 \item{alpha}{the item discriminations of the resp items}
 
@@ -23,6 +23,6 @@ lr_test(resp, model, alpha, beta, ind_theta, col_theta)
 A \code{length(ind_theta)/2} by \code{length(model)} matrix, each column of which contains the lr_tests for each model.
 }
 \description{
-Computes a boostrapped likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
+Computes a likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
 }
 
