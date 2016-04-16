@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{sim_data}
 \alias{sim_data}
-\title{Simulate data from a model of pairwise collaboration.}
+\title{Simulate data from a the 2PL or a model of pairwise collaboration.}
 \usage{
 sim_data(model, alpha, beta, theta1 = 0, theta2 = 0)
 }

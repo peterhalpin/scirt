@@ -2,13 +2,14 @@
 # Functions for computing bootstrapped LR tests of collaboration models.
 # User beware: functions not written to check or handle input errors.
 
+require(stats4)
+require(ggplot2)
 
 #--------------------------------------------------------------------------
 #' Item response function for 2PL
 #'
 #' Computes a matrix of probabilities for correct responses under 2PL model
 #'
-
 #' @param alpha the item discriminations
 #' @param beta the item difficulties
 #' @param theta the latent trait
@@ -94,7 +95,7 @@ AI <- function(alpha, beta, theta1, theta2){
 
 
 #--------------------------------------------------------------------------
-#' Simulate data from a model of pairwise collaboration.
+#' Simulate data from a the 2PL or a model of pairwise collaboration.
 #'
 #' Simulate data using either the 2PL or a model for pariwise collaboration obtained from the 2PL.
 #' @param model is one of \code{c("twoPL", "Ind", "Min", "Max", "AI") }
@@ -110,13 +111,14 @@ sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
   n_col <- length(alpha)
   fun <- match.fun(model)
   Q <- array(runif (n_row * n_col), dim = c(n_row, n_col))
+
   if (model == "twoPL"){
     P <- fun(alpha, beta, theta1)
   } else {
     P <- fun(alpha, beta, theta1, theta2)
   }
 
-  OUT <- ifelse(P > Q, 1, 0)
+  OUT <- ifelse (P > Q, 1, 0)
   colnames(OUT) <- names(alpha)
   OUT
 }
@@ -139,7 +141,7 @@ sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
 logL <- function(resp, model, alpha, beta, theta1, theta2 = NULL){
   if (model == "twoPL"){
     p <- twoPL(alpha, beta, theta1)
-  }else{
+  } else {
     fun <- match.fun(model)
     p <- fun(alpha, beta, theta1, theta2)
   }
@@ -161,30 +163,20 @@ neg_logL <- function(theta, resp, alpha, beta){
 #' Internal function used in lr_test; under development.
 #' @export
 
-ml_twoPL<-function(resp, alpha, beta, method = "ML")
-{
-  # resp is the n.person by n.item 1/0 response matrix
-  # theta is estimated.
-  # method is MLE for now, but can do the same thing for EB
-  # (Need to get mle to accept non-numeric argument?)
-
-  # Storage
-
+ml_twoPL<-function(resp, alpha, beta, method = "ML"){
   OUT <- matrix(0, nrow = nrow(resp), ncol = 3)
   colnames(OUT) <- c("logL", "theta", "se")
 
-  for(i in 1:nrow(resp))
+  for (i in 1:nrow(resp))
   {
     temp <- mle(neg_logL,
                start = list(theta = 0),
                fixed = list(resp = resp[i,], alpha = alpha, beta = beta),
                method = "Brent",
                lower = -4,
-               upper = 4
-    )
-    OUT[i,] <- c(logLik(temp), coef(temp)[1], vcov(temp))
+               upper = 4)
 
-    flush.console()
+    OUT[i,] <- c(logLik(temp), coef(temp)[1], vcov(temp))
   }
   OUT[,3] <- sqrt(OUT[,3])
   OUT
@@ -196,14 +188,14 @@ ml_twoPL<-function(resp, alpha, beta, method = "ML")
 #'
 #' Computes a likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
 #'
-#' @param resp the matrix binary data from the \strong{collaborative responses}
+#' @param resp the matrix binary data from the conjunctively scored \strong{collaborative responses}
 #' @param model is one or more of \code{c("Ind", "Min", "Max", "AI") }
-#' @param alpha the item discriminations of the resp items
-#' @param beta the item difficulties of the resp items
-#' @param ind_theta the latent trait for each member, as estimated from a non-collaborative form
-#' @param col_theta the latent trait for each member, as estimated from a collaborative form
+#' @param alpha the item discriminations of (only) the resp items
+#' @param beta the item difficulties of (only) the resp items
+#' @param ind_theta the \code{nrow(resp)*2}-dimensional vector of latent traits for each member, as estimated from a non-collaborative form
+#' @param col_theta the \code{nrow(resp)}-dimensional vector of latent traits for each pair, as estimated from a (conjunctively scored) collaborative form
 #' @param n_boot number of bootstraps to use for testing the likelihood ratio.
-#' @return A \code{length(ind_theta)/2} by \code{length(model)} matrix, each column of which contains the lr_tests for each model.
+#' @return A list of lenght \code{length(model)}, each element of which is a data frame with \code{nrow(resp)} rwos containing the output for lr_tests for each pair.
 #' @export
 
 lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
