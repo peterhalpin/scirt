@@ -1,0 +1,53 @@
+---
+title: "Examples for Bear Workshop 2"
+author: "Peter F Halpin"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Set up sesssion
+
+```{r echo = T, message = F}
+devtools::install_github("peterhalpin/BearShare")
+#library("BearShare")
+library("ltm")
+library("ggplot2")
+```
+
+## Calibrate NAEP items using 2PL and save item parameters
+
+```{r ltm }
+calib_ltm <- ltm(calibration ~ z1)
+beta <- coef(calib_ltm)[,1]
+alpha <- coef(calib_ltm)[,2]
+```
+
+# The friends data set
+Item responses from 7 pairs of friends working on two sets of items. Items names are formatted as follows: first 3 characters are the item number (1:100). The fourth character is the item difficulty, according to NAEP (E = easy, M = medium, H = hard). The fifth character is the item content area, according to NAEP (A = algebra, D = data, G = graphs, M = measurement, N = numbers). The _I and _C denote whether items were responded to in a by individuals or in collaboration with their partner. 
+
+```{r friends, echo= F}
+head(friends) 
+```
+
+Let's get the individual and collaborative forms
+```{r forms, echo= T}
+ind_form <- col_form <- friends[,-1]
+ind_form[, grep("C", names(ind_form))] <- NA
+col_form[, grep("I", names(col_form))] <- NA
+```
+
+Apply the conjunctive scoring rule to the collaborative form
+```{r scoring, echo= T}
+odd <- seq(1, nrow(col_form), by = 2)
+col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
+```
+
+Estimate and plot abilities on individual and collaborative test forms
+```{r barbell, echo= T}
+ind_theta <- factor.scores(calib_ltm, ind_form)$score.dat$z1
+col_theta <- factor.scores(calib_ltm, col_form)$score.dat$z1
+barbell_plot(ind_theta, col_theta)
+```

@@ -266,6 +266,41 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
 }
 
 
+#--------------------------------------------------------------------------
+#' Plots individual versus collaborative peformance
+#'
+#' Wrapper on ggplot to make barbell plots for pariwise collboration.
+#'
+#' @param ind_theta vector of test scores on a individual assessment
+#' @param col_theta corresponding vector of test scores on collaborative assessment
+#'
+#' @return A barbell plot
+#' @export
+
+barbell_plot <- function(ind_theta, col_theta){
+
+  data <- data.frame(ind_theta, col_theta)
+  lim <- c(min(data)-.2, max(data)+.2)
+  data$pairs <- factor(rep(1:(length(ind_theta)/2), each = 2))
+
+  ggplot(data = data, aes(x = ind_theta, y = col_theta, group = pairs)) +
+    geom_line(aes(color = pairs)) +
+    geom_point(aes(color = pairs), size = 4) +
+    scale_x_continuous(limits = lim) +
+    scale_y_continuous(limits = lim) +
+    geom_abline(intercept = 0, slope = 1, col = "grey") +
+    theme(legend.position = "none") +
+    ggtitle("Collaborative vs Individual Performance") +
+    xlab("Individual Theta")+
+    ylab("Collaborative Theta")+
+    theme(axis.text.x = element_text(size = 13),
+          axis.text.y = element_text(size = 13)
+    )
+}
+
+
+
+
 
 
 
