@@ -10,11 +10,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Set up sesssion
 
-```{r echo = T, message = F}
+```{r echo = T, message = F, warning = F}
 devtools::install_github("peterhalpin/BearShare")
-#library("BearShare")
+library("BearShare")
 library("ltm")
 library("ggplot2")
+library("stats4")
 ```
 
 ## Calibrate NAEP items using 2PL and save item parameters
@@ -25,11 +26,11 @@ beta <- coef(calib_ltm)[,1]
 alpha <- coef(calib_ltm)[,2]
 ```
 
-# The friends data set
+# The `friends` dataset
 Item responses from 7 pairs of friends working on two sets of items. Items names are formatted as follows: first 3 characters are the item number (1:100). The fourth character is the item difficulty, according to NAEP (E = easy, M = medium, H = hard). The fifth character is the item content area, according to NAEP (A = algebra, D = data, G = graphs, M = measurement, N = numbers). The _I and _C denote whether items were responded to in a by individuals or in collaboration with their partner. 
 
-```{r friends, echo= F}
-head(friends) 
+```{r friends, echo= T}
+head(friends[,1:8]) 
 ```
 
 Let's get the individual and collaborative forms
@@ -45,9 +46,54 @@ odd <- seq(1, nrow(col_form), by = 2)
 col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
 ```
 
-Estimate and plot abilities on individual and collaborative test forms
+Estimate and plot abilities on individual and collaborative test forms. Any guesses about which pairs exemplify which models of collaboration?? 
+
 ```{r barbell, echo= T}
-ind_theta <- factor.scores(calib_ltm, ind_form)$score.dat$z1
-col_theta <- factor.scores(calib_ltm, col_form)$score.dat$z1
+ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
+col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1
 barbell_plot(ind_theta, col_theta)
 ```
+
+Set up and run LR tests for models. Use `help(lr_test)` or `lr_test` to see what's going on. Do the conclusions baed on the LR tests line up with the barbell plot? Any considerations about what is going here? 
+
+```{r lr, echo = T, message = F}
+parms <- coef(calib_ltm)
+beta <- parms[grep("C", row.names(parms)), 1]
+alpha <- parms[grep("C", row.names(parms)), 2]
+
+resp <- col_form[odd, grep("C", names(col_form))]
+models <- c("Ind", "Min", "Max", "AI")
+
+lr <- lr_test(resp, models, alpha, beta, ind_theta, col_theta[odd], n_boot = 500)
+
+lr
+```
+
+
+Here is the sanity check from the slides. Using the individual form, apply the conjunctive scoring rule. We know the individual model must be correct -- what does the LR test tell us? 
+
+```{r sanity, echo = T, message = F}
+
+beta_I <- parms[grep("I", row.names(parms)), 1]
+alpha_I <- parms[grep("I", row.names(parms)), 2]
+
+sanity_check_form  <- ind_form[odd,]*ind_form[odd+1,]
+
+sanity_check_theta <- factor.scores(calib_ltm, 
+                                sanity_check_form, 
+                                type = "EB", 
+                                prior = F)$score.dat$z1
+
+sanity_lr <- lr_test(sanity_check_form[,grep("I", names(sanity_check_form))], 
+                    models, 
+                    alpha_I, 
+                    beta_I, 
+                    ind_theta, 
+                    sanity_check_theta, 
+                    n_boot = 500)
+
+sanity_lr
+
+```
+
+Suggestions for further analyses: Use `sim_data` to generate data from a model. Use the `pilot` dataset to run an analysis for the data that I'll talk about this afternoon and tomorrow. 

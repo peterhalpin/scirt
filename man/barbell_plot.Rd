@@ -4,12 +4,14 @@
 \alias{barbell_plot}
 \title{Plots individual versus collaborative peformance}
 \usage{
-barbell_plot(ind_theta, col_theta)
+barbell_plot(ind_theta, col_theta, legend = "none")
 }
 \arguments{
 \item{ind_theta}{vector of test scores on a individual assessment}
 
 \item{col_theta}{corresponding vector of test scores on collaborative assessment}
+
+\item{passed}{to ggplot \code{legend.position}}
 }
 \value{
 A barbell plot

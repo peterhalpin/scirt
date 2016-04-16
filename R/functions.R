@@ -273,11 +273,11 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
 #'
 #' @param ind_theta vector of test scores on a individual assessment
 #' @param col_theta corresponding vector of test scores on collaborative assessment
-#'
+#' @param passed to ggplot \code{legend.position}
 #' @return A barbell plot
 #' @export
 
-barbell_plot <- function(ind_theta, col_theta){
+barbell_plot <- function(ind_theta, col_theta, legend = "none"){
 
   data <- data.frame(ind_theta, col_theta)
   lim <- c(min(data)-.2, max(data)+.2)
@@ -289,7 +289,7 @@ barbell_plot <- function(ind_theta, col_theta){
     scale_x_continuous(limits = lim) +
     scale_y_continuous(limits = lim) +
     geom_abline(intercept = 0, slope = 1, col = "grey") +
-    theme(legend.position = "none") +
+    theme(legend.position = legend) +
     ggtitle("Collaborative vs Individual Performance") +
     xlab("Individual Theta")+
     ylab("Collaborative Theta")+
@@ -297,6 +297,18 @@ barbell_plot <- function(ind_theta, col_theta){
           axis.text.y = element_text(size = 13)
     )
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
