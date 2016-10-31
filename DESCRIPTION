@@ -1,15 +1,15 @@
-Package: BearShare
+Package: cirt
 Type: Package
-Title: Some functions and data for collaborative outcomes workshop
-Version: 0.1.0
+Title: Some functions and data psychometric models of small group interactions
+Version: 0.2.0
 Author: Peter F Halpin
 Maintainer: Peter F Halpin <peter.halpin@nyu.edu>
-Description: Supporting functions for bootstrapped likelihood ratio tests of
-    some models of collaboration
+Description: Supporting functions for bootstrapped likelihood ratio tests of some models of collaboration
 License: GNU GENERAL PUBLIC LICENSE
 LazyData: TRUE
 RoxygenNote: 5.0.1
 Imports: stats4,
          ggplot2,
+         dplyr
 Suggests: ltm
 Depends: R(>= 2.10)
