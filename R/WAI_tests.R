@@ -7,7 +7,6 @@ library("ltm")
 library("ggplot2")
 library("stats4")
 
-
 calib_ltm <- ltm(calibration ~ z1)
 beta <- coef(calib_ltm)[,1]
 alpha <- coef(calib_ltm)[,2]
@@ -26,6 +25,33 @@ barbell_plot(ind_theta, col_theta, legend = "left")
 parms <- coef(calib_ltm)
 beta_C <- parms[grep("C", row.names(parms)), 1]
 alpha_C <- parms[grep("C", row.names(parms)), 2]
+
+# Set up arges for screen -----------------------------------------------------------------------
+
+delta <- function(alpha, beta, theta1, theta2){
+  Min(alpha, beta, theta1, theta2) * (1 - Max(alpha, beta, theta1, theta2))
+}
+
+screen <- function(cutoff, alpha, beta, theta1, theta2){
+  screen <- delta(alpha, beta, theta1, theta2)
+  screen[screen < cutoff] <- NA
+  screen[!is.na(screen)] <- 1
+  screen
+}
+
+resp <- col_form[odd,grep("C", names(col_form))]
+models <- c("Ind", "Min", "Max", "AI")
+S <- screen(.05, alpha_C, beta_C, ind_theta[odd], ind_theta[odd+1])
+
+lr1 <- lr_test(resp, models, alpha_C, beta_C, ind_theta, col_theta[odd], n_boot = 500)
+lr2 <- lr_test(resp*S, models, alpha_C, beta_C, ind_theta, col_theta[odd], n_boot = 500)
+i = 4
+p1 <- p2 <- matrix(0, nrow = 7, ncol = 4)
+p1[] <- unlist(lapply(lr1, function(x) x[,1]))
+p2[] <- unlist(lapply(lr2, function(x) x[,1]))
+p1;p2
+apply(S, 1, sum, na.rm = T)
+R
 
 # Set up arges for GAI ---------------------------------------------------------------------------
 
@@ -245,25 +271,3 @@ info_theta <- function(theta1, theta2, w, alpha, beta){
 l <- outer(theta1, theta2, info_theta, w, alpha, beta)
 l[l > 10] = NA
 persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-
-hist(l, breaks = 200)
-
-
-par(bg = "white")
-x <- seq(-1.95, 1.95, length = 30)
-y <- seq(-1.95, 1.95, length = 35)
-z <- outer(x, y, function(a, b) a*b^2)
-nrz <- nrow(z)
-ncz <- ncol(z)
-# Create a function interpolating colors in the range of specified colors
-jet.colors <- colorRampPalette( c("blue", "green") )
-# Generate the desired number of colors from this palette
-nbcol <- 100
-color <- jet.colors(nbcol)
-# Compute the z-value at the facet centres
-zfacet <- z[-1, -1] + z[-1, -ncz] + z[-nrz, -1] + z[-nrz, -ncz]
-# Recode facet z-values into color indices
-facetcol <- cut(zfacet, nbcol)
-persp(x, y, z, col = color[facetcol], phi = 30, theta = -30)
-
-par(op)
