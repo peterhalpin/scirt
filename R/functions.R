@@ -138,6 +138,7 @@ sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
 #' @return An \code{nrow(resp)}-vector of log-likleihoods for each response pattern.
 #' @export
 
+
 logL <- function(resp, model, alpha, beta, theta1, theta2 = NULL){
   if (model == "twoPL"){
     p <- twoPL(alpha, beta, theta1)
