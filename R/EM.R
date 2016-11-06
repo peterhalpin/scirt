@@ -13,7 +13,7 @@ library("stats4")
 # c) compute prior (using exponential parameterization)
 # iterate b and c; beware of underflow
 
-# data set up
+# data set up -------------------------------------------------------------------
 calib_ltm <- ltm(calibration ~ z1)
 parms <- coef(calib_ltm) %>% data.frame
 names(parms) <- c("beta", "alpha")
@@ -30,25 +30,24 @@ theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
 theta1 <- theta[odd]
 theta2 <- theta[odd+1]
 
-hist(q)
-hist(apply(q, 1, mean))
-q <- delta(parms$alpha, parms$beta, theta1, theta2)
-S <- screen(.025, parms$alpha, parms$beta, theta1, theta2)
+# EM -------------------------------------------------------------------
 
 models <- c("Ind", "Min", "Max", "AI")
+weights <- delta(parms$alpha, parms$beta, theta1, theta2) / .25
+#S <- screen(.025, parms$alpha, parms$beta, theta1, theta2)
 
-l <- likelihood(models, col_resp, theta1, theta2, parms, Log = F)
-ind1 <- EM(models, ind_resp, theta1, theta2, parms)
-ind2 <- EM(models, ind_resp*S, theta1, theta2, parms)
+ind1 <- EM(models, ind_resp, theta1, theta2, parms, weights)
+ind2 <- EM(models, ind_resp, theta1, theta2, parms)
 ind2
 
-col1 <- EM(models, col_resp, theta1, theta2, parms, conv = 1e-3 )
-col2 <- EM(models, col_resp*S, theta1, theta2, parms, conv = 1e-5)
+col1 <- EM(models, col_resp, theta1, theta2, parms, weights)
+col2 <- EM(models, col_resp, theta1, theta2, parms)
+col1
 
-EM <- function(models, ind_resp, theta1, theta2, parms, n_reps = 100, conv = 1e-3) {
+EM <- function(models, resp, theta1, theta2, parms, weights = NULL, n_reps = 100, conv = 1e-5) {
   n_models <- length(models)
   p <- rep(1/n_models, n_models)
-  l <- likelihood(models, resp, theta1, theta2, parms, Log = F)
+  l <- likelihood(models, resp, theta1, theta2, parms, weights, Log = F)
 
   trace <- incomplete_data(l, p)
   i <- 1
@@ -66,15 +65,17 @@ EM <- function(models, ind_resp, theta1, theta2, parms, n_reps = 100, conv = 1e-
   out
 }
 
-likelihood <- function(models, resp, theta1, theta2, parms, Log = T){
+likelihood <- function(models, resp, theta1, theta2, parms, weights = NULL, Log = T){
   n_models <- length(models)
   out <- array(0, dim = c(n_models, nrow(resp)))
+  if (is.null(weights)) weights <- array(1, dim = dim(resp))
+
   for (i in 1:n_models) {
     fun <- match.fun(models[i])
     p <- fun(parms$alpha, parms$beta, theta1, theta2)
-    out[i,] <- apply(log(p)*(resp) + log(1-p)*(1-(resp)), 1, sum, na.rm = T)
+    out[i,] <- apply(weights * (log(p) * (resp) + log(1-p) * (1-(resp))), 1, sum, na.rm = T)
   }
-  if (Log){out} else {exp(out)}
+  if (Log) {out} else {exp(out)}
 }
 
 posterior <- function(l, p) {

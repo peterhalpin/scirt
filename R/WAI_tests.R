@@ -41,6 +41,7 @@ screen <- function(cutoff, alpha, beta, theta1, theta2){
 
 resp <- col_form[odd,grep("C", names(col_form))]
 models <- c("Ind", "Min", "Max", "AI")
+d <- delta(alpha_C, beta_C, ind_theta[odd], ind_theta[odd+1])
 S <- screen(.05, alpha_C, beta_C, ind_theta[odd], ind_theta[odd+1])
 
 lr1 <- lr_test(resp, models, alpha_C, beta_C, ind_theta, col_theta[odd], n_boot = 500)
