@@ -51,13 +51,12 @@ s <- screen(.05, parms$alpha, parms$beta, theta1, theta2)
 col1 <- EM(models, col_resp, theta1, theta2, parms)
 col1$prior
 
-
-
 # Plots -------------------------------------------------------------------
 l <- likelihood(models, col_resp*s, theta1, theta2, parms, Log = F)
   temp <- posterior(l, col1$prior)
 
 temp <- col1$posterior
+
 
 table(apply(temp, 1, which.max))
 hist(temp%*% 1:4, breaks = 20)
@@ -78,13 +77,16 @@ q$model <- ordered(q$model, c("Ind", "Min", "Max", "AI"))
 ggplot(q, aes(pair, model, fill = prob)) + geom_raster()
 
 # barbells study -------------------------------------------------------------------
+
 col_resp <- col_form[odd, ]*col_form[odd+1,]
 col_theta <- factor.scores(calib_ltm, col_resp, type = "EAP", prior = F)$score.dat$z1
 col_theta[col_theta > 18] <- NA
+
+
 q <- cbind(theta, rep(col_theta, each = 2), rep(temp%*%1:4, each = 2))
 q <- data.frame(q)
 q$delta <- q[,2] - q[,1]
-plot(q[,3], q$delta)
+plot(q[,3], q$deltaA)
 ind1 <- q[,3] < 2
 ind2 <- q[,3] > 2 & q[,3] < 3
 ind3 <- q[,3] > 3.2
