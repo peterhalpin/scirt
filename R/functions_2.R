@@ -186,7 +186,6 @@ gradWAI <- function(a, resp, alpha, beta, theta1, theta2){
   -1*c(sum(m*g1, na.rm = T), sum(m*g2, na.rm = T))
 }
 
-
 #--------------------------------------------------------------------------
 #' Internal function used in lr_test; under development.
 #' @export
