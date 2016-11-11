@@ -250,21 +250,23 @@ hist(l, breaks = 200)
 
 
 
-theta1 <- theta2 <- seq(-3, 3, by = .1)
-beta = -2
-alpha = 1
-delta <- function(theta1, theta2){
-  twoPL(theta1, beta, alpha) * (1 - twoPL(theta2, beta, alpha))
+alpha <-  seq(0, 100, by = .1)
+theta1 <- 0
+theta2 <- 2
+beta = (theta1 + theta2)/2
+
+d2 <- function(alpha){
+  delta(alpha, beta, theta1, theta2)
 }
 
-d <- outer(theta1, theta2, delta)
-d[lower.tri(d)] <- NA
-persp(theta1, theta2, d, theta = -65, phi = 20, col = fill, ticktype = "detailed", nticks = 5)
+plot(alpha, d2(alpha))
 
-i2
-> fill[i1 <- c(1,nrow(fill)) , ] <- "gray"
+beta[which.max(d2(beta))]
+(theta1 + theta2)/2
 
-> par(bg = "lightblue")
+d <- outer(theta1, theta2, d2)
 
 
-help(outer)
+d[lower.tri(d, diag = F)] <- NA
+persp(theta1, theta2, d, theta = -0, phi = 20, ticktype = "detailed", nticks = 5)
+max(d, na.rm = T)
