@@ -83,9 +83,9 @@ persp(theta1, theta2, R2, theta = -55, phi = 20, main = " ", col = "grey", expan
 # plots IRFS
 theta <- seq(-4, 4, by = .25)
 nIRF <- 4
-a <- 2.5
-alpha <- c(a, a, a, a/4)
-beta <- c(-2, 2, 0, 0)
+a <- 2
+alpha <- c(a, a, a, a/3)
+beta <- c(-1, 1, 0, 0)
 temp <- cbind(rep(1:nIRF, each = length(theta)), rep(theta, times = length(nIRF)))
 q <- c()
 for(i in 1:nIRF) q <- c(q, twoPL(alpha[i], beta[i], theta))

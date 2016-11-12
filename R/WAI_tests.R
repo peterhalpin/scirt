@@ -251,8 +251,8 @@ hist(l, breaks = 200)
 
 
 alpha <-  seq(0, 100, by = .1)
-theta1 <- 0
-theta2 <- 2
+theta1 <- 10
+theta2 <- -2
 beta = (theta1 + theta2)/2
 
 d2 <- function(alpha){
