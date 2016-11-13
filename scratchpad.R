@@ -20,21 +20,120 @@ odd <- seq(1, nrow(col_form), by = 2)
 col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
 
 ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
-col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1
+col_theta <- factor.scores(calib_ltm, col_, type = "EB", prior = F)$score.dat$z1
 barbell_plot(ind_theta, col_theta, legend = "left")
 
 parms <- coef(calib_ltm)
 beta_C <- parms[grep("C", row.names(parms)), 1]
 alpha_C <- parms[grep("C", row.names(parms)), 2]
 
-# Set up args-----------------------------------------------------------------------
+# New data -----------------------------------------------------------------------
 
-resp <- col_form[odd, grep("C", names(col_form))]
+machine <- "peterfrancis"
+machine <- "peterhalpin"
+setwd(paste0("/Users/", machine, "/Dropbox/Academic/Projects/CA/Data/response_matrices"))
+calib <- read.csv("calibration_2016.csv", check.names = F)
+names(calib)
+
+# The whoe thing?
+calib_ltm <- ltm(calib[,-1] ~ z1)
+parms <- coef(calib_ltm) %>% data.frame
+names(parms) <- c("beta", "alpha")
+hist(parms$alpha)
+
+collab <- read.csv("collaboration_2016.csv", check.names = F)
+names(collab)
+
+format_resp <- function(collab, calib, version){
+  temp <- collab[grep(version, names(collab))]
+  names(temp) <- substr(names(temp), 1, 5)
+  temp[names(calib)[!names(calib)%in%names(temp)]] <- NA
+  temp <- temp[names(calib)]
+  temp
+}
+
+col_form <- format_resp(collab, calib[,-1], "COL")
+ind_form <- format_resp(collab, calib[,-1], "IND")
+
+odd <- seq(1, nrow(col_form), by = 2)
+col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
+
+ss <- apply(ind_form, 1, sum, na.rm = T)
+plot(ss[odd], ss[odd+1])
+
+ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
+col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1
+
+hist(col_theta)
+hist(ind_theta)
+
+# temp fix for shite
+ind_theta[abs(ind_theta) > 4] <- NA
+col_theta[abs(col_theta) > 4] <- NA
+
+drop_groups <- collab$group_id[is.na(ind_theta) | is.na(col_theta)]
+col_form <- col_form[!collab$group_id%in%drop_groups, ]
+ind_theta <- ind_theta[!collab$group_id%in%drop_groups]
+col_theta <- col_theta[!collab$group_id%in%drop_groups]
+odd <- seq(1, nrow(col_form), by = 2)
+
+barbell_plot(ind_theta[1:60], col_theta[1:60])
+
+
+# EM -------------------------------------------------------------------
+models <- c("Ind", "Min", "Max", "AI")
 theta1 <- ind_theta[odd]
 theta2 <- ind_theta[odd+1]
-alpha <- alpha_C
-beta <- beta_C
-a <- c(.25, .25, .25, .25)
+
+cor(theta1, theta2)
+
+weights <- delta(parms$alpha, parms$beta, theta1, theta2)
+s <- screen(.05, parms$alpha, parms$beta, theta1, theta2)
+
+
+sanity <- EM(models, ind_form[odd,]*ind_form[odd+1,]*s, theta1, theta2, parms)
+sanity$prior
+
+col <- EM(models, col_form[odd,]*s, theta1, theta2, parms)
+col$prior
+
+temp <- col$posterior
+
+temp_ind <- which(temp%*% 1:4 > 3 & temp%*% 1:4 < 3.5)
+temp_ind <- sort(c(temp_ind*2, (temp_ind*2)-1))
+
+barbell_plot(ind_theta[temp_ind], col_theta[temp_ind])
+table(apply(temp, 1, which.max))
+hist(temp%*% 1:4, breaks = 20)
+
+temp <- data.frame(cbind(1:nrow(temp), temp))
+names(temp) <- c("pair", "Ind", "Min", "Max", "AI")
+head(temp)
+
+q <- reshape(temp,
+  varying = names(temp)[-1],
+  v.names = "prob",
+  timevar = "model",
+  times = names(temp)[-1],
+  direction = "long"
+  )
+
+q$model <- ordered(q$model, c("Ind", "Min", "Max", "AI"))
+ggplot(q, aes(pair, model, fill = prob)) + geom_raster()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Functions for WAI -----------------------------------------------------------------
 
