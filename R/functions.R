@@ -196,7 +196,7 @@ ml_twoPL<-function(resp, alpha, beta, method = "ML"){
 #' @param ind_theta the \code{nrow(resp)*2}-dimensional vector of latent traits for each member, as estimated from a non-collaborative form
 #' @param col_theta the \code{nrow(resp)}-dimensional vector of latent traits for each pair, as estimated from a (conjunctively scored) collaborative form
 #' @param n_boot number of bootstraps to use for testing the likelihood ratio.
-#' @return A list of lenght \code{length(model)}, each element of which is a data frame with \code{nrow(resp)} rwos containing the output for lr_tests for each pair.
+#' @return A list of length \code{length(model)}, each element of which is a data frame with \code{nrow(resp)} rwos containing the output for lr_tests for each pair.
 #' @export
 
 lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
@@ -289,4 +289,108 @@ barbell_plot <- function(ind_theta, col_theta, legend = "none"){
     theme(axis.text.x = element_text(size = 13),
           axis.text.y = element_text(size = 13)
     )
+}
+
+
+#--------------------------------------------------------------------------
+#' Formats responses a response df to match the calibration df
+#'
+#' Drops items in the target df not in the calibration sample; adds items (with NA entries) in the calibration sample not in the target df. Used for obtaining factor scores from calibration sample \code{ltm}.
+
+#' @param resp the target df to be formatted
+#' @param calib the calibration df
+#' @param version an optional string used to subset resp via \code{grep(version, names(resp))}
+#' @return a version of resp that has the same names as calib
+#' @export
+
+
+format_resp <- function(resp, calib, version = NULL){
+  if (!is.null(version)) {
+    resp <- resp[grep(version, names(resp))]
+  }
+  names(resp) <- substr(names(resp), 1, 5)
+  resp <- resp[names(resp)%in%names(calib)]
+  resp[names(calib)[!names(calib)%in%names(resp)]] <- NA
+  resp <- resp[names(calib)]
+  resp
+}
+
+
+# EM Functions -------------------------------------------------------------------
+
+EM <- function(models, resp, theta1, theta2, parms, weights = NULL, n_reps = 100, conv = 1e-3) {
+  n_models <- length(models)
+  p <- rep(1/n_models, n_models)
+  l <- likelihood(models, resp, theta1, theta2, parms, weights, Log = F)
+
+  trace <- incomplete_data(l, p)
+  i <- 1
+  delta <- 1
+
+  while(i <= n_reps & delta > conv) {
+    post <- posterior(l, p)
+    p <- prior(post)
+    trace <- c(trace, incomplete_data(l, p))
+    delta <- trace[i+1] - trace[i]
+    i <- i + 1
+  }
+  out <- list(trace, p, post)
+  names(out) <- c("trace", "prior", "posterior")
+  out
+}
+
+likelihood <- function(models, resp, theta1, theta2, parms, weights = NULL, Log = T){
+  n_models <- length(models)
+  out <- array(0, dim = c(n_models, nrow(resp)))
+  if (is.null(weights)) weights <- array(1, dim = dim(resp))
+
+  for (i in 1:n_models) {
+    fun <- match.fun(models[i])
+    p <- fun(parms$alpha, parms$beta, theta1, theta2)
+    out[i,] <- apply(weights * (log(p) * (resp) + log(1-p) * (1-(resp))), 1, sum, na.rm = T)
+  }
+  if (Log) {out} else {exp(out)}
+}
+
+posterior <- function(l, p) {
+    temp <- l * p
+    t(temp) / apply(temp, 2, sum)
+}
+
+prior <- function(post) {
+   apply(post, 2, sum) / nrow(post)
+}
+
+incomplete_data <- function(l, p) {
+  sum(log(apply(l * p, 2, sum)))
+}
+
+delta <- function(alpha, beta, theta1, theta2) {
+  Min(alpha, beta, theta1, theta2) * (1 - Max(alpha, beta, theta1, theta2))
+}
+
+screen <- function(cutoff, alpha, beta, theta1, theta2) {
+  screen <- delta(alpha, beta, theta1, theta2)
+  screen[screen < cutoff] <- NA
+  screen[!is.na(screen)] <- 1
+  screen
+}
+
+raster_plot <-function(EM){
+  temp <- EM$posterior
+  temp <- data.frame(cbind(1:nrow(temp), temp))
+  names(temp) <- c("pair", "Ind", "Min", "Max", "AI")
+  q <- reshape(temp,
+    varying = names(temp)[-1],
+    v.names = "prob",
+    timevar = "model",
+    times = names(temp)[-1],
+    direction = "long"
+    )
+  q$model <- ordered(q$model, c("Ind", "Min", "Max", "AI"))
+
+  #NYU <- rgb(87, 6, 140, maxColorValue = 255)
+  # scale_fill_gradient2( high=muted('NYU'))
+  ggplot(q, aes(pair, model, fill = prob)) + geom_raster()
+  #   scale_fill_gradient2(high = NYU) +theme_bw()
 }

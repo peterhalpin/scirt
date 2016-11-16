@@ -1,13 +1,14 @@
- # Analayses for "Pscychometric Models for Small Group Collaborations"
+# Analayses for "Pscychometric Models for Small Group Collaborations"
 
 #devtools::install_github("peterhalpin/BearShare")
-library("BearShare")
+# library("BearShare")
 library("ltm")
 library("ggplot2")
-library("stats4")
+source("~/github/cirt/R/functions.R")
+NYU <- rgb(87, 6, 140, maxColorValue = 255)
 
-# Stuff from Collab_outcomes.Rmd-----------------------------------------------------------
-
+# Stuff from Collab_outcomes.Rmd---------------------------------------------------------
+friends
 calib_ltm <- ltm(calibration ~ z1)
 beta <- coef(calib_ltm)[,1]
 alpha <- coef(calib_ltm)[,2]
@@ -28,119 +29,129 @@ beta_C <- parms[grep("C", row.names(parms)), 1]
 alpha_C <- parms[grep("C", row.names(parms)), 2]
 
 # New data -----------------------------------------------------------------------
+  # drop  032, 075, 095, 097 based on DIF analysis
+  # drop  092 because of administration problem
+
 drop_items <- c("032", "075", "095", "097", "092")
 
-machine <- "peterfrancis"
-machine <- "peterhalpin"
-setwd(paste0("/Users/", machine, "/Dropbox/Academic/Projects/CA/Data/response_matrices"))
+# Load calibration data and summarize
+setwd(paste0("~/Dropbox/Academic/Projects/CA/Data/response_matrices"))
 calib <- read.csv("calibration_2016.csv", check.names = F)
-names(calib)
+calib <- calib[-grep(paste0(drop_items, collapse = "|"), names(calib))]
 dim(calib)
 summary(apply(!is.na(calib[,-1]), 2, sum))
 
-calib <- calib[-grep(paste0(drop_items, collapse = "|"), names(calib))]
+#sort(apply(!is.na(calib[,-1]), 2, sum))
 
-# The whoe thing?
+# Calibrate items
 calib_ltm <- ltm(calib[,-1] ~ z1)
 parms <- coef(calib_ltm) %>% data.frame
 names(parms) <- c("beta", "alpha")
-hist(parms$alpha)
 
+# Load collaboration data, split forms,
 collab <- read.csv("collaboration_2016.csv", check.names = F)
 names(collab)
 
-version = "IND"
-
-format_resp <- function(collab, calib, version){
-  temp <- collab[grep(version, names(collab))]
-  names(temp) <- substr(names(temp), 1, 5)
-  temp <- temp[names(temp)%in%names(calib)]
-  temp[names(calib)[!names(calib)%in%names(temp)]] <- NA
-  temp <- temp[names(calib)]
-  temp
-}
-
+# split into forms
 col_form <- format_resp(collab, calib[,-1], "COL")
 ind_form <- format_resp(collab, calib[,-1], "IND")
-summary(apply(!is.na(ind_form), 2, sum))
 
+# Apply conjunctive scoring rule
 odd <- seq(1, nrow(col_form), by = 2)
 col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
 
+# Drop unsuable response patterns (all 1 or all 0)
+drop_groups <- c(collab$group_id[apply(col_form, 1, mean, na.rm = T)%in%c(1,0)],
+  collab$group_id[apply(ind_form, 1, mean, na.rm = T)%in%c(1,0)])
+
+length(unique(drop_groups))
+
+col_form <-col_form[!collab$group_id%in%drop_groups,]
+ind_form <-ind_form[!collab$group_id%in%drop_groups,]
+odd <- seq(1, nrow(col_form), by = 2)
+
+# Summarize
+summary(apply(!is.na(col_form), 1, sum))
+dim(col_form)
+summary(apply(!is.na(col_form), 2, sum))
+
+#sort(apply(!is.na(col_form), 1, sum))
+
+summary(apply(!is.na(ind_form), 1, sum))
+#sort(apply(!is.na(ind_form), 1, sum))
+
+# Estimate theta for both forms
 ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
 col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1
 
+# Take a look
 hist(col_theta)
 hist(ind_theta)
-
-# temp fix for shite
-ind_theta[abs(ind_theta) > 4] <- NA
-col_theta[abs(col_theta) > 4] <- NA
-
-drop_groups <- collab$group_id[is.na(ind_theta) | is.na(col_theta)]
-col_form <- col_form[!collab$group_id%in%drop_groups, ]
-ind_form <- ind_form[!collab$group_id%in%drop_groups, ]
-collab2 <- collab[!collab$group_id%in%drop_groups, ]
-ind_theta <- ind_theta[!collab$group_id%in%drop_groups]
-col_theta <- col_theta[!collab$group_id%in%drop_groups]
-odd <- seq(1, nrow(col_form), by = 2)
-
 barbell_plot(ind_theta[1:60], col_theta[1:60])
 
-dim(ind_form)
-# EM -------------------------------------------------------------------
+# Set up EM -------------------------------------------------------------------
 models <- c("Ind", "Min", "Max", "AI")
 theta1 <- ind_theta[odd]
 theta2 <- ind_theta[odd+1]
+plot(theta1, theta2)
 
-cor(theta1, theta2)
-# effective number of items?
-weights <- delta(parms$alpha, parms$beta, theta1, theta2)/.25
-apply(weights, 1, sum)
-
-s <- screen(.05, parms$alpha, parms$beta, theta1, theta2)
-
-
-sanity <- EM(models, ind_form[odd,]*ind_form[odd+1,]*s, theta1, theta2, parms)
+# Sanity check
+sanity <- EM(models, ind_form[odd,]*ind_form[odd+1,], theta1, theta2, parms)
 sanity$prior
+raster_plot(sanity)
 
+# Collaborative repsonses
 col <- EM(models, col_form[odd,], theta1, theta2, parms)
+round(col$prior,3)
+raster_plot(col)
+class_accuracy(col)
+
+
+# Effective proportion of items?
+weights <- delta(parms$alpha, parms$beta, theta1, theta2)/.25
+
+n_item <- data.frame(apply(weights*col_form, 1, sum, na.rm = T) / apply(!is.na(col_form), 1, sum))
+names(n_item) <- "weights"
+
+ggplot(n_item, aes(x = weights)) + geom_histogram(color = "white", fill = NYU, binwidth = .04)  + xlab("proportion") #+ labs(title = "Effective proportion of items for each dyad")
+
+# Screening items
+s <- screen(.05, parms$alpha, parms$beta, theta1, theta2)
+col <- EM(models, col_form[odd,]*s, theta1, theta2, parms)
 col$prior
-dim(temp)
+class_accuracy(col)
+
+class_accuracy <- function(EM){
+  ind <- apply(EM$posterior, 1, which.max)
+  arr_ind <- cbind(1:nrow(EM$posterior), ind)
+  cp <- EM$posterior[arr_ind]
+  tapply(cp, ind, mean)
+}
+
+raster_plot(col)
+
+# Screening dyads
+ind <- n_item[odd,]
+ind > .05
+col <- EM(models, col_form[ind>.05,], theta1[ind>.05], theta2[ind>.05], parms)
+col$prior
+raster_plot(col)
+
+
+
+# Some follow up
+
 temp <- col$posterior
-
-
-temp_ind <- which(temp%*% 1:4 > 3.6 & temp%*% 1:4 < 4.1)
+temp_ind <- which(temp%*% 1:4 > 3.8 & temp%*% 1:4 < 4.1)
 temp_ind <- sort(c(temp_ind*2, (temp_ind*2)-1))
-
 barbell_plot(ind_theta[temp_ind], col_theta[temp_ind], "right")
 table(apply(temp, 1, which.max))
 hist(temp[,4])
-hist(temp[,1])
+hist(temp[,3])
 
 apply(temp)
 hist(temp%*% 1:4, breaks = 20)
 
-temp <- data.frame(cbind(1:nrow(temp), temp))
-names(temp) <- c("pair", "Ind", "Min", "Max", "AI")
-head(temp)
-
-q <- reshape(temp,
-  varying = names(temp)[-1],
-  v.names = "prob",
-  timevar = "model",
-  times = names(temp)[-1],
-  direction = "long"
-  )
-
-  scale_fill_gradient2( high=muted('NYU'))
-  NYU <- rgb(87, 6, 140, maxColorValue = 255)
-  NYU <- rgb(87, 6, 140, maxColorValue = 255)
-
-scale_colour_manual(NYU)
-q$model <- ordered(q$model, c("Ind", "Min", "Max", "AI"))
-ggplot(q, aes(pair, model, fill = prob)) + geom_raster()+   scale_fill_gradient2(high = NYU)
- +theme_bw()
 
 
 #BARRRRF output of Noreen, in a rush ---------------------------------
