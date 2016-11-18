@@ -101,7 +101,7 @@ length(theta2)
 
 
 # Simuation study -------------------------------------------------------------------
-# Conclusions - dont use the weights...
+# Conclusions - dont use the weights?
 
 n_obs <- 1000
 n_items <- 30

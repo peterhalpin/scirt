@@ -22,7 +22,7 @@ lr_test(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0)
 \item{n_boot}{number of bootstraps to use for testing the likelihood ratio.}
 }
 \value{
-A list of lenght \code{length(model)}, each element of which is a data frame with \code{nrow(resp)} rwos containing the output for lr_tests for each pair.
+A list of length \code{length(model)}, each element of which is a data frame with \code{nrow(resp)} rwos containing the output for lr_tests for each pair.
 }
 \description{
 Computes a likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).

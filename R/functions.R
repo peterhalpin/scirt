@@ -4,6 +4,7 @@
 
 require(stats4)
 require(ggplot2)
+require(dplyr)
 
 #--------------------------------------------------------------------------
 #' Item response function for 2PL
@@ -123,6 +124,22 @@ sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
   OUT
 }
 
+sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
+  n_row <- length(theta1)
+  n_col <- length(alpha)
+  fun <- match.fun(model)
+  Q <- array(runif (n_row * n_col), dim = c(n_row, n_col))
+
+  if (model == "twoPL"){
+    P <- fun(alpha, beta, theta1)
+  } else {
+    P <- fun(alpha, beta, theta1, theta2)
+  }
+
+  OUT <- ifelse (P > Q, 1, 0)
+  colnames(OUT) <- names(alpha)
+  OUT
+}
 
 #--------------------------------------------------------------------------
 #' Log-ikelihood of given matrix of binary responses for a stated model, conditional on theta.
@@ -376,10 +393,16 @@ screen <- function(cutoff, alpha, beta, theta1, theta2) {
   screen
 }
 
-raster_plot <-function(EM){
-  temp <- EM$posterior
+raster_plot <-function(em, sort = F){
+  temp <- em$posterior
+  u <- temp%*%1:4
+  if (sort) {
+      temp <- temp[order(u, decreasing = F),]
+  }
   temp <- data.frame(cbind(1:nrow(temp), temp))
   names(temp) <- c("pair", "Ind", "Min", "Max", "AI")
+
+
   q <- reshape(temp,
     varying = names(temp)[-1],
     v.names = "prob",
@@ -391,6 +414,38 @@ raster_plot <-function(EM){
 
   #NYU <- rgb(87, 6, 140, maxColorValue = 255)
   # scale_fill_gradient2( high=muted('NYU'))
-  ggplot(q, aes(pair, model, fill = prob)) + geom_raster()
+  ggplot(q, aes(pair, model, fill = prob)) + geom_raster() + theme_bw()
   #   scale_fill_gradient2(high = NYU) +theme_bw()
+}
+
+class_accuracy <- function(em){
+  ind <- apply(em$posterior, 1, which.max)
+  arr_ind <- cbind(1:nrow(em$posterior), ind)
+  cp <- em$posterior[arr_ind]
+  tapply(cp, ind, mean)
+}
+
+sim_mix <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL) {
+  temp1 <- rnorm(n_obs)
+  temp2 <- rnorm(n_obs)
+  theta1 <- apply(cbind(temp1, temp2), 1, max)
+  theta2 <- apply(cbind(temp1, temp2), 1, min)
+  if (is.null(alpha)) { alpha <- rep(1, times = n_items) }
+  if (is.null(beta)) { beta <- sort(runif(n_items, -3, 3)) }
+  if (is.null(prior)) { prior <- c(.25, .25, .25, .25) }
+
+  out <- matrix(NA, nrow = n_obs, ncol = n_items)
+  n <- c(0, round(prior * n_obs))
+  models <- c("Ind", "Min", "Max", "AI")
+
+  for(i in 1:length(models)) {
+    j <- sum(n[1:i]) + 1
+    k <- sum(n[1:(i+1)])
+    if (j < k) {
+      out[j:k, ] <-  sim_data(models[i], alpha, beta, theta1[j:k], theta2[j:k])
+    }
+  }
+  r <- sample(1:nrow(out))
+  parms <- data.frame(beta, alpha)
+  EM(models, out[r,], theta1[r], theta2[r], parms)
 }

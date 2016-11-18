@@ -4,7 +4,7 @@ Title: Some functions and data psychometric models of small group interactions
 Version: 0.2.0
 Author: Peter F Halpin
 Maintainer: Peter F Halpin <peter.halpin@nyu.edu>
-Description: Supporting functions for bootstrapped likelihood ratio tests of some models of collaboration
+Description: In progress
 License: GNU GENERAL PUBLIC LICENSE
 LazyData: TRUE
 RoxygenNote: 5.0.1
