@@ -283,29 +283,36 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
 #'
 #' @param ind_theta vector of test scores on a individual assessment
 #' @param col_theta corresponding vector of test scores on collaborative assessment
-#' @param passed to ggplot \code{legend.position}
+#' @param group_score optional numeric vector used to color barbells; if omitted, each pair  has its own color
+#' @param legend passed to ggplot2 \code{legend.position}
 #' @return A barbell plot
 #' @export
 
-barbell_plot <- function(ind_theta, col_theta, legend = "none"){
-
+barbell_plot <- function(ind_theta, col_theta, group_score = NULL, legend = "none"){
   data <- data.frame(ind_theta, col_theta)
   lim <- c(min(data)-.2, max(data)+.2)
   data$pairs <- factor(rep(1:(length(ind_theta)/2), each = 2))
-
+  if (is.null(group_score)) {
+    data$group_score <- data$pairs
+    legend_title <- "pairs"
+  } else {
+    data$group_score <- group_score
+    legend_title <- "group_score"
+  }
   ggplot(data = data, aes(x = ind_theta, y = col_theta, group = pairs)) +
-    geom_line(aes(color = pairs)) +
-    geom_point(aes(color = pairs), size = 4) +
+    geom_line(aes(color = group_score)) +
+    geom_point(aes(color = group_score), size = 4) +
     scale_x_continuous(limits = lim) +
     scale_y_continuous(limits = lim) +
     geom_abline(intercept = 0, slope = 1, col = "grey") +
     theme(legend.position = legend) +
+    labs(color = legend_title) +
     ggtitle("Collaborative vs Individual Performance") +
     xlab("Individual Theta")+
     ylab("Collaborative Theta")+
     theme(axis.text.x = element_text(size = 13),
           axis.text.y = element_text(size = 13)
-    )
+   )
 }
 
 

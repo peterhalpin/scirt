@@ -1,0 +1,6 @@
+library(dplyr)
+library("dplyr")
+devtools::install_github("peterhalpin/cirt")
+friends
+library(cirt)
+friends
