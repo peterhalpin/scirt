@@ -1,5 +1,5 @@
 # Last update: 04/12/2016
-# Functions for computing bootstrapped LR tests of collaboration models.
+# Functions for computing bootstrapped LRtests of collaboration models.
 # User beware: functions not written to check or handle input errors.
 
 require(stats4)

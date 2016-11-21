@@ -58,8 +58,10 @@ summary(apply(!is.na(col_form), 1, sum))
 summary(apply(!is.na(ind_form), 1, sum))
 
 # Estimate theta for both forms
-ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
-col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1
+ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat
+$z1
+col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat
+$z1
 
 # Take a look
 par(mfrow  = c(1,2))
