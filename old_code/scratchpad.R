@@ -2,6 +2,13 @@
 #  Analyses for "NAEd / Spencer presentation 2016"
 # ---------------------------------------------------------------------
 
+# To do:
+  # 1 integrate cIRF and EM functions; sort out which functions take matrix of probs and which only take a 1X4 vector
+  # write data sim for mixture; thetas given
+  # bootstrap lr test for mixture
+  # bootstrap SE for mixture
+  # the last two should use more or less all the same funciton. for each dyad: generate pv of theta, simulate data from pv, estimate mixture model on simulated data, use the simulated data for the logL or for the SE
+
 #devtools::install_github("peterhalpin/cirt")
 #source("~/github/cirt/R/functions.R")
 library("ltm")
@@ -10,6 +17,135 @@ library("gridExtra")
 library("dplyr")
 library("cirt")
 
+cIRF("AI", parms, theta1 = 1, theta2 = 0)
+
+l <- likelihood(models, resp, parms, theta1, theta2, Log = F)
+incomplete_data(l, p)
+
+incomplete_data(l, p2, Sum = F)
+p <- c(.25, .25, .25, .25)
+p2 <- col$posterior
+t(t(l)*p)
+
+
+
+# two functions required:
+#  test mixture against reference model
+#  PV measurement error into the mixture
+
+sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
+  n_row <- length(theta1)
+  n_col <- nrow(parms)
+  fun <- match.fun(model)
+  Q <- array(runif(n_row * n_col), dim = c(n_row, n_col))
+  P <- cIRF(model, parms, theta1 , theta2)
+  out <- ifelse (P > Q, 1, 0)
+  colnames(out) <- row.names(alpha)
+  out
+}
+
+# probs is 1 by 4
+sim_mix <- function(probs, parms, theta1 = 0, theta2 = 0) {
+  n_row <- length(theta1)
+  n_col <- nrow(parms)
+  model <- c("Ind", "Min", "Max", "AI")
+  out <- array(NA, dim = c(n_row, n_col))
+  colnames(out) <- names(alpha)
+  indices <- cumsum(probs[-(probs)]*n_row) %>% ceiling %>% {c(0, ., n_row)}
+
+  # While loop to deal with small n_row ...
+  m <- 0; n <- 1
+  while (n > m) {
+    for (i in 1:length(model)) {
+      m <- indices[i] + 1
+      n <- min(indices[i + 1], n_row)
+      out[m:n, ] <- sim_data(model[i], alpha, beta, theta1[m:n], theta2[m:n])
+    }
+  }
+  out
+  #out[sample(1:nrow(out)),]
+}
+
+# probs is nrow(resp) by 4
+
+likelihood <- function(models, resp, parms, theta1, theta2 = NULL, weights = NULL, Log = T) {
+  n_models <- length(models)
+  out <- array(0, dim = c(nrow(resp), n_models))
+
+  if (is.null(weights)) weights <- array(1, dim = dim(resp))
+  for (i in 1:n_models) {
+    p <- cIRF(models[i], parms, theta1, theta2)
+    out[,i,] <- apply(weights * (log(p) * (resp) + log(1-p) * (1-(resp))), 1, sum, na.rm = T)
+  }
+  if (n_models == 1) {out <- c(out)} # un-matrix
+  if (Log) {out} else {exp(out)}
+}
+
+incomplete_data <- function(l, p, Sum = T) {
+  if (length(p) == 4) {
+    temp <- t(t(l)*p)
+  } else {
+    temp <- l*p
+  }
+  out <- log(apply(temp, 1, sum))
+  if(Sum) {sum(out)} else {out}
+}
+
+#### start here!
+
+
+lr_mix <- function(resp, probs, parms, theta1 = 0, theta2 = 0, n_boot = 0) {
+  model <- c("Ind", "Min", "Max", "AI")
+  l <- likelihood()
+  mix <- logL_mix(resp, probs, alpha, beta, theta1, theta2)
+  ref <- ml_twoPL(resp, parms)
+  lr <- -2*(mix - ref)
+
+  # Helper function for computing P(x > obs)
+  pobs <- function(cdf, obs) {
+    1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
+  }
+
+  # Bootstrapping (could fancy this up...)
+  if (n_boot > 0) {
+    theta1_long <- rep(theta1, each = n_boot)
+    theta2_long <- rep(theta2, each = n_boot)
+    boot_ind <- rep(1:length(theta1), each = n_boot)
+
+      boot_data <- sim_mix(model[i], alpha, beta, theta1_long, theta2_long)
+      boot_mod <- logL(boot_data, model[i], alpha, beta, theta1_long, theta2_long)
+      boot_ref <- ml_twoPL(boot_data, alpha, beta)
+      boot_lr <- -2*(boot_mod - boot_ref[,1])
+
+      # 95% CIs
+      temp <- tapply(boot_lr, boot_ind, function(x) quantile(x, p = c(.025, .975)))
+      boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = n_pair))
+
+      # P(lr > obs)
+      boot_cdf <- tapply(boot_lr, boot_ind, ecdf)
+      boot_p <-mapply(function(x,y) pobs(x, y), boot_cdf, lr[,i])
+
+      # Storage
+      temp <- data.frame(cbind(lr[,i], boot_ci[], boot_p))
+      names(temp) <- c("lr", "ci_lower", "ci_upper", "p_obs")
+      OUT[[i]] <- temp
+
+    }
+  }
+  OUT
+}
+
+
+
+n <- 151
+theta1 <- ind_theta[odd]
+theta2 <- ind_theta[odd+1]
+alpha <- parms$alpha
+beta <- parms$beta
+probs <- col$posterior
+resp <- col_form[odd,]
+dim(resp)
+theta1
 NYU <- rgb(87, 6, 140, maxColorValue = 255)
 
 # Set up data ------------------------------------
@@ -53,15 +189,15 @@ ind_form <-ind_form[!collab$group_id%in%drop_groups,]
 odd <- odd[1:(nrow(col_form)/2)]
 
 # Summarize
+theta1
 dim(col_form)
 summary(apply(!is.na(col_form), 1, sum))
 summary(apply(!is.na(ind_form), 1, sum))
 
 # Estimate theta for both forms
-ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat
-$z1
-col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat
-$z1
+ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
+
+col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1
 
 # Take a look
 par(mfrow  = c(1,2))

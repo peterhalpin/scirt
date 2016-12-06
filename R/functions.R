@@ -13,14 +13,15 @@ require(dplyr)
 #'
 #' @param alpha the item discriminations
 #' @param beta the item difficulties
-#' @param theta the latent trait
-#' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities
+#' @param theta1 the latent trait;
+#' @param theta2 not used; included for formal compatabiity with collaborative IRF
+#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
 #' @export
 
-twoPL <-function(alpha, beta, theta){
-  Z <- matrix(0, nrow = length(theta), ncol = length(alpha))
-  Z <- Z + theta
-  Z <- t(alpha*(t(Z) - beta))
+twoPL <-function(parms, theta1, theta2 = NULL) {
+  Z <- matrix(0, nrow = length(theta1), ncol = nrow(parms))
+  Z <- Z + theta1
+  Z <- t(parms$alpha*(t(Z) - parms$beta))
   1/(1 + exp(-Z))
 }
 
@@ -34,11 +35,11 @@ twoPL <-function(alpha, beta, theta){
 #' @param beta the item difficulties
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
-#' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities.
+#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
-Ind <- function(alpha, beta, theta1, theta2){
-  twoPL(alpha, beta, theta1)*twoPL(alpha, beta, theta2)
+Ind <- function(parms, theta1, theta2) {
+  twoPL(parms, theta1)*twoPL(parms, theta2)
 }
 
 
@@ -51,12 +52,12 @@ Ind <- function(alpha, beta, theta1, theta2){
 #' @param beta the item difficulties
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
-#' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities.
+#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
-Min <- function(alpha, beta, theta1, theta2){
+Min <- function(parms, theta1, theta2) {
   theta <- apply(cbind(theta1, theta2), 1, min, na.rm = T)
-  twoPL(alpha, beta, theta)
+  twoPL(parms, theta)
 }
 
 
@@ -69,12 +70,12 @@ Min <- function(alpha, beta, theta1, theta2){
 #' @param beta the item difficulties
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
-#' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities
+#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
 #' @export
 
-Max <- function(alpha, beta, theta1, theta2){
+Max <- function(parms, theta1, theta2) {
   theta <- apply(cbind(theta1, theta2), 1, max, na.rm = T)
-  twoPL(alpha, beta, theta)
+  twoPL(parms, theta)
 }
 
 
@@ -87,13 +88,36 @@ Max <- function(alpha, beta, theta1, theta2){
 #' @param beta the item difficulties
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
-#' @return \code{length(theta)} by \code{length(alpha)} matrix of response probabilities
+#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
 #' @export
 
-AI <- function(alpha, beta, theta1, theta2){
-  twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) -  twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
+AI <- function(parms, theta1, theta2) {
+  p1 <- twoPL(parms, theta1)
+  p2 <- twoPL(parms, theta2)
+  p1 + p2 - p1*p2
 }
 
+
+#--------------------------------------------------------------------------
+#' Wrapper for collaborative item response functions
+#'
+#' Computes a matrix of probabilities for correct responses using the named \code{model} for collaboration, and the 2PL model for the items.
+#' @param model
+#' @param alpha the item discriminations
+#' @param beta the item difficulties
+#' @param theta1 the latent trait for member 1
+#' @param theta2 the latent trait for member 2
+#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
+#' @export
+
+cIRF <- function(model, parms, theta1, theta2) {
+  if (model %in% c("Ind", "Min", "Max", "AI", "twoPL")) {
+    fun <- match.fun(model)
+    fun(parms, theta1, theta2)
+  } else {
+    cat("\'model\' must be one of c(\"Ind\", \"Min\", \"Max\", \"AI\", \"twoPL\")")
+  }
+}
 
 #--------------------------------------------------------------------------
 #' Simulate data from a the 2PL or a model of pairwise collaboration.
@@ -104,45 +128,22 @@ AI <- function(alpha, beta, theta1, theta2){
 #' @param beta the item difficulties
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
-#' @return \code{length(theta1)} by \code{length(alpha)} matrix of binary response patterns
+#' @return \code{length(theta1)} by \code{nrow(parms)} matrix of binary response patterns
 #' @export
 
-sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
+sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
   n_row <- length(theta1)
-  n_col <- length(alpha)
+  n_col <- nrow(parms)
   fun <- match.fun(model)
-  Q <- array(runif (n_row * n_col), dim = c(n_row, n_col))
-
-  if (model == "twoPL"){
-    P <- fun(alpha, beta, theta1)
-  } else {
-    P <- fun(alpha, beta, theta1, theta2)
-  }
-
-  OUT <- ifelse (P > Q, 1, 0)
-  colnames(OUT) <- names(alpha)
-  OUT
-}
-
-sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
-  n_row <- length(theta1)
-  n_col <- length(alpha)
-  fun <- match.fun(model)
-  Q <- array(runif (n_row * n_col), dim = c(n_row, n_col))
-
-  if (model == "twoPL"){
-    P <- fun(alpha, beta, theta1)
-  } else {
-    P <- fun(alpha, beta, theta1, theta2)
-  }
-
-  OUT <- ifelse (P > Q, 1, 0)
-  colnames(OUT) <- names(alpha)
-  OUT
+  Q <- array(runif(n_row * n_col), dim = c(n_row, n_col))
+  P <- cIRF(model, parms, theta1, theta2)
+  out <- ifelse(P > Q, 1, 0)
+  colnames(out) <- row.names(parms)
+  out
 }
 
 #--------------------------------------------------------------------------
-#' Log-ikelihood of given matrix of binary responses for a stated model, conditional on theta.
+#' XX Log-ikelihood of given matrix of binary responses for a stated model, conditional on theta.
 #'
 #' Computes a vector of likelihoods for a given matrix binary response patterns, for a selection of models for pairwise collaboration, conditional on theta
 #'
@@ -155,49 +156,43 @@ sim_data <- function(model, alpha, beta, theta1 = 0, theta2 = 0){
 #' @return An \code{nrow(resp)}-vector of log-likleihoods for each response pattern.
 #' @export
 
+likelihood <- function(models, resp, parms, theta1, theta2 = NULL, weights = NULL, Log = T) {
+  n_models <- length(models)
+  out <- array(0, dim = c(n_models, nrow(resp)))
 
-logL <- function(resp, model, alpha, beta, theta1, theta2 = NULL){
-  if (model == "twoPL"){
-    p <- twoPL(alpha, beta, theta1)
-  } else {
-    fun <- match.fun(model)
-    p <- fun(alpha, beta, theta1, theta2)
+  if (is.null(weights)) weights <- array(1, dim = dim(resp))
+  for (i in 1:n_models) {
+    p <- cIRF(models[i], parms, theta1, theta2)
+    out[i,] <- apply(weights * (log(p) * (resp) + log(1-p) * (1-(resp))), 1, sum, na.rm = T)
   }
-  apply(log(p)*(resp) + log(1-p)*(1-(resp)), 1, sum, na.rm = T)
+  if (n_models == 1) {out <- c(out)} # un-matrix
+  if (Log) {out} else {exp(out)}
 }
-
 
 #--------------------------------------------------------------------------
 #' Internal function used in lr_test; under development.
 #' @export
 
-neg_logL <- function(theta, resp, alpha, beta){
-  -1*logL(resp, "twoPL", alpha, beta, theta)
-}
+ml_twoPL<-function(resp, parms) {
+  out <- matrix(0, nrow = nrow(resp), ncol = 3)
+  colnames(out) <- c("logL", "theta", "se")
 
+  neg_log_twoPL <- function(theta, resp, alpha, beta) {
+    -likelihood("twoPL", resp, data.frame(alpha, beta), theta)
+  }
 
-
-#--------------------------------------------------------------------------
-#' Internal function used in lr_test; under development.
-#' @export
-
-ml_twoPL<-function(resp, alpha, beta, method = "ML"){
-  OUT <- matrix(0, nrow = nrow(resp), ncol = 3)
-  colnames(OUT) <- c("logL", "theta", "se")
-
-  for (i in 1:nrow(resp))
-  {
-    temp <- mle(neg_logL,
+  for (i in 1:nrow(resp)) {
+    temp <- mle(neg_log_twoPL,
                start = list(theta = 0),
-               fixed = list(resp = resp[i,], alpha = alpha, beta = beta),
+               fixed = list(resp = resp[i,], alpha = parms$alpha, beta = parms$beta),
                method = "Brent",
                lower = -4,
                upper = 4)
 
-    OUT[i,] <- c(logLik(temp), coef(temp)[1], vcov(temp))
+    out[i,] <- c(logLik(temp), coef(temp)[1], vcov(temp))
   }
-  OUT[,3] <- sqrt(OUT[,3])
-  OUT
+  out[,3] <- sqrt(out[,3])
+  out
 }
 
 
@@ -216,7 +211,7 @@ ml_twoPL<-function(resp, alpha, beta, method = "ML"){
 #' @return A list of length \code{length(model)}, each element of which is a data frame with \code{nrow(resp)} rwos containing the output for lr_tests for each pair.
 #' @export
 
-lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
+lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0) {
 
   odd <- seq(from = 1, to = length(ind_theta), by = 2)
   theta1 <- ind_theta[odd]
@@ -224,16 +219,16 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
   n_pair <- length(odd)
   n_model <- length(model)
   mod <- matrix(0, nrow = n_pair, ncol = n_model)
-  OUT <- vector("list", n_model)
-  names(OUT) <- model
+  out <- vector("list", n_model)
+  names(out) <- model
 
   # Helper function for computing P(x > obs)
-  pobs <- function(cdf, obs){
+  pobs <- function(cdf, obs) {
     1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
   }
 
   # logL for collaboration models
-  for (i in 1:n_model){
+  for (i in 1:n_model) {
     mod[, i] <-
       logL(resp, model = model[i], alpha, beta, theta1, theta2)
   }
@@ -243,13 +238,13 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
   lr <- -2*(mod - ref)
 
   # Bootstrapping (could fancy this up...)
-  if (n_boot > 0){
+  if (n_boot > 0) {
     theta1_long <- rep(theta1, each = n_boot)
     theta2_long <- rep(theta2, each = n_boot)
     boot_ind <- rep(1:n_pair, each = n_boot)
 
-    for (i in 1:n_model){
-      message(cat("Running bootstraps for model", i, "..."),"\r",appendLF=FALSE)
+    for (i in 1:n_model) {
+      message(cat("Running bootstraps for model", i, "..."),"\r", appendLF = FALSE)
       flush.console()
 
       boot_data <- sim_data(model[i], alpha, beta, theta1_long, theta2_long)
@@ -268,11 +263,11 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
       # Storage
       temp <- data.frame(cbind(lr[,i], boot_ci[], boot_p))
       names(temp) <- c("lr", "ci_lower", "ci_upper", "p_obs")
-      OUT[[i]] <- temp
+      out[[i]] <- temp
 
     }
   }
-  OUT
+  out
 }
 
 
@@ -288,7 +283,7 @@ lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0){
 #' @return A barbell plot
 #' @export
 
-barbell_plot <- function(ind_theta, col_theta, group_score = NULL, legend = "none"){
+barbell_plot <- function(ind_theta, col_theta, group_score = NULL, legend = "none") {
   data <- data.frame(ind_theta, col_theta)
   lim <- c(min(data)-.2, max(data)+.2)
   data$pairs <- factor(rep(1:(length(ind_theta)/2), each = 2))
@@ -328,7 +323,7 @@ barbell_plot <- function(ind_theta, col_theta, group_score = NULL, legend = "non
 #' @export
 
 
-format_resp <- function(resp, calib, version = NULL){
+format_resp <- function(resp, calib, version = NULL) {
   if (!is.null(version)) {
     resp <- resp[grep(version, names(resp))]
   }
@@ -363,7 +358,7 @@ EM <- function(models, resp, theta1, theta2, parms, weights = NULL, n_reps = 100
   out
 }
 
-likelihood <- function(models, resp, theta1, theta2, parms, weights = NULL, Log = T){
+likelihood <- function(models, resp, theta1, theta2, parms, weights = NULL, Log = T) {
   n_models <- length(models)
   out <- array(0, dim = c(n_models, nrow(resp)))
   if (is.null(weights)) weights <- array(1, dim = dim(resp))
@@ -377,8 +372,8 @@ likelihood <- function(models, resp, theta1, theta2, parms, weights = NULL, Log 
 }
 
 posterior <- function(l, p) {
-    temp <- l * p
-    t(temp) / apply(temp, 2, sum)
+  temp <- l * p
+  t(temp) / apply(temp, 2, sum)
 }
 
 prior <- function(post) {
@@ -400,7 +395,7 @@ screen <- function(cutoff, alpha, beta, theta1, theta2) {
   screen
 }
 
-raster_plot <-function(em, sort = F){
+raster_plot <-function(em, sort = F) {
   temp <- em$posterior
   u <- temp%*%1:4
   if (sort) {
@@ -425,14 +420,14 @@ raster_plot <-function(em, sort = F){
   #   scale_fill_gradient2(high = NYU) +theme_bw()
 }
 
-class_accuracy <- function(em){
+class_accuracy <- function(em) {
   ind <- apply(em$posterior, 1, which.max)
   arr_ind <- cbind(1:nrow(em$posterior), ind)
   cp <- em$posterior[arr_ind]
   tapply(cp, ind, mean)
 }
 
-sim_mix <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL) {
+sim_mix2 <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL) {
   temp1 <- rnorm(n_obs)
   temp2 <- rnorm(n_obs)
   theta1 <- apply(cbind(temp1, temp2), 1, max)
