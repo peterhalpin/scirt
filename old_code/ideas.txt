@@ -1,0 +1,18 @@
+Todo
+
+# item fit and dif for two calibration samples
+# dif for collaboration sample(s) versus calibration sample
+
+new functions
+
+# PV bootstrap for EM
+	1) generate theta
+	2) run EM save posteriors and priors
+	3) average SE over runs is sampling error
+	4) SE of average over runs is measurement error
+
+# lr bootstrap for EM
+	1) get EM posteriors
+	2) sample proportion of draws from each model
+	2a) check that EM recovers parms from simulated data
+	3) follow usual bootstrap procedure

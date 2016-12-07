@@ -17,35 +17,80 @@ library("gridExtra")
 library("dplyr")
 library("cirt")
 
-cIRF("AI", parms, theta1 = 1, theta2 = 0)
+# Set up data ------------------------------------
+  # drop  032, 075, 095, 097 based on DIF analysis
+  # drop  092 because of administration problem
 
-l <- likelihood(models, resp, parms, theta1, theta2, Log = F)
-incomplete_data(l, p)
+drop_items <- c("032", "075", "095", "097", "092")
 
-incomplete_data(l, p2, Sum = F)
-p <- c(.25, .25, .25, .25)
-p2 <- col$posterior
-t(t(l)*p)
+# Calibration data
+setwd(paste0("~/Dropbox/Academic/Projects/CA/Data/response_matrices"))
+calib <- read.csv("calibration_2016.csv", check.names = F)
+calib <- calib[-grep(paste0(drop_items, collapse = "|"), names(calib))]
+
+# Calibrate items
+calib_ltm <- ltm(calib[,-1] ~ z1)
+parms <- coef(calib_ltm) %>% data.frame
+names(parms) <- c("beta", "alpha")
+
+# Load collaboration data and split into forms
+collab <- read.csv("collaboration_2016.csv", check.names = F)
+col_form <- format_resp(collab, calib[,-1], "COL")
+ind_form <- format_resp(collab, calib[,-1], "IND")
+
+# Apply conjunctive scoring rule
+odd <- seq(1, nrow(col_form), by = 2)
+col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
+
+# Drop 13 unsuable response patterns (all 1 or all 0)
+drop_groups <- c(
+  collab$group_id[apply(col_form, 1, mean, na.rm = T) %in% c(1,0)],
+  collab$group_id[apply(ind_form, 1, mean, na.rm = T) %in% c(1,0)])
+
+col_form <-col_form[!collab$group_id%in%drop_groups,]
+ind_form <-ind_form[!collab$group_id%in%drop_groups,]
+
+# Reset odd for dropped items
+odd <- odd[1:(nrow(col_form)/2)]
 
 
+# Estimate theta for ind forms
+ind <- MLE(ind_form, parms)
+theta1 <- ind$theta[odd]
+theta2 <- ind$theta[odd+1]
+
+ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
+
+resp <- col_form
+
+# re writing functions -------------------------------------------
+
+cIRF("Max", parms, theta1 = 1, theta2 = 0)
+models <- c("Ind", "Min", "Max", "AI")
+
+components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
+dim(components)
+mix_prop <- c(.1, .1, .5, .3)
+l <- incomplete_data(components, mix_prop, Sum = T)
+post <- posterior(components, mix_prop)
+prior(post)
+
+# hmmm rsults are quite diffnere than before but sim_em works fine still...?
+col <- EM(models, resp, parms, theta1, theta2)
+col$prior
+raster_plot(col)
+
+sanity <- sim_mix2(1000, 25, prior = NULL, alpha = NULL, beta = NULL, sort = F)
+raster_plot(sanity)
+sanity$prior
 
 # two functions required:
 #  test mixture against reference model
 #  PV measurement error into the mixture
 
-sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
-  n_row <- length(theta1)
-  n_col <- nrow(parms)
-  fun <- match.fun(model)
-  Q <- array(runif(n_row * n_col), dim = c(n_row, n_col))
-  P <- cIRF(model, parms, theta1 , theta2)
-  out <- ifelse (P > Q, 1, 0)
-  colnames(out) <- row.names(alpha)
-  out
-}
 
 # probs is 1 by 4
-sim_mix <- function(probs, parms, theta1 = 0, theta2 = 0) {
+bootsrap_mix <- function(mix_prop, parms, theta1 = 0, theta2 = 0) {
   n_row <- length(theta1)
   n_col <- nrow(parms)
   model <- c("Ind", "Min", "Max", "AI")
@@ -68,28 +113,8 @@ sim_mix <- function(probs, parms, theta1 = 0, theta2 = 0) {
 
 # probs is nrow(resp) by 4
 
-likelihood <- function(models, resp, parms, theta1, theta2 = NULL, weights = NULL, Log = T) {
-  n_models <- length(models)
-  out <- array(0, dim = c(nrow(resp), n_models))
 
-  if (is.null(weights)) weights <- array(1, dim = dim(resp))
-  for (i in 1:n_models) {
-    p <- cIRF(models[i], parms, theta1, theta2)
-    out[,i,] <- apply(weights * (log(p) * (resp) + log(1-p) * (1-(resp))), 1, sum, na.rm = T)
-  }
-  if (n_models == 1) {out <- c(out)} # un-matrix
-  if (Log) {out} else {exp(out)}
-}
 
-incomplete_data <- function(l, p, Sum = T) {
-  if (length(p) == 4) {
-    temp <- t(t(l)*p)
-  } else {
-    temp <- l*p
-  }
-  out <- log(apply(temp, 1, sum))
-  if(Sum) {sum(out)} else {out}
-}
 
 #### start here!
 
@@ -137,66 +162,9 @@ lr_mix <- function(resp, probs, parms, theta1 = 0, theta2 = 0, n_boot = 0) {
 
 
 
-n <- 151
-theta1 <- ind_theta[odd]
-theta2 <- ind_theta[odd+1]
-alpha <- parms$alpha
-beta <- parms$beta
-probs <- col$posterior
-resp <- col_form[odd,]
-dim(resp)
-theta1
-NYU <- rgb(87, 6, 140, maxColorValue = 255)
 
-# Set up data ------------------------------------
-  # drop  032, 075, 095, 097 based on DIF analysis
-  # drop  092 because of administration problem
 
-drop_items <- c("032", "075", "095", "097", "092")
-
-# Calibration data
-setwd(paste0("~/Dropbox/Academic/Projects/CA/Data/response_matrices"))
-calib <- read.csv("calibration_2016.csv", check.names = F)
-calib <- calib[-grep(paste0(drop_items, collapse = "|"), names(calib))]
-
-# Summarize
-summary(apply(!is.na(calib[,-1]), 2, sum))
-#sort(apply(!is.na(calib[,-1]), 2, sum))
-
-# Calibrate items
-calib_ltm <- ltm(calib[,-1] ~ z1)
-parms <- coef(calib_ltm) %>% data.frame
-names(parms) <- c("beta", "alpha")
-
-# Load collaboration data and split into forms
-collab <- read.csv("collaboration_2016.csv", check.names = F)
-col_form <- format_resp(collab, calib[,-1], "COL")
-ind_form <- format_resp(collab, calib[,-1], "IND")
-
-# Apply conjunctive scoring rule
-odd <- seq(1, nrow(col_form), by = 2)
-col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
-
-# Drop 13 unsuable response patterns (all 1 or all 0)
-drop_groups <- c(
-  collab$group_id[apply(col_form, 1, mean, na.rm = T) %in% c(1,0)],
-  collab$group_id[apply(ind_form, 1, mean, na.rm = T) %in% c(1,0)])
-
-col_form <-col_form[!collab$group_id%in%drop_groups,]
-ind_form <-ind_form[!collab$group_id%in%drop_groups,]
-
-# Reset odd for dropped items
-odd <- odd[1:(nrow(col_form)/2)]
-
-# Summarize
-theta1
-dim(col_form)
-summary(apply(!is.na(col_form), 1, sum))
-summary(apply(!is.na(ind_form), 1, sum))
-
-# Estimate theta for both forms
-ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
-
+# old stff
 col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1
 
 # Take a look

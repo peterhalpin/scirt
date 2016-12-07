@@ -1,89 +1,9 @@
-# Last update: 04/12/2016
-# Functions for computing bootstrapped LR tests of collaboration models.
+# Last update: 07/12/2016
+# Functions for estimating and testing collaboration models. Depends on IRF_functions.R
 # User beware: functions not written to check or handle input errors.
-
-require(stats4)
+source("~/github/cirt/R/IRF_functions.R")
 require(ggplot2)
 require(dplyr)
-
-#--------------------------------------------------------------------------
-#' The IRF for the two parameter logistic model
-#'
-#' Computes a matrix of probabilities for correct responses under 2PL model.
-#'
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @param theta1 the latent trait
-#' @param theta2 not used; included for formal compatabiity with collaborative IRFs
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
-#' @export
-
-IRF <-function(parms, theta1, theta2 = NULL) {
-  Z <- matrix(0, nrow = length(theta1), ncol = nrow(parms))
-  Z <- Z + theta1
-  Z <- t(parms$alpha*(t(Z) - parms$beta))
-  1/(1 + exp(-Z))
-}
-
-#--------------------------------------------------------------------------
-#' First deriviate of 2PL in theta
-#'
-#' Used for obtaining SEs of theta and computing WMLE.
-#'
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @param theta the latent trait
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of first derivatives of IRF
-#' @export
-
-dIRF <-function(parms, theta) {
-  t(parms$alpha * t(IRF(parms, theta) * (1-IRF(parms, theta))))
-}
-
-#--------------------------------------------------------------------------
-#' Seocond deriviate of 2PL in theta
-#'
-#' Used for obtaining SEs of theta and computing WMLE.
-#'
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @param theta the latent trait
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of second derivatives of IRF
-#' @export
-
-d2IRF <- function(parms, theta) {
-  t(parms$alpha^2 * t(dIRF(parms, theta) * (1 - 2 * IRF(parms, theta))))
-}
-
-I <- function(parms, theta) {
-  P <- IRF(parms, theta)
-  temp <-  t(parms$alpha^2 * t(P * (1 - P)))
-  # temp <- dIRF(parms, theta)^2 / P / (1 - P) # too slow with 2PL
-  apply(temp, 1, sum, na.rm = T)
-}
-
-J <- function(parms, theta) {
-  P <- IRF(parms, theta)
-  temp <- t(parms$alpha^3 * t(P * (1 - P) * (1 - 2 * P)))
-  # temp <- dIRF(parms, theta) * d2IRF(parms, theta) / P / (1 - P) # too slow with 2PL
-  apply(temp, 1, sum, na.rm = T)
-}
-
-#--------------------------------------------------------------------------
-#' Item response function for 2PL
-#'
-#' Computes a matrix of probabilities for correct responses under 2PL model
-#'
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @param theta1 the latent trait
-#' @param theta2 not used; included for formal compatabiity with collaborative IRFs
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
-#' @export
-
-IRF <-function(parms, theta1, theta2 = NULL) {
-  Z <- matrix(0, nrow = length(theta1), ncol = nrow(parms))
-  Z <- Z + theta1
-  Z <- t(parms$alpha*(t(Z) - parms$beta))
-  1/(1 + exp(-Z))
-}
-
 
 #--------------------------------------------------------------------------
 #' Item response function for ``the Independence model"
@@ -174,7 +94,137 @@ cIRF <- function(model, parms, theta1, theta2) {
 }
 
 #--------------------------------------------------------------------------
-#' Simulate data from a the 2PL or a model of pairwise collaboration.
+#' Likelihood of a matrix of binary responses for one or more models, conditional on theta.
+#'
+#' \code{logL} is faster for 2PL. Mainly used to provide the component likelihoods for the finite mixture approach to selection / averaging models of collaboration.
+#'
+#' @param resp the matrix binary responses
+#' @param models is one or more of \code{c("IRF", "Ind", "Min", "Max", "AI") }
+#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
+#' @param theta1 the latent trait for member 1
+#' @param theta2 the latent trait for member 2
+#' @return An \code{nrow(resp)} by \code{length(models)} matrix of log-likleihoods for each response pattern and each model
+#' @export
+
+likelihood <- function(models, resp, parms, theta1, theta2 = NULL, Log = T) {
+  n_models <- length(models)
+  out <- array(0, dim = c(nrow(resp), n_models))
+  for (i in 1:n_models) {
+    p <- cIRF(models[i], parms, theta1, theta2)
+    out[,i] <- apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
+  }
+  if (n_models == 1) {out <- c(out)} # un-matrix
+  if (Log) {out} else {exp(out)}
+}
+
+#--------------------------------------------------------------------------
+#' Incomplete data logliklihood for a mixture of collaboration models
+#'
+#' @param components n_resp by n_models matrix of likelihoods (\strong{not loglikelihoods}) for each response pattern and each model (e.g., the output of \code{likelihood} with \code{Log = F})
+#' @param mix_prop the mixing proporitions for the models. Can be either an n_resp by n_models matrix (useful for computing the "posterior predicted" loglikelihood for each response pattern); or a n_models-vector, which is applied to each row of \code{components} (useful for EM).
+#' @param Sum should the output be summer over rows of \code{components} ?
+#' @return A scalar (if \code{Sum = T}) or a n_resp-vector of incomplete data loglikelihoods.
+#' @export
+
+incomplete_data <- function(components, mix_prop, Sum = T) {
+  if (length(mix_prop) == 4) {
+    temp <- t(t(components) * mix_prop)
+  } else {
+    temp <- components * mix_prop
+  }
+  out <- log(apply(temp, 1, sum))
+  if(Sum) {sum(out)} else {out}
+}
+
+#--------------------------------------------------------------------------
+#' Posterior probabilities of components in a mixture of collaboration models.
+#'
+#' This is the E-step of the EM algorithm for estimating the mixing proportions.
+#'
+#' @param components n_resp by n_models matrix of likelihoods (\strong{not loglikelihoods}) for each response pattern and each model (e.g., the output of \code{likelihood} with \code{Log = F})
+#' @param prior the mixing proporitions for the models. Must be a \code{length(models)}-vector, which is applied to each row of \code{components}
+#' @return An n_resp by n_models matrix of posterior proabilities for each response pattern and each component.
+
+#' @export
+
+posterior <- function(components, prior) {
+  temp <- t(t(components) * prior)
+  temp / apply(temp, 1, sum)
+}
+#--------------------------------------------------------------------------
+#' Computes updated mixing proportions based on posterior probabilities of components in a  mixture of collaboration models
+#'
+#' This is the M-step of the EM algorithm for estimating the mixing proportions.
+#''
+#' @param posterior is output from \code{posterior}
+#' @param prior the mixing proporitions for the models. Must be a \code{length(models)}-vector, which is applied to each row of \code{components}
+#' @return An n_models- vector mixing proportions each component.
+
+prior <- function(posterior) {
+   apply(posterior, 2, sum) / nrow(posterior)
+}
+
+#--------------------------------------------------------------------------
+#' Runs EM algorithm for mixing proportions for a mixture of collaboration models
+#'
+#' Only the mixing proportions are estimated. Multiple starts are not used becase the Q function is concave in mixing proportions.
+#'
+#' @param models one or more of \code{c("Ind", "Min", "Max", "AI") }
+#' @param resp data.frame of binary, conjunctively scored \strong{collaborative responses}
+#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
+#' @param theta1 the latent trait for member 1
+#' @param theta2 the latent trait for member 2
+#' @param max_iter maximum number of iterations for EM
+#' @param conv convegence criterional applied to difference of incomplete data loglikelihood
+#' @return A list of length 3 containing the optimization trace, priors, and posteriors
+#' @export
+
+EM <- function(models, resp, parms, theta1, theta2, max_iter = 100, conv = 1e-5) {
+  n_models <- length(models)
+  p <- rep(1/n_models, n_models)
+  l <- likelihood(models, resp, parms, theta1, theta2, Log = F)
+
+  trace <- incomplete_data(l, p)
+  i <- 1
+  delta <- 1
+
+  while(i <= max_iter & delta > conv) {
+    post <- posterior(l, p) # Eeeeee
+    p <- prior(post) # Mmmmmm
+    trace <- c(trace, incomplete_data(l, p))
+    delta <- trace[i+1] - trace[i]
+    i <- i + 1
+  }
+  out <- list(trace, p, post)
+  names(out) <- c("trace", "prior", "posterior")
+  out
+}
+
+
+#--------------------------------------------------------------------------
+#' Formats responses a response data.frame to match the calibration data.frame
+#'
+#' Drops items in the target df not in the calibration sample; adds items (with NA entries) in the calibration df not in the target df. This simplifies using item parms obtained from the calibration df with the target df
+
+#' @param resp the target df to be formatted
+#' @param calib the calibration df
+#' @param version an optional string used to subset resp via \code{grep(version, names(resp))}
+#' @return a version of resp that has the same names as calib
+#' @export
+
+format_resp <- function(resp, calib, version = NULL) {
+  if (!is.null(version)) {
+    resp <- resp[grep(version, names(resp))]
+  }
+  names(resp) <- substr(names(resp), 1, 5)
+  resp <- resp[names(resp)%in%names(calib)]
+  resp[names(calib)[!names(calib)%in%names(resp)]] <- NA
+  resp <- resp[names(calib)]
+  resp
+}
+
+#--------------------------------------------------------------------------
+#' Simulate data from the 2PL or a model of pairwise collaboration.
 #''
 #' Simulate data using either the 2PL or a model for pariwise collaboration obtained from the 2PL.
 #' @param model is one of \code{c("IRF", "Ind", "Min", "Max", "AI") }
@@ -195,62 +245,53 @@ sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
   out
 }
 
-#--------------------------------------------------------------------------
-#' likelihood of a matrix of binary responses for one or more stated models, conditional on theta.
-#'
-#' @param resp the matrix binary responses
-#' @param models is one or more of \code{c("IRF", "Ind", "Min", "Max", "AI") }
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @param theta1 the latent trait for member 1
-#' @param theta2 the latent trait for member 2
-#' @return An \code{nrow(resp)} by \code{length(models)} matrix of log-likleihoods for each response pattern and each model.
-#' @export
 
-likelihood <- function(models, resp, parms, theta1, theta2 = NULL, weights = NULL, Log = T) {
-  n_models <- length(models)
-  out <- array(0, dim = c(n_models, nrow(resp)))
+# --- under construction ----
 
-  if (is.null(weights)) weights <- array(1, dim = dim(resp))
-  for (i in 1:n_models) {
-    p <- cIRF(models[i], parms, theta1, theta2)
-    out[i,] <- apply(weights * (log(p) * (resp) + log(1-p) * (1-(resp))), 1, sum, na.rm = T)
-  }
-  if (n_models == 1) {out <- c(out)} # un-matrix
-  if (Log) {out} else {exp(out)}
+
+delta <- function(alpha, beta, theta1, theta2) {
+  Min(alpha, beta, theta1, theta2) * (1 - Max(alpha, beta, theta1, theta2))
 }
 
-#--------------------------------------------------------------------------
-#' likelihood of a matrix of binary responses for one or more stated models, conditional on theta.
-#'
-#' @param resp the matrix binary responses
-#' @param models is one or more of \code{c("IRF", "Ind", "Min", "Max", "AI") }
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @param theta1 the latent trait for member 1
-#' @param theta2 the latent trait for member 2
-#' @return An \code{nrow(resp)} by \code{length(models)} matrix of log-likleihoods for each response pattern and each model.
-#' @export
-
-ml_IRF<-function(resp, parms, ) {
-  out <- matrix(0, nrow = nrow(resp), ncol = 3)
-  colnames(out) <- c("logL", "theta", "se")
-
-  neg_log_IRF <- function(theta, resp, parms) {
-    -likelihood("IRF", resp, parms, theta)
-  }
-
-  for (i in 1:nrow(resp)) {
-    temp <- mle(neg_log_IRF,
-               start = list(theta = 0),
-               fixed = list(resp = resp[i,], parms = parms),
-               method = "Brent",
-               lower = -4,
-               upper = 4)
-
-    out[i,] <- c(logLik(temp), coef(temp)[1], vcov(temp))
-  }
-  out[,3] <- sqrt(out[,3])
-  out
+screen <- function(cutoff, alpha, beta, theta1, theta2) {
+  screen <- delta(alpha, beta, theta1, theta2)
+  screen[screen < cutoff] <- NA
+  screen[!is.na(screen)] <- 1
+  screen
 }
+
+raster_plot <-function(em, sort = F) {
+  temp <- em$posterior
+  u <- temp%*%1:4
+  if (sort) {
+      temp <- temp[order(u, decreasing = F),]
+  }
+  temp <- data.frame(cbind(1:nrow(temp), temp))
+  names(temp) <- c("pair", "Ind", "Min", "Max", "AI")
+
+
+  q <- reshape(temp,
+    varying = names(temp)[-1],
+    v.names = "prob",
+    timevar = "model",
+    times = names(temp)[-1],
+    direction = "long"
+    )
+  q$model <- ordered(q$model, c("Ind", "Min", "Max", "AI"))
+
+  #NYU <- rgb(87, 6, 140, maxColorValue = 255)
+  # scale_fill_gradient2( high=muted('NYU'))
+  ggplot(q, aes(pair, model, fill = prob)) + geom_raster() + theme_bw()
+  #   scale_fill_gradient2(high = NYU) +theme_bw()
+}
+
+class_accuracy <- function(em) {
+  ind <- apply(em$posterior, 1, which.max)
+  arr_ind <- cbind(1:nrow(em$posterior), ind)
+  cp <- em$posterior[arr_ind]
+  tapply(cp, ind, mean)
+}
+
 
 
 #--------------------------------------------------------------------------
@@ -368,123 +409,11 @@ barbell_plot <- function(ind_theta, col_theta, group_score = NULL, legend = "non
 }
 
 
-#--------------------------------------------------------------------------
-#' Formats responses a response df to match the calibration df
-#'
-#' Drops items in the target df not in the calibration sample; adds items (with NA entries) in the calibration sample not in the target df. Used for obtaining factor scores from calibration sample \code{ltm}.
-
-#' @param resp the target df to be formatted
-#' @param calib the calibration df
-#' @param version an optional string used to subset resp via \code{grep(version, names(resp))}
-#' @return a version of resp that has the same names as calib
-#' @export
 
 
-format_resp <- function(resp, calib, version = NULL) {
-  if (!is.null(version)) {
-    resp <- resp[grep(version, names(resp))]
-  }
-  names(resp) <- substr(names(resp), 1, 5)
-  resp <- resp[names(resp)%in%names(calib)]
-  resp[names(calib)[!names(calib)%in%names(resp)]] <- NA
-  resp <- resp[names(calib)]
-  resp
-}
 
 
-# EM Functions -------------------------------------------------------------------
-
-EM <- function(models, resp, theta1, theta2, parms, weights = NULL, n_reps = 100, conv = 1e-3) {
-  n_models <- length(models)
-  p <- rep(1/n_models, n_models)
-  l <- likelihood(models, resp, theta1, theta2, parms, weights, Log = F)
-
-  trace <- incomplete_data(l, p)
-  i <- 1
-  delta <- 1
-
-  while(i <= n_reps & delta > conv) {
-    post <- posterior(l, p)
-    p <- prior(post)
-    trace <- c(trace, incomplete_data(l, p))
-    delta <- trace[i+1] - trace[i]
-    i <- i + 1
-  }
-  out <- list(trace, p, post)
-  names(out) <- c("trace", "prior", "posterior")
-  out
-}
-
-likelihood <- function(models, resp, theta1, theta2, parms, weights = NULL, Log = T) {
-  n_models <- length(models)
-  out <- array(0, dim = c(n_models, nrow(resp)))
-  if (is.null(weights)) weights <- array(1, dim = dim(resp))
-
-  for (i in 1:n_models) {
-    fun <- match.fun(models[i])
-    p <- fun(parms$alpha, parms$beta, theta1, theta2)
-    out[i,] <- apply(weights * (log(p) * (resp) + log(1-p) * (1-(resp))), 1, sum, na.rm = T)
-  }
-  if (Log) {out} else {exp(out)}
-}
-
-posterior <- function(l, p) {
-  temp <- l * p
-  t(temp) / apply(temp, 2, sum)
-}
-
-prior <- function(post) {
-   apply(post, 2, sum) / nrow(post)
-}
-
-incomplete_data <- function(l, p) {
-  sum(log(apply(l * p, 2, sum)))
-}
-
-delta <- function(alpha, beta, theta1, theta2) {
-  Min(alpha, beta, theta1, theta2) * (1 - Max(alpha, beta, theta1, theta2))
-}
-
-screen <- function(cutoff, alpha, beta, theta1, theta2) {
-  screen <- delta(alpha, beta, theta1, theta2)
-  screen[screen < cutoff] <- NA
-  screen[!is.na(screen)] <- 1
-  screen
-}
-
-raster_plot <-function(em, sort = F) {
-  temp <- em$posterior
-  u <- temp%*%1:4
-  if (sort) {
-      temp <- temp[order(u, decreasing = F),]
-  }
-  temp <- data.frame(cbind(1:nrow(temp), temp))
-  names(temp) <- c("pair", "Ind", "Min", "Max", "AI")
-
-
-  q <- reshape(temp,
-    varying = names(temp)[-1],
-    v.names = "prob",
-    timevar = "model",
-    times = names(temp)[-1],
-    direction = "long"
-    )
-  q$model <- ordered(q$model, c("Ind", "Min", "Max", "AI"))
-
-  #NYU <- rgb(87, 6, 140, maxColorValue = 255)
-  # scale_fill_gradient2( high=muted('NYU'))
-  ggplot(q, aes(pair, model, fill = prob)) + geom_raster() + theme_bw()
-  #   scale_fill_gradient2(high = NYU) +theme_bw()
-}
-
-class_accuracy <- function(em) {
-  ind <- apply(em$posterior, 1, which.max)
-  arr_ind <- cbind(1:nrow(em$posterior), ind)
-  cp <- em$posterior[arr_ind]
-  tapply(cp, ind, mean)
-}
-
-sim_mix2 <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL) {
+sim_mix <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL, sort = T) {
   temp1 <- rnorm(n_obs)
   temp2 <- rnorm(n_obs)
   theta1 <- apply(cbind(temp1, temp2), 1, max)
@@ -492,7 +421,7 @@ sim_mix2 <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL) {
   if (is.null(alpha)) { alpha <- rep(1, times = n_items) }
   if (is.null(beta)) { beta <- sort(runif(n_items, -3, 3)) }
   if (is.null(prior)) { prior <- c(.25, .25, .25, .25) }
-
+  parms <- data.frame(alpha, beta)
   out <- matrix(NA, nrow = n_obs, ncol = n_items)
   n <- c(0, round(prior * n_obs))
   models <- c("Ind", "Min", "Max", "AI")
@@ -501,10 +430,10 @@ sim_mix2 <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL) {
     j <- sum(n[1:i]) + 1
     k <- sum(n[1:(i+1)])
     if (j < k) {
-      out[j:k, ] <-  sim_data(models[i], alpha, beta, theta1[j:k], theta2[j:k])
+      out[j:k, ] <-  sim_data(models[i], parms, theta1[j:k], theta2[j:k])
     }
   }
-  r <- sample(1:nrow(out))
-  parms <- data.frame(beta, alpha)
-  EM(models, out[r,], theta1[r], theta2[r], parms)
+  r <- 1:nrow(out)
+  if (sort) r <- sample(1:nrow(out))
+  EM(models, out[r,], parms, theta1[r], theta2[r])
 }
