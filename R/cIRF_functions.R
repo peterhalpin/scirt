@@ -93,6 +93,7 @@ cIRF <- function(model, parms, theta1, theta2) {
   }
 }
 
+
 #--------------------------------------------------------------------------
 #' Likelihood of a matrix of binary responses for one or more models, conditional on theta.
 #'
@@ -117,6 +118,7 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, Log = T) {
   if (Log) {out} else {exp(out)}
 }
 
+
 #--------------------------------------------------------------------------
 #' Incomplete data logliklihood for a mixture of collaboration models
 #'
@@ -136,6 +138,7 @@ incomplete_data <- function(components, mix_prop, Sum = T) {
   if(Sum) {sum(out)} else {out}
 }
 
+
 #--------------------------------------------------------------------------
 #' Posterior probabilities of components in a mixture of collaboration models.
 #'
@@ -151,6 +154,8 @@ posterior <- function(components, prior) {
   temp <- t(t(components) * prior)
   temp / apply(temp, 1, sum)
 }
+
+
 #--------------------------------------------------------------------------
 #' Computes updated mixing proportions based on posterior probabilities of components in a  mixture of collaboration models
 #'
@@ -163,6 +168,7 @@ posterior <- function(components, prior) {
 prior <- function(posterior) {
    apply(posterior, 2, sum) / nrow(posterior)
 }
+
 
 #--------------------------------------------------------------------------
 #' Runs EM algorithm for mixing proportions for a mixture of collaboration models
@@ -222,6 +228,7 @@ format_resp <- function(resp, calib, version = NULL) {
   resp <- resp[names(calib)]
   resp
 }
+
 
 #--------------------------------------------------------------------------
 #' Simulate data from the 2PL or a model of pairwise collaboration.
@@ -413,7 +420,7 @@ barbell_plot <- function(ind_theta, col_theta, group_score = NULL, legend = "non
 
 
 
-sim_mix <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL, sort = T) {
+sim_em <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL, sort = T) {
   temp1 <- rnorm(n_obs)
   temp2 <- rnorm(n_obs)
   theta1 <- apply(cbind(temp1, temp2), 1, max)

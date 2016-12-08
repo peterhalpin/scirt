@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------
 
 # To do:
-  # 1 integrate cIRF and EM functions; sort out which functions take matrix of probs and which only take a 1X4 vector
+  # X 1 integrate cIRF and EM functions; sort out which functions take matrix of probs and which only take a 1X4 vector
   # write data sim for mixture; thetas given
   # bootstrap lr test for mixture
   # bootstrap SE for mixture
@@ -63,7 +63,11 @@ ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.da
 
 resp <- col_form
 
+
+
 # re writing functions -------------------------------------------
+
+
 
 cIRF("Max", parms, theta1 = 1, theta2 = 0)
 models <- c("Ind", "Min", "Max", "AI")
@@ -75,12 +79,12 @@ l <- incomplete_data(components, mix_prop, Sum = T)
 post <- posterior(components, mix_prop)
 prior(post)
 
-# hmmm rsults are quite diffnere than before but sim_em works fine still...?
+# hmmm rsults are quite different than before but sim_em works fine still...? Data or theta?
 col <- EM(models, resp, parms, theta1, theta2)
 col$prior
 raster_plot(col)
 
-sanity <- sim_mix2(1000, 25, prior = NULL, alpha = NULL, beta = NULL, sort = F)
+sanity <- sim_em(1000, 25, prior = NULL, alpha = NULL, beta = NULL, sort = F)
 raster_plot(sanity)
 sanity$prior
 
@@ -89,8 +93,11 @@ sanity$prior
 #  PV measurement error into the mixture
 
 
-# probs is 1 by 4
-bootsrap_mix <- function(mix_prop, parms, theta1 = 0, theta2 = 0) {
+
+
+# BORKEN!! need to vectorize mix_prop. maybe fold into boot_mix??
+
+sim_mix <- function(mix_prop, parms, theta1 = 0, theta2 = 0) {
   n_row <- length(theta1)
   n_col <- nrow(parms)
   model <- c("Ind", "Min", "Max", "AI")
@@ -111,34 +118,43 @@ bootsrap_mix <- function(mix_prop, parms, theta1 = 0, theta2 = 0) {
   #out[sample(1:nrow(out)),]
 }
 
-# probs is nrow(resp) by 4
+# probs mix_prop, theta1, theta2 all have same length
+boot_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1.se = NULL, theta2.se = NULL) {
+  mix_prop_long <- rep(mix_prop, each = nboot)
+  theta1_long <- rep(theta1, each = n_boot)
+  theta2_long <- rep(theta2, each = n_boot)
+
+  if(!is.null(theta1.se)) {
+    theta1_long <- rnorm(length(theta1_long), theta1_long, rep(theta1.se, each = n_boot))
+  }
+  if(is.null(theta2.se)) {
+    theta2_long <- rnorm(length(theta2_long), theta2_long, rep(theta2.se, each = n_boot))
+  }
+  sim_mix(mix_prop_long, parms, theta1_long, theta2_long)
+}
 
 
+lr_mix <- function(col_form, mix_prop, parms, theta1 = 0, theta2 = 0, nboot = 0, theta1.se = NULL, theta2.se = NULL) {
+  models <- c("Ind", "Min", "Max", "AI")
 
-
-#### start here!
-
-
-lr_mix <- function(resp, probs, parms, theta1 = 0, theta2 = 0, n_boot = 0) {
-  model <- c("Ind", "Min", "Max", "AI")
-  l <- likelihood()
-  mix <- logL_mix(resp, probs, alpha, beta, theta1, theta2)
-  ref <- ml_twoPL(resp, parms)
-  lr <- -2*(mix - ref)
+  components <- likelihood(models, col_form, parms, theta1, theta2, Log = F)
+  log_mix <- incomplete_data(components, mix_prop)
+  log_ref <- MLE(col_form, parms)
+  lr_obs <- -2*(log_mix - log_ref)
 
   # Helper function for computing P(x > obs)
   pobs <- function(cdf, obs) {
     1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
   }
 
-  # Bootstrapping (could fancy this up...)
+  # Bootstrapping
   if (n_boot > 0) {
-    theta1_long <- rep(theta1, each = n_boot)
-    theta2_long <- rep(theta2, each = n_boot)
     boot_ind <- rep(1:length(theta1), each = n_boot)
+    boot_data <- boot_mix(n_boot, mix_prop, parms, theta1, theta2, theta1.se, theta2.se)
+    boot_log_mix <- logL(boot_data, model[i], alpha, beta, theta1_long, theta2_long)
 
-      boot_data <- sim_mix(model[i], alpha, beta, theta1_long, theta2_long)
-      boot_mod <- logL(boot_data, model[i], alpha, beta, theta1_long, theta2_long)
+# BORKEN! need to boot_mix
+
       boot_ref <- ml_twoPL(boot_data, alpha, beta)
       boot_lr <- -2*(boot_mod - boot_ref[,1])
 
