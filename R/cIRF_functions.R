@@ -129,10 +129,10 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, Log = T) {
 #' @export
 
 incomplete_data <- function(components, mix_prop, Sum = T) {
-  if (length(mix_prop) == 4) {
-    temp <- t(t(components) * mix_prop)
-  } else {
+  if (!is.null(dim(mix_prop))) {
     temp <- components * mix_prop
+  } else {
+    temp <- t(t(components) * mix_prop)
   }
   out <- log(apply(temp, 1, sum))
   if(Sum) {sum(out)} else {out}
@@ -213,22 +213,21 @@ EM <- function(models, resp, parms, theta1, theta2, max_iter = 100, conv = 1e-5)
 #' Drops items in the target df not in the calibration sample; adds items (with NA entries) in the calibration df not in the target df. This simplifies using item parms obtained from the calibration df with the target df
 
 #' @param resp the target df to be formatted
-#' @param calib the calibration df
+#' @param item string vector of names of items in the calibration sample
 #' @param version an optional string used to subset resp via \code{grep(version, names(resp))}
 #' @return a version of resp that has the same names as calib
 #' @export
 
-format_resp <- function(resp, calib, version = NULL) {
+format_resp <- function(resp, items, version = NULL) {
   if (!is.null(version)) {
     resp <- resp[grep(version, names(resp))]
   }
   names(resp) <- substr(names(resp), 1, 5)
-  resp <- resp[names(resp)%in%names(calib)]
-  resp[names(calib)[!names(calib)%in%names(resp)]] <- NA
-  resp <- resp[names(calib)]
+  resp <- resp[names(resp)%in%items]
+  resp[items[!items%in%names(resp)]] <- NA
+  resp <- resp[items]
   resp
 }
-
 
 #--------------------------------------------------------------------------
 #' Simulate data from the 2PL or a model of pairwise collaboration.
@@ -245,12 +244,149 @@ sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
   n_row <- length(theta1)
   n_col <- nrow(parms)
   fun <- match.fun(model)
-  Q <- array(runif(n_row * n_col), dim = c(n_row, n_col))
-  P <- cIRF(model, parms, theta1, theta2)
-  out <- ifelse(P > Q, 1, 0)
+  r <- array(runif(n_row * n_col), dim = c(n_row, n_col))
+  p <- cIRF(model, parms, theta1, theta2)
+  out <- ifelse(p > r, 1, 0)
   colnames(out) <- row.names(parms)
   out
 }
+
+
+#--------------------------------------------------------------------------
+#' Used by sim_mix to write out the appropriate number of model labels for each dyad.
+#'
+#' The desried output is to replicate each of \code{c("Ind", "Min", "Max", "AI")} ni = mix_prop[i] * n_boot times. This function (badly) handles rounding error when computing the n[i].
+#'
+#' @param mix_prop is em$posterior
+#' @param n_boot is the desired number of replications of each row of mix prop
+
+#' @return An \code{nrow(miz_prop) * n_boot} vector that replicates \code{c("Ind", "Min", "Max", "AI")} according to the number simulated data sets desired for each model.
+#' @export
+
+model_indices <- function(mix_prop, n_boot){
+  indices <-  mix_prop * n_boot
+  dif <- apply(round(indices), 1, sum) - n_boot
+  temp <- apply((indices %% 1)*10, 1, order, decreasing = T)
+  add_ind <- cbind(1:nrow(mix_prop), temp[2,])
+  sub_ind <- cbind(1:nrow(mix_prop), temp[1,])
+  indices[sub_ind[dif > 0,]] <- indices[sub_ind[dif > 0,]] - dif[dif > 0]
+  indices[add_ind[dif < 0,]] <- indices[add_ind[dif < 0,]] - dif[dif < 0]
+  models_long <- rep(models, times = length(theta1))
+  rep(models_long, c(round(t(indices))))
+}
+
+
+#--------------------------------------------------------------------------
+#' Simulates data from an averaged model of collaboration resulting from application of EM.
+#'
+#' Generates data from the averaged model pairwise collaboration, for one or more dyads indexed by theta1 and theta2. For each dyad, \code{mix_prop * n_boot} response patterns are generated from each of the four models of collaboration. If SEs are included, data generation uses a plausible values approach in which \code{n_boot} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}
+#'
+#' @param n_boot number of samples to generate for each dyad
+#' @param mix_prop is em$posterior
+#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
+#' @param theta1 the latent trait for member 1
+#' @param theta2 the latent trait for member 2
+#' @param theta1_se the standard error of the latent trait for member 1
+#' @param theta2_se the standard errr of the latent trait for member 2
+
+#' @return A dataframe with \code{length(theta)*n_boot} rows containing a pair_id, the data generating values of theta1, theta, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
+#' @export
+
+sim_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL) {
+
+  # Expand data generating parms
+  models <- c("Ind", "Min", "Max", "AI")
+  pairs_long <- rep(1:length(theta1), each = n_boot)
+  theta1_long <- rep(theta1, each = n_boot)
+  theta2_long <- rep(theta2, each = n_boot)
+  mix_prop_long <- kronecker(mix_prop, rep(1, n_boot))
+
+  # Use PV for theta if SE given
+  if(!is.null(theta1_se)) {
+    theta1_long <- rnorm(length(theta1_long), theta1_long, rep(theta1_se, each = n_boot))
+  }
+  if(is.null(theta2_se)) {
+    theta2_long <- rnorm(length(theta2_long), theta2_long, rep(theta2_se, each = n_boot))
+  }
+
+  # Set up output
+  out <- data.frame(pairs_long, theta1_long, theta2_long, mix_prop_long)
+  head(out)
+  names(out) <- c("pairs", "theta1", "theta2", models)
+  out$model <- model_indices(mix_prop, n_boot)
+
+  # Simulate data
+  data <- data.frame(matrix(NA, nrow = nrow(out), ncol = nrow(parms)))
+  names(data) <- row.names(parms)
+
+  for (i in models) {
+    temp <- out$model == i
+    data[temp, ] <- sim_data(i, parms, out$theta1[temp], out$theta2[temp])
+  }
+  cbind(out[], data[])
+}
+
+
+#--------------------------------------------------------------------------
+#' Bootstrapped likelihood ratio test for averaged model of collaboration resulting from application of EM.
+#'
+#' Computes a likelihood ratio test for the averaged model pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
+#'
+#' @param resp the matrix binary data from the conjunctively scored \strong{collaborative responses}
+#' @param mix_prop is the em$posterior
+#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
+#' @param theta1 the latent trait for member 1
+#' @param theta2 the latent trait for member 2
+#' @param theta1_se the standard error of the latent trait for member 1
+#' @param theta2_se the standard errr of the latent trait for member 2
+#' @param n_boot number of bootstraps to use for testing the likelihood ratio.
+#' @return A data.frame with \code{nrow(resp)} rows containing the output for lr_tests for each pair.
+#' @export
+
+lr_test <- function(resp, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, n_boot = 0) {
+
+  # Helper function for computing P(x > obs)
+  pobs <- function(cdf, obs) {
+    1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
+  }
+
+  models <- c("Ind", "Min", "Max", "AI")
+  items <- row.names(parms)
+
+  # Observed likelihood ratios for each dyad
+  components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
+  log_mix <- incomplete_data(components, mix_prop, Sum = F)
+  mle_ref <- MLE(resp, parms)
+  lr_obs <- -2*(log_mix - mle_ref$logL)
+
+  # Bootstrapping
+  if (n_boot == 0) {
+    return(lr_obs)
+  } else {
+    boot <- sim_mix(100, mix_prop, parms, theta1, theta2, theta1_se, theta2_se)
+    temp <- likelihood(models, boot[items], parms, boot$theta1, boot$theta2, Log = F)
+    boot$log_mix <- incomplete_data(temp, boot[models], Sum = F)
+    temp <- MLE(boot[items], parms)
+    boot <- cbind(boot, temp)
+    boot$lr <- -2*(boot$log_mix - boot$logL)
+
+    # 95% CIs
+    temp <- tapply(boot$lr, boot$pairs, function(x) quantile(x, p = c(.025, .975)))
+    boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = length(theta1)))
+
+    # P(lr > obs)
+    boot_cdf <- tapply(boot$lr, boot$pairs, ecdf)
+    boot_p <- mapply(function(x,y) pobs(x, y), boot_cdf, lr_obs)
+
+    # Storage
+    out <- data.frame(cbind(lr_obs, boot_ci, boot_p))
+    names(out) <- c("lr", "ci_lower", "ci_upper", "p_obs")
+  }
+  out
+}
+
+
+
 
 
 # --- under construction ----
@@ -297,82 +433,6 @@ class_accuracy <- function(em) {
   arr_ind <- cbind(1:nrow(em$posterior), ind)
   cp <- em$posterior[arr_ind]
   tapply(cp, ind, mean)
-}
-
-
-
-#--------------------------------------------------------------------------
-#' Likelihood ratio tests for various models of collaboration.
-#'
-#' Computes a likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
-#'
-#' @param resp the matrix binary data from the conjunctively scored \strong{collaborative responses}
-#' @param model is one or more of \code{c("Ind", "Min", "Max", "AI") }
-#' @param alpha the item discriminations of (only) the resp items
-#' @param beta the item difficulties of (only) the resp items
-#' @param ind_theta the \code{nrow(resp)*2}-dimensional vector of latent traits for each member, as estimated from a non-collaborative form
-#' @param col_theta the \code{nrow(resp)}-dimensional vector of latent traits for each pair, as estimated from a (conjunctively scored) collaborative form
-#' @param n_boot number of bootstraps to use for testing the likelihood ratio.
-#' @return A list of length \code{length(model)}, each element of which is a data frame with \code{nrow(resp)} rwos containing the output for lr_tests for each pair.
-#' @export
-
-lr_test <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0) {
-
-  odd <- seq(from = 1, to = length(ind_theta), by = 2)
-  theta1 <- ind_theta[odd]
-  theta2 <- ind_theta[odd+1]
-  n_pair <- length(odd)
-  n_model <- length(model)
-  mod <- matrix(0, nrow = n_pair, ncol = n_model)
-  out <- vector("list", n_model)
-  names(out) <- model
-
-  # Helper function for computing P(x > obs)
-  pobs <- function(cdf, obs) {
-    1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
-  }
-
-  # logL for collaboration models
-  for (i in 1:n_model) {
-    mod[, i] <-
-      logL(resp, model = model[i], alpha, beta, theta1, theta2)
-  }
-
-  # logL for reference model
-  ref <- logL(resp, "IRF", alpha, beta, col_theta)
-  lr <- -2*(mod - ref)
-
-  # Bootstrapping (could fancy this up...)
-  if (n_boot > 0) {
-    theta1_long <- rep(theta1, each = n_boot)
-    theta2_long <- rep(theta2, each = n_boot)
-    boot_ind <- rep(1:n_pair, each = n_boot)
-
-    for (i in 1:n_model) {
-      message(cat("Running bootstraps for model", i, "..."),"\r", appendLF = FALSE)
-      flush.console()
-
-      boot_data <- sim_data(model[i], alpha, beta, theta1_long, theta2_long)
-      boot_mod <- logL(boot_data, model[i], alpha, beta, theta1_long, theta2_long)
-      boot_ref <- ml_IRF(boot_data, alpha, beta)
-      boot_lr <- -2*(boot_mod - boot_ref[,1])
-
-      # 95% CIs
-      temp <- tapply(boot_lr, boot_ind, function(x) quantile(x, p = c(.025, .975)))
-      boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = n_pair))
-
-      # P(lr > obs)
-      boot_cdf <- tapply(boot_lr, boot_ind, ecdf)
-      boot_p <-mapply(function(x,y) pobs(x, y), boot_cdf, lr[,i])
-
-      # Storage
-      temp <- data.frame(cbind(lr[,i], boot_ci[], boot_p))
-      names(temp) <- c("lr", "ci_lower", "ci_upper", "p_obs")
-      out[[i]] <- temp
-
-    }
-  }
-  out
 }
 
 
@@ -443,4 +503,82 @@ sim_em <- function(n_obs, n_items, prior = NULL, alpha = NULL, beta = NULL, sort
   r <- 1:nrow(out)
   if (sort) r <- sample(1:nrow(out))
   EM(models, out[r,], parms, theta1[r], theta2[r])
+}
+
+
+
+
+
+#--------------------------------------------------------------------------
+#' Likelihood ratio tests for various models of collaboration.
+#'
+#' Computes a likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
+#'
+#' @param resp the matrix binary data from the conjunctively scored \strong{collaborative responses}
+#' @param model is one or more of \code{c("Ind", "Min", "Max", "AI") }
+#' @param alpha the item discriminations of (only) the resp items
+#' @param beta the item difficulties of (only) the resp items
+#' @param ind_theta the \code{nrow(resp)*2}-dimensional vector of latent traits for each member, as estimated from a non-collaborative form
+#' @param col_theta the \code{nrow(resp)}-dimensional vector of latent traits for each pair, as estimated from a (conjunctively scored) collaborative form
+#' @param n_boot number of bootstraps to use for testing the likelihood ratio.
+#' @return A list of length \code{length(model)}, each element of which is a data frame with \code{nrow(resp)} rwos containing the output for lr_tests for each pair.
+#' @export
+
+lr_test_old <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0) {
+
+  odd <- seq(from = 1, to = length(ind_theta), by = 2)
+  theta1 <- ind_theta[odd]
+  theta2 <- ind_theta[odd+1]
+  n_pair <- length(odd)
+  n_model <- length(model)
+  mod <- matrix(0, nrow = n_pair, ncol = n_model)
+  out <- vector("list", n_model)
+  names(out) <- model
+
+  # Helper function for computing P(x > obs)
+  pobs <- function(cdf, obs) {
+    1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
+  }
+
+  # logL for collaboration models
+  for (i in 1:n_model) {
+    mod[, i] <-
+      logL(resp, model = model[i], alpha, beta, theta1, theta2)
+  }
+
+  # logL for reference model
+  ref <- logL(resp, "IRF", alpha, beta, col_theta)
+  lr <- -2*(mod - ref)
+
+  # Bootstrapping (could fancy this up...)
+  if (n_boot > 0) {
+    theta1_long <- rep(theta1, each = n_boot)
+    theta2_long <- rep(theta2, each = n_boot)
+    boot_ind <- rep(1:n_pair, each = n_boot)
+
+    for (i in 1:n_model) {
+      message(cat("Running bootstraps for model", i, "..."),"\r", appendLF = FALSE)
+      flush.console()
+
+      boot_data <- sim_data(model[i], alpha, beta, theta1_long, theta2_long)
+      boot_mod <- logL(boot_data, model[i], alpha, beta, theta1_long, theta2_long)
+      boot_ref <- ml_IRF(boot_data, alpha, beta)
+      boot_lr <- -2*(boot_mod - boot_ref[,1])
+
+      # 95% CIs
+      temp <- tapply(boot_lr, boot_ind, function(x) quantile(x, p = c(.025, .975)))
+      boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = n_pair))
+
+      # P(lr > obs)
+      boot_cdf <- tapply(boot_lr, boot_ind, ecdf)
+      boot_p <-mapply(function(x,y) pobs(x, y), boot_cdf, lr[,i])
+
+      # Storage
+      temp <- data.frame(cbind(lr[,i], boot_ci[], boot_p))
+      names(temp) <- c("lr", "ci_lower", "ci_upper", "p_obs")
+      out[[i]] <- temp
+
+    }
+  }
+  out
 }

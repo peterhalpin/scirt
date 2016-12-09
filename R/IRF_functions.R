@@ -1,6 +1,6 @@
 # Last update: 07/12/2016
   # Functions for 2PL models, mainly to implement MLE and WMLE estimation of theta
-  # Main results are in Magis & Raiche, 2012, but this code is only for special case of 2PL.
+  # Main results are in Magis & Raiche, 2012, but only for special case of 2PL.
   # In particular, the following equalities are used
   #   P'  = aPQ
   #   P'' = a^2 PQ(1-2P)
@@ -133,6 +133,22 @@ SE <- function(parms, theta) {
 #--------------------------------------------------------------------------
 #' Loglikelihood of 2PL in theta
 #'
+#' Computes either likeihood of a response pattern under the 2PL model, given item parms and theta
+#'
+#' @param resp the matrix binary responses
+#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
+#' @param theta the latent trait
+#' @return \code{length(theta)}-vecor of (possibly weigthed) loglikelihoods
+#' @export
+
+logL <- function(resp, parms, theta) {
+  p <- IRF(parms, theta)
+  apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
+}
+
+#--------------------------------------------------------------------------
+#' Loglikelihood of 2PL in theta
+#'
 #' Computes either standard MLE of WMLE
 #'
 #' @param resp the matrix binary responses
@@ -142,14 +158,71 @@ SE <- function(parms, theta) {
 #' @return \code{length(theta)}-vecor of (possibly weigthed) loglikelihoods
 #' @export
 
-logL <- function(resp, parms, theta, WMLE = T) {
+dlogL <- function(theta, resp, parms, WMLE = T) {
   p <- IRF(parms, theta)
-  logl <- apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
+  dlog <- apply(parms$alpha * t(resp - p), 2, sum, na.rm = T)
   if (WMLE) {
-    logl <- logl + J(parms, theta) / 2 / I(parms, theta)
+    dlog <- dlog + J(parms, theta) / 2 / I(parms, theta)
   }
-  logl
+  dlog
 }
+
+
+# XX not done -- need to integrate into MLE when there are no duplicates
+
+get_duplicates <- function(resp) {
+  doubles <- which(duplicated(resp) | duplicated (resp, fromLast = T))
+  if (length(doubles) > 0) {
+    temp <- lapply(data.frame(t(resp[doubles,])), paste0, collapse = "") %>% unlist
+    sort_ind <- order(temp)
+    temp <- temp[sort_ind]
+    doubles <- doubles[sort_ind]
+    key_ind <- cumsum(!duplicated(temp))
+    uniques <- doubles[!duplicated(temp)]
+    originals <- uniques[key_ind]
+    out <- cbind(doubles, originals)
+    out[duplicated(out[,2]),]
+  } else {
+    NA
+  }
+}
+
+
+#--------------------------------------------------------------------------
+#' ML or WML estimation of latent trait for 2PL model
+#'
+#' Theta is estimate by calling \code{uniroot} on \code{dlogL}. SEs are computed analytically. Value of the loglikelihood at the estimate is also provided. If \coe{parallel = T}, the call to uniroot is parallelized via \code{mclapply}. (ToDo: Need to find a way of linking duplicated response patterns to their originals. Also need to find way of setting the range of x better in uniroot )
+#''
+#' @param resp the matrix binary responses
+#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
+#' @param parallel call parallel:mclapply instead of looping over \code{nrow(resp)}?
+#' @return An \code{nrow(resp)} by 3 matrix of log-likleihoods, theta estimates, analytic SEs for each response pattern in resp.
+#' @export
+
+MLE <-function(resp, parms, WMLE = T, parallel = T) {
+  dim(resp)
+  out <- data.frame(matrix(0, nrow = nrow(resp), ncol = 3))
+  names(out) <- c("logL", "theta", "se")
+
+
+  fun <- function(resp){
+    uniroot(dlogL, c(-10, 10), resp = resp, parms = parms, WMLE = WMLE)$root[1]
+  }
+
+  if(parallel){
+    out$theta <- parallel::mclapply(data.frame(t(resp)), fun) %>% unlist
+  } else {
+    for (i in 1:nrow(resp)) {out$theta[i] <- fun(resp[i,])}
+  }
+  if (WMLE) {
+    out$se <- SE(parms, out$theta)
+  } else {
+    out$se <- 1/sqrt(I(parms, out$theta))
+  }
+  out$logL <- logL(resp, parms, out$theta)
+  out
+}
+
 
 #--------------------------------------------------------------------------
 #' ML or WML estimation of latent trait for 2PL
@@ -160,7 +233,7 @@ logL <- function(resp, parms, theta, WMLE = T) {
 #' @return An \code{nrow(resp)} by 4 matrix of log-likleihoods, theta estimates, analytic SEs, and approximate SEs for each response pattern in resp.
 #' @export
 
-MLE <-function(resp, parms, WMLE = T) {
+MLE2 <-function(resp, parms, WMLE = T) {
   out <- data.frame(matrix(0, nrow = nrow(resp), ncol = 3))
   names(out) <- c("logL", "theta", "approx_se")
 

@@ -17,26 +17,14 @@ library("gridExtra")
 library("dplyr")
 library("cirt")
 
-# Set up data ------------------------------------
-  # drop  032, 075, 095, 097 based on DIF analysis
-  # drop  092 because of administration problem
+# Load item parms
+setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
+parms <- read.csv("calibration_parms.csv", row.names = 1)
 
-drop_items <- c("032", "075", "095", "097", "092")
-
-# Calibration data
-setwd(paste0("~/Dropbox/Academic/Projects/CA/Data/response_matrices"))
-calib <- read.csv("calibration_2016.csv", check.names = F)
-calib <- calib[-grep(paste0(drop_items, collapse = "|"), names(calib))]
-
-# Calibrate items
-calib_ltm <- ltm(calib[,-1] ~ z1)
-parms <- coef(calib_ltm) %>% data.frame
-names(parms) <- c("beta", "alpha")
-
-# Load collaboration data and split into forms
+#  collaboration data and split into forms
 collab <- read.csv("collaboration_2016.csv", check.names = F)
-col_form <- format_resp(collab, calib[,-1], "COL")
-ind_form <- format_resp(collab, calib[,-1], "IND")
+col_form <- format_resp(collab, row.names(parms), "COL")
+ind_form <- format_resp(collab, row.names(parms), "IND")
 
 # Apply conjunctive scoring rule
 odd <- seq(1, nrow(col_form), by = 2)
@@ -53,127 +41,142 @@ ind_form <-ind_form[!collab$group_id%in%drop_groups,]
 # Reset odd for dropped items
 odd <- odd[1:(nrow(col_form)/2)]
 
-
 # Estimate theta for ind forms
-ind <- MLE(ind_form, parms)
+ind <- MLE(ind_form, parms, WMLE = T)
 theta1 <- ind$theta[odd]
 theta2 <- ind$theta[odd+1]
-
-ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1
-
-resp <- col_form
-
+resp <- col_form[odd, ]
 
 
 # re writing functions -------------------------------------------
 
-
-
-cIRF("Max", parms, theta1 = 1, theta2 = 0)
 models <- c("Ind", "Min", "Max", "AI")
-
-components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
-dim(components)
-mix_prop <- c(.1, .1, .5, .3)
-l <- incomplete_data(components, mix_prop, Sum = T)
-post <- posterior(components, mix_prop)
-prior(post)
-
-# hmmm rsults are quite different than before but sim_em works fine still...? Data or theta?
 col <- EM(models, resp, parms, theta1, theta2)
 col$prior
+raster_plot(col)
+
+col2 <- EM(models, resp, parms, ind_theta[odd], ind_theta[odd+1])
+col2$prior
 raster_plot(col)
 
 sanity <- sim_em(1000, 25, prior = NULL, alpha = NULL, beta = NULL, sort = F)
 raster_plot(sanity)
 sanity$prior
 
+sanity2 <- EM(models, ind_form[odd, ]*ind_form[odd+1, ], parms, ind_theta[odd], ind_theta[odd+1])
+sanity2$prior
+raster_plot(sanity2)
+
 # two functions required:
 #  test mixture against reference model
 #  PV measurement error into the mixture
 
+mix_prop <- col$posterior
+theta1_se <- ind$se[odd]
+theta2_se <- ind$se[odd+1]
+n_boot <- 200
+resp <- col_form[odd,]
 
+q <- lr_test(resp, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, n_boot)
+mle_ref[ind,]
+hist(mle_ref$theta)
+theta1[ind]
+theta2[ind]
 
+ind <- which(q$p_obs < .01)
+apply(!is.na(resp[ind,]), 1, sum)
+round(col$posterior[ind,],3)
+hist(q$p_obs, breaks = 20)
 
-# BORKEN!! need to vectorize mix_prop. maybe fold into boot_mix??
-
-sim_mix <- function(mix_prop, parms, theta1 = 0, theta2 = 0) {
-  n_row <- length(theta1)
-  n_col <- nrow(parms)
-  model <- c("Ind", "Min", "Max", "AI")
-  out <- array(NA, dim = c(n_row, n_col))
-  colnames(out) <- names(alpha)
-  indices <- cumsum(probs[-(probs)]*n_row) %>% ceiling %>% {c(0, ., n_row)}
-
-  # While loop to deal with small n_row ...
-  m <- 0; n <- 1
-  while (n > m) {
-    for (i in 1:length(model)) {
-      m <- indices[i] + 1
-      n <- min(indices[i + 1], n_row)
-      out[m:n, ] <- sim_data(model[i], alpha, beta, theta1[m:n], theta2[m:n])
-    }
-  }
-  out
-  #out[sample(1:nrow(out)),]
+# Replicates each model the correct number of bootstrapt for each theta
+model_indices <- function(mix_prop, n_boot){
+  indices <-  mix_prop * n_boot
+  dif <- apply(round(indices), 1, sum) - n_boot
+  temp <- apply((indices %% 1)*10, 1, order, decreasing = T)
+  add_ind <- cbind(1:nrow(mix_prop), temp[2,])
+  sub_ind <- cbind(1:nrow(mix_prop), temp[1,])
+  indices[sub_ind[dif > 0,]] <- indices[sub_ind[dif > 0,]] - dif[dif > 0]
+  indices[add_ind[dif < 0,]] <- indices[add_ind[dif < 0,]] - dif[dif < 0]
+  models_long <- rep(models, times = length(theta1))
+  rep(models_long, c(round(t(indices))))
 }
 
-# probs mix_prop, theta1, theta2 all have same length
-boot_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1.se = NULL, theta2.se = NULL) {
-  mix_prop_long <- rep(mix_prop, each = nboot)
+# prop mix_prop, theta1, theta2 all have same length
+boot_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL) {
+
+  # Expand data generating parms
+  models <- c("Ind", "Min", "Max", "AI")
+  pairs_long <- rep(1:length(theta1), each = n_boot)
   theta1_long <- rep(theta1, each = n_boot)
   theta2_long <- rep(theta2, each = n_boot)
+  mix_prop_long <- kronecker(mix_prop, rep(1, n_boot))
 
-  if(!is.null(theta1.se)) {
-    theta1_long <- rnorm(length(theta1_long), theta1_long, rep(theta1.se, each = n_boot))
+  # Use PV for theta if SE given
+  if(!is.null(theta1_se)) {
+    theta1_long <- rnorm(length(theta1_long), theta1_long, rep(theta1_se, each = n_boot))
   }
-  if(is.null(theta2.se)) {
-    theta2_long <- rnorm(length(theta2_long), theta2_long, rep(theta2.se, each = n_boot))
+  if(is.null(theta2_se)) {
+    theta2_long <- rnorm(length(theta2_long), theta2_long, rep(theta2_se, each = n_boot))
   }
-  sim_mix(mix_prop_long, parms, theta1_long, theta2_long)
+
+  # Set up output
+  out <- data.frame(pairs_long, theta1_long, theta2_long, mix_prop_long)
+  head(out)
+  names(out) <- c("pairs", "theta1", "theta2", models)
+  out$model <- model_indices(mix_prop, n_boot)
+
+  # Simulate data
+  data <- data.frame(matrix(NA, nrow = nrow(out), ncol = nrow(parms)))
+  names(data) <- row.names(parms)
+
+  for (i in models) {
+    temp <- out$model == i
+    data[temp, ] <- sim_data(i, parms, out$theta1[temp], out$theta2[temp])
+  }
+  cbind(out[], data[])
 }
 
 
-lr_mix <- function(col_form, mix_prop, parms, theta1 = 0, theta2 = 0, nboot = 0, theta1.se = NULL, theta2.se = NULL) {
-  models <- c("Ind", "Min", "Max", "AI")
-
-  components <- likelihood(models, col_form, parms, theta1, theta2, Log = F)
-  log_mix <- incomplete_data(components, mix_prop)
-  log_ref <- MLE(col_form, parms)
-  lr_obs <- -2*(log_mix - log_ref)
+lr_test <- function(resp, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, n_boot = 0) {
 
   # Helper function for computing P(x > obs)
   pobs <- function(cdf, obs) {
     1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
   }
 
+  models <- c("Ind", "Min", "Max", "AI")
+  items <- row.names(parms)
+
+  # Observed likelihood ratios for each dyad
+  components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
+  log_mix <- incomplete_data(components, mix_prop, Sum = F)
+  mle_ref <- MLE(resp, parms)
+  lr_obs <- -2*(log_mix - mle_ref$logL)
+
   # Bootstrapping
-  if (n_boot > 0) {
-    boot_ind <- rep(1:length(theta1), each = n_boot)
-    boot_data <- boot_mix(n_boot, mix_prop, parms, theta1, theta2, theta1.se, theta2.se)
-    boot_log_mix <- logL(boot_data, model[i], alpha, beta, theta1_long, theta2_long)
+  if (n_boot == 0) {
+    return(lr_obs)
+  } else {
+    boot <- boot_mix(100, mix_prop, parms, theta1, theta2, theta1_se, theta2_se)
+    temp <- likelihood(models, boot[items], parms, boot$theta1, boot$theta2, Log = F)
+    boot$log_mix <- incomplete_data(temp, boot[models], Sum = F)
+    temp <- MLE(boot[items], parms)
+    boot <- cbind(boot, temp)
+    boot$lr <- -2*(boot$log_mix - boot$logL)
 
-# BORKEN! need to boot_mix
+    # 95% CIs
+    temp <- tapply(boot$lr, boot$pairs, function(x) quantile(x, p = c(.025, .975)))
+    boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = length(theta1)))
 
-      boot_ref <- ml_twoPL(boot_data, alpha, beta)
-      boot_lr <- -2*(boot_mod - boot_ref[,1])
+    # P(lr > obs)
+    boot_cdf <- tapply(boot$lr, boot$pairs, ecdf)
+    boot_p <- mapply(function(x,y) pobs(x, y), boot_cdf, lr_obs)
 
-      # 95% CIs
-      temp <- tapply(boot_lr, boot_ind, function(x) quantile(x, p = c(.025, .975)))
-      boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = n_pair))
-
-      # P(lr > obs)
-      boot_cdf <- tapply(boot_lr, boot_ind, ecdf)
-      boot_p <-mapply(function(x,y) pobs(x, y), boot_cdf, lr[,i])
-
-      # Storage
-      temp <- data.frame(cbind(lr[,i], boot_ci[], boot_p))
-      names(temp) <- c("lr", "ci_lower", "ci_upper", "p_obs")
-      OUT[[i]] <- temp
-
-    }
+    # Storage
+    out <- data.frame(cbind(lr_obs, boot_ci, boot_p))
+    names(out) <- c("lr", "ci_lower", "ci_upper", "p_obs")
   }
-  OUT
+  out
 }
 
 
@@ -220,7 +223,10 @@ raster_plot(col)
 # Random sample for barbell plot
 temp <- sample(odd, 20)
 ind <- sort(c(temp, temp + 1))
-barbell_plot(ind_theta[ind], col_theta[ind], group_score[ind], legend = "right")
+barbell_plot(ind$theta[ind], mle_ref$theta[ind], group_score[ind], legend = "right")
+
+
+
 
 # Plots of group scores ------------------
 
@@ -381,3 +387,20 @@ plot(col3$posterior%*%1:4, col$posterior[ind > .05,]%*%1:4)
 # temp2$pair
 #
 # table(temp2$group_id)
+
+
+
+# Set up data ------------------------------------
+  # drop  032, 075, 095, 097 based on DIF analysis
+  # drop  092 because of administration problem
+ drop_items <- c("032", "075", "095", "097", "092")
+# Load Calibration data
+setwd(paste0("~/Dropbox/Academic/Projects/CA/Data/response_matrices"))
+calib <- read.csv("calibration_2016.csv", check.names = F)
+calib <- calib[-grep(paste0(drop_items, collapse = "|"), names(calib))]
+
+# Calibrate items
+calib_ltm <- ltm(calib[,-1] ~ z1)
+parms <- coef(calib_ltm) %>% data.frame
+names(parms) <- c("beta", "alpha")
+write.csv(parms, "calibration_parms.csv")
