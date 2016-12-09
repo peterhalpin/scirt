@@ -255,7 +255,7 @@ sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
 #--------------------------------------------------------------------------
 #' Used by sim_mix to write out the appropriate number of model labels for each dyad.
 #'
-#' The desried output is to replicate each of \code{c("Ind", "Min", "Max", "AI")} ni = mix_prop[i] * n_boot times. This function (badly) handles rounding error when computing the n[i].
+#' The desried output is to replicate each of \code{c("Ind", "Min", "Max", "AI")} n_i = mix_prop[i] * n_boot times. This function (badly) handles rounding error when computing the n_i.
 #'
 #' @param mix_prop is em$posterior
 #' @param n_boot is the desired number of replications of each row of mix prop
@@ -277,9 +277,9 @@ model_indices <- function(mix_prop, n_boot){
 
 
 #--------------------------------------------------------------------------
-#' Simulates data from an averaged model of collaboration resulting from application of EM.
+#' Simulates data from an averaged model of collaboration resulting from application of \code{EM}.
 #'
-#' Generates data from the averaged model pairwise collaboration, for one or more dyads indexed by theta1 and theta2. For each dyad, \code{mix_prop * n_boot} response patterns are generated from each of the four models of collaboration. If SEs are included, data generation uses a plausible values approach in which \code{n_boot} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}
+#' Generates data from n averaged model of pairwise collaboration, for one or more dyads indexed by theta1 and theta2. For each dyad, n_i \code{mix_prop[i] * n_boot} response patterns are generated from each of the i = 1,..4 models of collaboration. If SEs are included, data generation uses a plausible values approach in which \code{n_boot} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}, for each dayd.
 #'
 #' @param n_boot number of samples to generate for each dyad
 #' @param mix_prop is em$posterior
@@ -289,7 +289,7 @@ model_indices <- function(mix_prop, n_boot){
 #' @param theta1_se the standard error of the latent trait for member 1
 #' @param theta2_se the standard errr of the latent trait for member 2
 
-#' @return A dataframe with \code{length(theta)*n_boot} rows containing a pair_id, the data generating values of theta1, theta, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
+#' @return A data.frame with \code{length(theta)*n_boot} rows containing an id variable for for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
 sim_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL) {
@@ -311,7 +311,6 @@ sim_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se =
 
   # Set up output
   out <- data.frame(pairs_long, theta1_long, theta2_long, mix_prop_long)
-  head(out)
   names(out) <- c("pairs", "theta1", "theta2", models)
   out$model <- model_indices(mix_prop, n_boot)
 
@@ -328,9 +327,9 @@ sim_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se =
 
 
 #--------------------------------------------------------------------------
-#' Bootstrapped likelihood ratio test for averaged model of collaboration resulting from application of EM.
+#' Bootstrapped likelihood ratio test for averaged model of collaboration resulting from application of \code{EM}.
 #'
-#' Computes a likelihood ratio test for the averaged model pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
+#' Computes a likelihood ratio test for the averaged model of pairwise collaboration, given ``assumed to be known" item parameters (i.e., estimation error in item parameters is not accounted for by this procedure). If SEs are included for the thetas, data generation uses a plausible values approach in which \code{n_boot} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}, for each dayd (i.e., prediction error in theta1 and theta2 can be accounted for using this procedure).
 #'
 #' @param resp the matrix binary data from the conjunctively scored \strong{collaborative responses}
 #' @param mix_prop is the em$posterior
@@ -345,13 +344,13 @@ sim_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se =
 
 lr_test <- function(resp, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, n_boot = 0) {
 
+  models <- c("Ind", "Min", "Max", "AI")
+  items <- row.names(parms)
+
   # Helper function for computing P(x > obs)
   pobs <- function(cdf, obs) {
     1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
   }
-
-  models <- c("Ind", "Min", "Max", "AI")
-  items <- row.names(parms)
 
   # Observed likelihood ratios for each dyad
   components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
@@ -389,7 +388,7 @@ lr_test <- function(resp, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = N
 
 
 
-# --- under construction ----
+# --- under construction / undocumented functions ----
 
 
 delta <- function(alpha, beta, theta1, theta2) {

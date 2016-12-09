@@ -168,30 +168,10 @@ dlogL <- function(theta, resp, parms, WMLE = T) {
 }
 
 
-# XX not done -- need to integrate into MLE when there are no duplicates
-
-get_duplicates <- function(resp) {
-  doubles <- which(duplicated(resp) | duplicated (resp, fromLast = T))
-  if (length(doubles) > 0) {
-    temp <- lapply(data.frame(t(resp[doubles,])), paste0, collapse = "") %>% unlist
-    sort_ind <- order(temp)
-    temp <- temp[sort_ind]
-    doubles <- doubles[sort_ind]
-    key_ind <- cumsum(!duplicated(temp))
-    uniques <- doubles[!duplicated(temp)]
-    originals <- uniques[key_ind]
-    out <- cbind(doubles, originals)
-    out[duplicated(out[,2]),]
-  } else {
-    NA
-  }
-}
-
-
 #--------------------------------------------------------------------------
 #' ML or WML estimation of latent trait for 2PL model
 #'
-#' Theta is estimate by calling \code{uniroot} on \code{dlogL}. SEs are computed analytically. Value of the loglikelihood at the estimate is also provided. If \coe{parallel = T}, the call to uniroot is parallelized via \code{mclapply}. (ToDo: Need to find a way of linking duplicated response patterns to their originals. Also need to find way of setting the range of x better in uniroot )
+#' Theta is estimate by calling \code{uniroot} on \code{dlogL}. SEs are computed analytically. Value of the loglikelihood at the estimate is also provided. If \coe{parallel = T}, the call to uniroot is parallelized via \code{mclapply}. (ToDo: remove duplicate response patterns; also could do with a better way of setting the range of x in uniroot)
 #''
 #' @param resp the matrix binary responses
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
@@ -224,40 +204,22 @@ MLE <-function(resp, parms, WMLE = T, parallel = T) {
 }
 
 
-#--------------------------------------------------------------------------
-#' ML or WML estimation of latent trait for 2PL
-#'
-#' Calls \code{mle} from the \code{stat4} package (which calls \code{optim}). Analytic SEs are provided along with the esimates based on the observed Hessian.
-#' @param resp the matrix binary responses
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @return An \code{nrow(resp)} by 4 matrix of log-likleihoods, theta estimates, analytic SEs, and approximate SEs for each response pattern in resp.
-#' @export
 
-MLE2 <-function(resp, parms, WMLE = T) {
-  out <- data.frame(matrix(0, nrow = nrow(resp), ncol = 3))
-  names(out) <- c("logL", "theta", "approx_se")
+# XX attempt to deal with duplicate response patterns, to shorten runtine for MLE
 
-  neg_log <- function(theta, resp, parms) {
-    -logL(resp, parms, theta, WMLE = WMLE)
-  }
-
-  for (i in 1:nrow(resp)) {
-    temp <- mle(neg_log,
-               start = list(theta = 0),
-               fixed = list(resp = resp[i,], parms = parms),
-               method = "Brent",
-               lower = -4,
-               upper = 4)
-
-    out[i,] <- c(logLik(temp), coef(temp)[1], vcov(temp))
-  }
-
-  out$approx_se <- sqrt(out$approx_se)
-
-  if (WMLE) {
-    out$se <- SE(parms, out$theta)
+get_duplicates <- function(resp) {
+  doubles <- which(duplicated(resp) | duplicated (resp, fromLast = T))
+  if (length(doubles) > 0) {
+    temp <- lapply(data.frame(t(resp[doubles,])), paste0, collapse = "") %>% unlist
+    sort_ind <- order(temp)
+    temp <- temp[sort_ind]
+    doubles <- doubles[sort_ind]
+    key_ind <- cumsum(!duplicated(temp))
+    uniques <- doubles[!duplicated(temp)]
+    originals <- uniques[key_ind]
+    out <- cbind(doubles, originals)
+    out[duplicated(out[,2]),]
   } else {
-    out$se <- 1/sqrt(I(parms, out$theta))
+    NA
   }
-  out
 }

@@ -4,10 +4,9 @@
 
 # To do:
   # X 1 integrate cIRF and EM functions; sort out which functions take matrix of probs and which only take a 1X4 vector
-  # write data sim for mixture; thetas given
-  # bootstrap lr test for mixture
-  # bootstrap SE for mixture
-  # the last two should use more or less all the same funciton. for each dyad: generate pv of theta, simulate data from pv, estimate mixture model on simulated data, use the simulated data for the logL or for the SE
+  # X write data sim for mixture; thetas given
+  # X bootstrap lr test for mixture
+  # bootstrap SE for mixture: data generating posterior dist is mix_prop. should be recovered well by priors of EM. Variance over posteriors gives something like the SE of the posterior distribution. Apply delta method to get SE of group_score. But how to seperate sampleing error from measurement error, as in PV? dont have model based SE of posteriors, only able to resample SEs. Resample with and without PV on theta? take the difference as the noise added by measurement error in theta. good enough!
 
 #devtools::install_github("peterhalpin/cirt")
 #source("~/github/cirt/R/functions.R")
@@ -48,142 +47,44 @@ theta2 <- ind$theta[odd+1]
 resp <- col_form[odd, ]
 
 
-# re writing functions -------------------------------------------
+# tests for re written functions -------------------------------------------
 
+# EM
 models <- c("Ind", "Min", "Max", "AI")
 col <- EM(models, resp, parms, theta1, theta2)
 col$prior
-raster_plot(col)
-
-col2 <- EM(models, resp, parms, ind_theta[odd], ind_theta[odd+1])
-col2$prior
 raster_plot(col)
 
 sanity <- sim_em(1000, 25, prior = NULL, alpha = NULL, beta = NULL, sort = F)
 raster_plot(sanity)
 sanity$prior
 
-sanity2 <- EM(models, ind_form[odd, ]*ind_form[odd+1, ], parms, ind_theta[odd], ind_theta[odd+1])
+sanity2 <- EM(models, ind_form[odd, ]*ind_form[odd+1, ], parms, theta1, theta2)
 sanity2$prior
 raster_plot(sanity2)
 
-# two functions required:
-#  test mixture against reference model
-#  PV measurement error into the mixture
+# lr test
 
 mix_prop <- col$posterior
 theta1_se <- ind$se[odd]
 theta2_se <- ind$se[odd+1]
-n_boot <- 200
-resp <- col_form[odd,]
+n_boot <- 20
 
-q <- lr_test(resp, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, n_boot)
-mle_ref[ind,]
-hist(mle_ref$theta)
+lr  <- lr_test(resp, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, n_boot)
+
+# its aliiiiiive! but definitely have a few stinkers in here. what is going on?
+
+hist(q$p_obs, breaks = 20)
+ind <- which(q$p_obs < .01)
 theta1[ind]
 theta2[ind]
-
-ind <- which(q$p_obs < .01)
 apply(!is.na(resp[ind,]), 1, sum)
 round(col$posterior[ind,],3)
-hist(q$p_obs, breaks = 20)
-
-# Replicates each model the correct number of bootstrapt for each theta
-model_indices <- function(mix_prop, n_boot){
-  indices <-  mix_prop * n_boot
-  dif <- apply(round(indices), 1, sum) - n_boot
-  temp <- apply((indices %% 1)*10, 1, order, decreasing = T)
-  add_ind <- cbind(1:nrow(mix_prop), temp[2,])
-  sub_ind <- cbind(1:nrow(mix_prop), temp[1,])
-  indices[sub_ind[dif > 0,]] <- indices[sub_ind[dif > 0,]] - dif[dif > 0]
-  indices[add_ind[dif < 0,]] <- indices[add_ind[dif < 0,]] - dif[dif < 0]
-  models_long <- rep(models, times = length(theta1))
-  rep(models_long, c(round(t(indices))))
-}
-
-# prop mix_prop, theta1, theta2 all have same length
-boot_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL) {
-
-  # Expand data generating parms
-  models <- c("Ind", "Min", "Max", "AI")
-  pairs_long <- rep(1:length(theta1), each = n_boot)
-  theta1_long <- rep(theta1, each = n_boot)
-  theta2_long <- rep(theta2, each = n_boot)
-  mix_prop_long <- kronecker(mix_prop, rep(1, n_boot))
-
-  # Use PV for theta if SE given
-  if(!is.null(theta1_se)) {
-    theta1_long <- rnorm(length(theta1_long), theta1_long, rep(theta1_se, each = n_boot))
-  }
-  if(is.null(theta2_se)) {
-    theta2_long <- rnorm(length(theta2_long), theta2_long, rep(theta2_se, each = n_boot))
-  }
-
-  # Set up output
-  out <- data.frame(pairs_long, theta1_long, theta2_long, mix_prop_long)
-  head(out)
-  names(out) <- c("pairs", "theta1", "theta2", models)
-  out$model <- model_indices(mix_prop, n_boot)
-
-  # Simulate data
-  data <- data.frame(matrix(NA, nrow = nrow(out), ncol = nrow(parms)))
-  names(data) <- row.names(parms)
-
-  for (i in models) {
-    temp <- out$model == i
-    data[temp, ] <- sim_data(i, parms, out$theta1[temp], out$theta2[temp])
-  }
-  cbind(out[], data[])
-}
-
-
-lr_test <- function(resp, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, n_boot = 0) {
-
-  # Helper function for computing P(x > obs)
-  pobs <- function(cdf, obs) {
-    1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
-  }
-
-  models <- c("Ind", "Min", "Max", "AI")
-  items <- row.names(parms)
-
-  # Observed likelihood ratios for each dyad
-  components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
-  log_mix <- incomplete_data(components, mix_prop, Sum = F)
-  mle_ref <- MLE(resp, parms)
-  lr_obs <- -2*(log_mix - mle_ref$logL)
-
-  # Bootstrapping
-  if (n_boot == 0) {
-    return(lr_obs)
-  } else {
-    boot <- boot_mix(100, mix_prop, parms, theta1, theta2, theta1_se, theta2_se)
-    temp <- likelihood(models, boot[items], parms, boot$theta1, boot$theta2, Log = F)
-    boot$log_mix <- incomplete_data(temp, boot[models], Sum = F)
-    temp <- MLE(boot[items], parms)
-    boot <- cbind(boot, temp)
-    boot$lr <- -2*(boot$log_mix - boot$logL)
-
-    # 95% CIs
-    temp <- tapply(boot$lr, boot$pairs, function(x) quantile(x, p = c(.025, .975)))
-    boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = length(theta1)))
-
-    # P(lr > obs)
-    boot_cdf <- tapply(boot$lr, boot$pairs, ecdf)
-    boot_p <- mapply(function(x,y) pobs(x, y), boot_cdf, lr_obs)
-
-    # Storage
-    out <- data.frame(cbind(lr_obs, boot_ci, boot_p))
-    names(out) <- c("lr", "ci_lower", "ci_upper", "p_obs")
-  }
-  out
-}
 
 
 
+# old stuff -------------------------------------------
 
-
-# old stff
 col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1
 
 # Take a look
