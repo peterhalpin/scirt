@@ -133,7 +133,7 @@ SE <- function(parms, theta) {
 #--------------------------------------------------------------------------
 #' Loglikelihood of 2PL in theta
 #'
-#' Computes either likeihood of a response pattern under the 2PL model, given item parms and theta
+#' Computes likeihood of a response pattern under the 2PL model, given item parms and theta
 #'
 #' @param resp the matrix binary responses
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
@@ -147,9 +147,9 @@ logL <- function(resp, parms, theta) {
 }
 
 #--------------------------------------------------------------------------
-#' Loglikelihood of 2PL in theta
+#' Derviative of loglikelihood of 2PL in theta
 #'
-#' Computes either standard MLE of WMLE
+#' Computes either deriviat of standard MLE or of WMLE
 #'
 #' @param resp the matrix binary responses
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
@@ -171,7 +171,7 @@ dlogL <- function(theta, resp, parms, WMLE = T) {
 #--------------------------------------------------------------------------
 #' ML or WML estimation of latent trait for 2PL model
 #'
-#' Theta is estimate by calling \code{uniroot} on \code{dlogL}. SEs are computed analytically. Value of the loglikelihood at the estimate is also provided. If \coe{parallel = T}, the call to uniroot is parallelized via \code{mclapply}. (ToDo: remove duplicate response patterns; also could do with a better way of setting the range of x in uniroot)
+#' Theta is estimate by calling \code{uniroot} on \code{dlogL}. SEs are computed analytically. Value of the loglikelihood at the estimate is also provided. If \coe{parallel = T}, the call to uniroot is parallelized via \code{mclapply}. (ToDo: key duplicate response patterns of resp; also could do with a better way of setting the range of x in uniroot)
 #''
 #' @param resp the matrix binary responses
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
@@ -180,16 +180,14 @@ dlogL <- function(theta, resp, parms, WMLE = T) {
 #' @export
 
 MLE <-function(resp, parms, WMLE = T, parallel = T) {
-  dim(resp)
   out <- data.frame(matrix(0, nrow = nrow(resp), ncol = 3))
   names(out) <- c("logL", "theta", "se")
-
 
   fun <- function(resp){
     uniroot(dlogL, c(-10, 10), resp = resp, parms = parms, WMLE = WMLE)$root[1]
   }
 
-  if(parallel){
+  if (parallel) {
     out$theta <- parallel::mclapply(data.frame(t(resp)), fun) %>% unlist
   } else {
     for (i in 1:nrow(resp)) {out$theta[i] <- fun(resp[i,])}
@@ -202,8 +200,6 @@ MLE <-function(resp, parms, WMLE = T, parallel = T) {
   out$logL <- logL(resp, parms, out$theta)
   out
 }
-
-
 
 # XX attempt to deal with duplicate response patterns, to shorten runtine for MLE
 

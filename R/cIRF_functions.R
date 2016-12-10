@@ -77,7 +77,8 @@ AI <- function(parms, theta1, theta2) {
 #' Wrapper for collaborative item response functions
 #'
 #' Computes a matrix of probabilities for correct responses using the named \code{model} for collaboration, and the 2PL model for the items.
-#' @param model
+#'
+#' @param model one of \code{c("Ind", "Min", "Max", "AI", "IRF")}
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
@@ -145,9 +146,8 @@ incomplete_data <- function(components, mix_prop, Sum = T) {
 #' This is the E-step of the EM algorithm for estimating the mixing proportions.
 #'
 #' @param components n_resp by n_models matrix of likelihoods (\strong{not loglikelihoods}) for each response pattern and each model (e.g., the output of \code{likelihood} with \code{Log = F})
-#' @param prior the mixing proporitions for the models. Must be a \code{length(models)}-vector, which is applied to each row of \code{components}
+#' @param prior a \code{length(models)}-vector of mixing proporitions for the models.
 #' @return An n_resp by n_models matrix of posterior proabilities for each response pattern and each component.
-
 #' @export
 
 posterior <- function(components, prior) {
@@ -162,7 +162,6 @@ posterior <- function(components, prior) {
 #' This is the M-step of the EM algorithm for estimating the mixing proportions.
 #''
 #' @param posterior is output from \code{posterior}
-#' @param prior the mixing proporitions for the models. Must be a \code{length(models)}-vector, which is applied to each row of \code{components}
 #' @return An n_models- vector mixing proportions each component.
 
 prior <- function(posterior) {
@@ -189,7 +188,6 @@ EM <- function(models, resp, parms, theta1, theta2, max_iter = 100, conv = 1e-5)
   n_models <- length(models)
   p <- rep(1/n_models, n_models)
   l <- likelihood(models, resp, parms, theta1, theta2, Log = F)
-
   trace <- incomplete_data(l, p)
   i <- 1
   delta <- 1
@@ -243,7 +241,6 @@ format_resp <- function(resp, items, version = NULL) {
 sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
   n_row <- length(theta1)
   n_col <- nrow(parms)
-  fun <- match.fun(model)
   r <- array(runif(n_row * n_col), dim = c(n_row, n_col))
   p <- cIRF(model, parms, theta1, theta2)
   out <- ifelse(p > r, 1, 0)
@@ -255,7 +252,7 @@ sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
 #--------------------------------------------------------------------------
 #' Used by sim_mix to write out the appropriate number of model labels for each dyad.
 #'
-#' The desried output is to replicate each of \code{c("Ind", "Min", "Max", "AI")} n_i = mix_prop[i] * n_boot times. This function (badly) handles rounding error when computing the n_i.
+#' The desried output is to repeat each of \code{c("Ind", "Min", "Max", "AI")} n_i = mix_prop[i] * n_boot times for each row of mix_prop. This function (badly) handles rounding error when computing the n_i.
 #'
 #' @param mix_prop is em$posterior
 #' @param n_boot is the desired number of replications of each row of mix prop
@@ -279,7 +276,7 @@ model_indices <- function(mix_prop, n_boot){
 #--------------------------------------------------------------------------
 #' Simulates data from an averaged model of collaboration resulting from application of \code{EM}.
 #'
-#' Generates data from n averaged model of pairwise collaboration, for one or more dyads indexed by theta1 and theta2. For each dyad, n_i \code{mix_prop[i] * n_boot} response patterns are generated from each of the i = 1,..4 models of collaboration. If SEs are included, data generation uses a plausible values approach in which \code{n_boot} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}, for each dayd.
+#' Generates data from an averaged model of pairwise collaboration, for one or more dyads indexed by theta1 and theta2. For each dyad, n_i = \code{mix_prop[i] * n_boot} response patterns are generated from each of the i = 1,..4 models of collaboration. If SEs are included, data generation uses a plausible values approach in which \code{n_boot} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}, for each dayd.
 #'
 #' @param n_boot number of samples to generate for each dyad
 #' @param mix_prop is em$posterior
@@ -289,7 +286,7 @@ model_indices <- function(mix_prop, n_boot){
 #' @param theta1_se the standard error of the latent trait for member 1
 #' @param theta2_se the standard errr of the latent trait for member 2
 
-#' @return A data.frame with \code{length(theta)*n_boot} rows containing an id variable for for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
+#' @return A data.frame with \code{length(theta)*n_boot} rows containing an id variable for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
 sim_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL) {
