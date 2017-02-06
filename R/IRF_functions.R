@@ -131,7 +131,7 @@ SE <- function(parms, theta) {
 #--------------------------------------------------------------------------
 #' Loglikelihood of 2PL in theta
 #'
-#' Computes either likeihood of a response pattern under the 2PL model, given item parms and theta
+#' Computes likeihood of a response pattern under the 2PL model, given item parms and theta
 #'
 #' @param resp the matrix binary responses
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
@@ -145,9 +145,9 @@ logL <- function(resp, parms, theta) {
 }
 
 #--------------------------------------------------------------------------
-#' Loglikelihood of 2PL in theta
+#' Derviative of loglikelihood of 2PL in theta
 #'
-#' Computes either standard MLE of WMLE
+#' Computes either deriviat of standard MLE or of WMLE
 #'
 #' @param resp the matrix binary responses
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
@@ -177,7 +177,6 @@ dlogL <- function(theta, resp, parms, WMLE = T) {
 #' @export
 
 MLE <-function(resp, parms, WMLE = T, parallel = T) {
-  dim(resp)
   out <- data.frame(matrix(0, nrow = nrow(resp), ncol = 3))
   names(out) <- c("logL", "theta", "se")
 
@@ -185,7 +184,7 @@ MLE <-function(resp, parms, WMLE = T, parallel = T) {
     uniroot(dlogL, c(-10, 10), resp = resp, parms = parms, WMLE = WMLE)$root[1]
   }
 
-  if(parallel){
+  if (parallel) {
     out$theta <- parallel::mclapply(data.frame(t(resp)), fun) %>% unlist
   } else {
     for (i in 1:nrow(resp)) {out$theta[i] <- fun(resp[i,])}
