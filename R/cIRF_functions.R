@@ -1,6 +1,7 @@
 # Last update: 07/12/2016
 # Functions for estimating and testing collaboration models. Depends on IRF_functions.R
 # User beware: functions not written to check or handle input errors.
+
 source("~/github/cirt/R/IRF_functions.R")
 require(ggplot2)
 require(dplyr)
@@ -171,9 +172,9 @@ prior <- function(posterior) {
 
 
 #--------------------------------------------------------------------------
-#' Runs EM algorithm for mixing proportions for a mixture of collaboration models
+#' Runs EM algorithm for mixing proportions of a mixture of collaboration models
 #'
-#' Only the mixing proportions are estimated. Multiple starts are not used becase the Q function is concave in mixing proportions.
+#' Only the mixing proportions are estimated.
 #'
 #' @param models one or more of \code{c("Ind", "Min", "Max", "AI") }
 #' @param resp data.frame of binary, conjunctively scored \strong{collaborative responses}
@@ -195,8 +196,8 @@ EM <- function(models, resp, parms, theta1, theta2, max_iter = 100, conv = 1e-5)
   delta <- 1
 
   while(i <= max_iter & delta > conv) {
-    post <- posterior(l, p) # Eeeeee
-    p <- prior(post) # Mmmmmm
+    post <- posterior(l, p) # E
+    p <- prior(post) # M
     trace <- c(trace, incomplete_data(l, p))
     delta <- trace[i+1] - trace[i]
     i <- i + 1
@@ -263,17 +264,24 @@ sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
 #' @return An \code{nrow(miz_prop) * n_boot} vector that replicates \code{c("Ind", "Min", "Max", "AI")} according to the number simulated data sets desired for each model.
 #' @export
 
-model_indices <- function(mix_prop, n_boot){
-  indices <-  mix_prop * n_boot
-  dif <- apply(round(indices), 1, sum) - n_boot
-  temp <- apply((indices %% 1)*10, 1, order, decreasing = T)
-  add_ind <- cbind(1:nrow(mix_prop), temp[2,])
-  sub_ind <- cbind(1:nrow(mix_prop), temp[1,])
-  indices[sub_ind[dif > 0,]] <- indices[sub_ind[dif > 0,]] - dif[dif > 0]
-  indices[add_ind[dif < 0,]] <- indices[add_ind[dif < 0,]] - dif[dif < 0]
-  models_long <- rep(models, times = length(theta1))
-  rep(models_long, c(round(t(indices))))
+model_indices <- function(n_long, mix_prop_long){
+    temp <- runif(n_long)
+    temp2 <- t(apply(mix_prop_long, 1, cumsum))
+    mix_prop_long[] <- mapply(function(x, y) x > y, temp2, temp)
+    temp <- rep(4, times = n_long)
+    for(i in 3:1) {temp[mix_prop_long[,i] == 1] <- i }
+    temp
 }
+  # indices <-  mix_prop * n_boot
+  # dif <- apply(round(indices), 1, sum) - n_boot
+  # temp <- apply((indices %% 1)*10, 1, order, decreasing = T)
+  # add_ind <- cbind(1:nrow(mix_prop), temp[2,])
+  # sub_ind <- cbind(1:nrow(mix_prop), temp[1,])
+  # indices[sub_ind[dif > 0,]] <- indices[sub_ind[dif > 0,]] - dif[dif > 0]
+  # indices[add_ind[dif < 0,]] <- indices[add_ind[dif < 0,]] - dif[dif < 0]
+  # models_long <- rep(models, times = length(theta1))
+  # rep(models_long, c(round(t(indices))))
+
 
 
 #--------------------------------------------------------------------------
@@ -297,25 +305,30 @@ sim_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se =
   # Expand data generating parms
   models <- c("Ind", "Min", "Max", "AI")
   pairs_long <- rep(1:length(theta1), each = n_boot)
-  theta1_long <- rep(theta1, each = n_boot)
-  theta2_long <- rep(theta2, each = n_boot)
   mix_prop_long <- kronecker(mix_prop, rep(1, n_boot))
 
-  # Use PV for theta if SE given
+
+  # Step 1. Use PV for theta if SE given
+  theta1_long <- rep(theta1, each = n_boot)
+  theta2_long <- rep(theta2, each = n_boot)
+  n_long <- length(theta1)*n_boot
+
   if(!is.null(theta1_se)) {
-    theta1_long <- rnorm(length(theta1_long), theta1_long, rep(theta1_se, each = n_boot))
+    theta1_long <- rnorm(n_long, theta1_long, rep(theta1_se, each = n_boot))
   }
   if(is.null(theta2_se)) {
-    theta2_long <- rnorm(length(theta2_long), theta2_long, rep(theta2_se, each = n_boot))
+    theta2_long <- rnorm(n_long, theta2_long, rep(theta2_se, each = n_boot))
   }
 
-  # Set up output
+  # Set up storage
   out <- data.frame(pairs_long, theta1_long, theta2_long, mix_prop_long)
   names(out) <- c("pairs", "theta1", "theta2", models)
-  out$model <- model_indices(mix_prop, n_boot)
 
-  # Simulate data
-  data <- data.frame(matrix(NA, nrow = nrow(out), ncol = nrow(parms)))
+  # Step 2. Get model for each rep
+  out$model <- model_indices(n_long, mix_prop_long)
+
+  # Step 3. Simulate data
+  data <- data.frame(matrix(NA, nrow = n_long, ncol = nrow(parms)))
   names(data) <- row.names(parms)
 
   for (i in models) {

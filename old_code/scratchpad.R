@@ -14,7 +14,9 @@ library("ltm")
 library("ggplot2")
 library("gridExtra")
 library("dplyr")
-library("cirt")
+# library("cirt")
+source("~/github/cirt/R/cIRF_functions.R")
+source("~/github/cirt/R/IRF_functions.R")
 
 # Load item parms
 setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
@@ -22,6 +24,7 @@ parms <- read.csv("calibration_parms.csv", row.names = 1)
 
 #  collaboration data and split into forms
 collab <- read.csv("collaboration_2016.csv", check.names = F)
+head(collab)
 col_form <- format_resp(collab, row.names(parms), "COL")
 ind_form <- format_resp(collab, row.names(parms), "IND")
 
@@ -64,7 +67,6 @@ sanity2$prior
 raster_plot(sanity2)
 
 # lr test
-
 mix_prop <- col$posterior
 theta1_se <- ind$se[odd]
 theta2_se <- ind$se[odd+1]

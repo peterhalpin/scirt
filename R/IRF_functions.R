@@ -10,8 +10,6 @@
   #   J'  = sum a^4 PQ(1-6P)
   # User beware: functions not written to check or handle input errors.
 
-require(stats4)
-
 #--------------------------------------------------------------------------
 #' The IRF for the two parameter logistic model
 #'
@@ -167,11 +165,10 @@ dlogL <- function(theta, resp, parms, WMLE = T) {
   dlog
 }
 
-
 #--------------------------------------------------------------------------
 #' ML or WML estimation of latent trait for 2PL model
 #'
-#' Theta is estimate by calling \code{uniroot} on \code{dlogL}. SEs are computed analytically. Value of the loglikelihood at the estimate is also provided. If \coe{parallel = T}, the call to uniroot is parallelized via \code{mclapply}. (ToDo: remove duplicate response patterns; also could do with a better way of setting the range of x in uniroot)
+#' Theta is estimated by calling \code{uniroot} on \code{dlogL}. SEs are computed analytically. Value of the loglikelihood at the estimate is also provided. If \coe{parallel = T}, the call to uniroot is parallelized via \code{mclapply}. (ToDo: remove duplicate response patterns; also could do with a better way of setting the range of x in uniroot)
 #''
 #' @param resp the matrix binary responses
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
@@ -183,7 +180,6 @@ MLE <-function(resp, parms, WMLE = T, parallel = T) {
   dim(resp)
   out <- data.frame(matrix(0, nrow = nrow(resp), ncol = 3))
   names(out) <- c("logL", "theta", "se")
-
 
   fun <- function(resp){
     uniroot(dlogL, c(-10, 10), resp = resp, parms = parms, WMLE = WMLE)$root[1]
@@ -204,22 +200,21 @@ MLE <-function(resp, parms, WMLE = T, parallel = T) {
 }
 
 
-
-# XX attempt to deal with duplicate response patterns, to shorten runtine for MLE
-
-get_duplicates <- function(resp) {
-  doubles <- which(duplicated(resp) | duplicated (resp, fromLast = T))
-  if (length(doubles) > 0) {
-    temp <- lapply(data.frame(t(resp[doubles,])), paste0, collapse = "") %>% unlist
-    sort_ind <- order(temp)
-    temp <- temp[sort_ind]
-    doubles <- doubles[sort_ind]
-    key_ind <- cumsum(!duplicated(temp))
-    uniques <- doubles[!duplicated(temp)]
-    originals <- uniques[key_ind]
-    out <- cbind(doubles, originals)
-    out[duplicated(out[,2]),]
-  } else {
-    NA
-  }
-}
+# # XX attempt to deal with duplicate response patterns, to shorten runtine for MLE
+#
+# get_duplicates <- function(resp) {
+#   doubles <- which(duplicated(resp) | duplicated (resp, fromLast = T))
+#   if (length(doubles) > 0) {
+#     temp <- lapply(data.frame(t(resp[doubles,])), paste0, collapse = "") %>% unlist
+#     sort_ind <- order(temp)
+#     temp <- temp[sort_ind]
+#     doubles <- doubles[sort_ind]
+#     key_ind <- cumsum(!duplicated(temp))
+#     uniques <- doubles[!duplicated(temp)]
+#     originals <- uniques[key_ind]
+#     out <- cbind(doubles, originals)
+#     out[duplicated(out[,2]),]
+#   } else {
+#     NA
+#   }
+# }
