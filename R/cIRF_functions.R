@@ -97,6 +97,23 @@ cIRF <- function(model, parms, theta1, theta2) {
 
 
 #--------------------------------------------------------------------------
+#' Computes item deltas
+#'
+#' Computes a matrix of probabilities for correct responses using the named \code{model} for collaboration, and the 2PL model for the items.
+#'
+#' @param model one of \code{c("Ind", "Min", "Max", "AI", "IRF")}
+#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
+#' @param theta1 the latent trait for member 1
+#' @param theta2 the latent trait for member 2
+#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
+#' @export
+
+item_delta <- function(parms, theta1, theta2) {
+  Min(alpha, beta, theta1, theta2) * (1 - Max(alpha, beta, theta1, theta2))
+}
+
+
+#--------------------------------------------------------------------------
 #' Likelihood of a matrix of binary responses for one or more models, conditional on theta.
 #'
 #' \code{logL} is faster for 2PL. Mainly used to provide the component likelihoods for the finite mixture approach to selection / averaging models of collaboration.
@@ -251,7 +268,29 @@ sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
 
 
 #--------------------------------------------------------------------------
-#' Used by sim_mix to write out the appropriate number of model labels for each dyad.
+#' Used by bootstrap to obtain the model index for each replication
+#'
+#'
+#' @param mix_prop is em$posterior
+#' @param n_boot is the desired number of replications of each row of mix prop
+
+#' @return An \code{n_long} vector that of integers that represent the model to be used for each replication
+#' @export
+
+model_indices <- function(n_long, mix_prop_long){
+    temp <- runif(n_long)
+    temp2 <- t(apply(mix_prop_long, 1, cumsum))
+
+    # overwites temp and temp2
+    temp2[] <- mapply(function(x, y) x > y, temp2, temp)
+    temp2
+    temp <- rep(4, n_long)
+    for (i in 3:1) {temp[temp2[,i] == 1] <- i }
+    temp
+}
+
+#--------------------------------------------------------------------------
+#' Transforms one data.frame have the same NA entries as another data.frame.
 #'
 #' The desried output is to repeat each of \code{c("Ind", "Min", "Max", "AI")} n_i = mix_prop[i] * n_boot times for each row of mix_prop. This function (badly) handles rounding error when computing the n_i.
 #'
@@ -260,60 +299,49 @@ sim_data <- function(model, parms, theta1 = 0, theta2 = 0) {
 
 #' @return An \code{nrow(miz_prop) * n_boot} vector that replicates \code{c("Ind", "Min", "Max", "AI")} according to the number simulated data sets desired for each model.
 #' @export
-
-model_indices <- function(n_long, mix_prop_long){
-    temp <- runif(n_long)
-    temp2 <- t(apply(mix_prop_long, 1, cumsum))
-    mix_prop_long[] <- mapply(function(x, y) x > y, temp2, temp)
-    temp <- rep(4, times = n_long)
-    for(i in 3:1) {temp[mix_prop_long[,i] == 1] <- i }
-    temp
+drop_NA <- function(data, NA_pattern){
+ if (!is.null(NA_pattern)) {
+   NA_pattern[!is.na(NA_pattern)] <- 1
+   NA_pattern_long <- kronecker(as.matrix(NA_pattern), rep(1, n_boot))
+   data <- data*NA_pattern_long
+ }
+ data
 }
-  # indices <-  mix_prop * n_boot
-  # dif <- apply(round(indices), 1, sum) - n_boot
-  # temp <- apply((indices %% 1)*10, 1, order, decreasing = T)
-  # add_ind <- cbind(1:nrow(mix_prop), temp[2,])
-  # sub_ind <- cbind(1:nrow(mix_prop), temp[1,])
-  # indices[sub_ind[dif > 0,]] <- indices[sub_ind[dif > 0,]] - dif[dif > 0]
-  # indices[add_ind[dif < 0,]] <- indices[add_ind[dif < 0,]] - dif[dif < 0]
-  # models_long <- rep(models, times = length(theta1))
-  # rep(models_long, c(round(t(indices))))
-
 
 
 #--------------------------------------------------------------------------
 #' Simulates data from an averaged model of collaboration resulting from application of \code{EM}.
 #'
-#' Generates data from an averaged model of pairwise collaboration, for one or more dyads indexed by theta1 and theta2. For each dyad, n_i = \code{mix_prop[i] * n_boot} response patterns are generated from each of the i = 1,..4 models of collaboration. If SEs are included, data generation uses a plausible values approach in which \code{n_boot} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}, for each dayd.
+#' Generates data from an averaged model of pairwise collaboration, for one or more dyads indexed by theta1 and theta2. For each dyad, arppoximately n_i = \code{mix_prop[i] * n_boot} response patterns are generated from each of the i = 1,..4 models of collaboration. If \code{theta_se} are included, data generation uses a plausible values approach in which \code{n_boot} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}, for each dayd.
 #'
 #' @param n_boot number of samples to generate for each dyad
 #' @param mix_prop is em$posterior
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
-#' @param theta1_se the standard error of the latent trait for member 1
-#' @param theta2_se the standard errr of the latent trait for member 2
+#' @param theta1_se the standard error of the latent trait for member 1 (optional)
+#' @param theta2_se the standard errr of the latent trait for member 2 (optional)
+#' @param NA_data an (optional) \code{length(theta)} by \code{nrow(parms)} data.frame with \code{NA} entries for each item a dyad did not answer. The missing values are preserved in the generated data. This would usually be the original response matrix.
 
 #' @return A data.frame with \code{length(theta)*n_boot} rows containing an id variable for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
-sim_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL) {
+bootstrap <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
 
   # Expand data generating parms
   models <- c("Ind", "Min", "Max", "AI")
+  n_long <- length(theta1)*n_boot
   pairs_long <- rep(1:length(theta1), each = n_boot)
   mix_prop_long <- kronecker(mix_prop, rep(1, n_boot))
-
 
   # Step 1. Use PV for theta if SE given
   theta1_long <- rep(theta1, each = n_boot)
   theta2_long <- rep(theta2, each = n_boot)
-  n_long <- length(theta1)*n_boot
 
   if(!is.null(theta1_se)) {
     theta1_long <- rnorm(n_long, theta1_long, rep(theta1_se, each = n_boot))
   }
-  if(is.null(theta2_se)) {
+  if(!is.null(theta2_se)) {
     theta2_long <- rnorm(n_long, theta2_long, rep(theta2_se, each = n_boot))
   }
 
@@ -328,12 +356,34 @@ sim_mix <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se =
   data <- data.frame(matrix(NA, nrow = n_long, ncol = nrow(parms)))
   names(data) <- row.names(parms)
 
-  for (i in models) {
+  for (i in 1:length(models)) {
     temp <- out$model == i
-    data[temp, ] <- sim_data(i, parms, out$theta1[temp], out$theta2[temp])
+    data[temp, ] <- sim_data(models[i], parms, out$theta1[temp], out$theta2[temp])
   }
+  data <- drop_NA(data, NA_pattern)
   cbind(out[], data[])
 }
+
+
+
+cp <-function(mix_prop, known_model = NULL){
+  n_models <- ncol(mix_prop)
+  out <- matrix(0, nrow = n_models, ncol = n_models)
+
+  if (is.null(known_model)) {
+    known_model <- apply(mix_prop, 1, which.max)
+  }
+  for(i in 1:n_models) {
+    out[i, ] <-  apply(mix_prop[known_model == i, ], 2, mean)
+  }
+  row.names(out) <- paste0("model", 1:4)
+  colnames(out) <- paste0("prob", 1:4)
+  out
+}
+
+
+
+
 
 
 #--------------------------------------------------------------------------
@@ -397,12 +447,11 @@ lr_test <- function(resp, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = N
 
 
 
-
 # --- under construction / undocumented functions ----
 
 
-delta <- function(alpha, beta, theta1, theta2) {
-  Min(alpha, beta, theta1, theta2) * (1 - Max(alpha, beta, theta1, theta2))
+item_delta <- function(parms, theta1, theta2) {
+  Min(parms, theta1, theta2) * (1 - Max(parms, theta1, theta2))
 }
 
 screen <- function(cutoff, alpha, beta, theta1, theta2) {
