@@ -17,33 +17,36 @@ source("~/github/cirt/R/IRF_functions.R")
 # ------------------------------------------------------------
 models <- c("Ind", "Min", "Max", "AI")
 n_models <- 4
-n_theta <- 2000
+n_theta <- 5000
 n_items <- 65
+n_boots <- 1
+
+set.seed(123)
+
 theta <- rnorm(n_theta)
-beta <- rnorm(n_items)
+beta <- sort(rnorm(n_items))
 alpha <- runif(n_items, .5, 2)
 temp_parms <- data.frame(alpha, beta)
-row.names(temp_parms) <- paste0("item", 1:65)
+row.names(temp_parms) <- paste0("item", 1:n_items)
 
-form <- rep(1, 65)
-form[sample.int(65, 25)] <- 0
-theta_se <- SE(parms[form == 0, ], theta)
+form <- rep(1, n_items)
+form[sample.int(n_items, 25)] <- 0
+theta_se <- SE(temp_parms[form == 0, ], theta)
 plot(theta, theta_se)
 
 mix_prop <- matrix(.25, nrow = n_theta/2, ncol = n_models)
-n_boots <- 1
-odd <- seq(1, n_obs, by = 2)
+
+odd <- seq(1, n_theta, by = 2)
 parms <- temp_parms[form == 1, ]
 
-set.seed(123)
-sim_data <- bootstrap(n_boots, mix_prop, parms, theta[odd], theta[odd+1])
-head(sim_data)
-table(sim_data$model)/1000
+data <- bootstrap(n_boots, mix_prop, parms, theta[odd], theta[odd+1])
+head(data)
+table(data$model) / n_theta * 2
 
 # ------------------------------------------------------------
 # EM
 # ------------------------------------------------------------
-resp <- sim_data[grep("item", names(sim_data))]
+resp <- data[grep("item", names(data))]
 head(resp)
 em <- EM(models, resp, parms, theta[odd], theta[odd+1])
 
@@ -51,46 +54,57 @@ em <- EM(models, resp, parms, theta[odd], theta[odd+1])
 round(em$prior, 3)
 
 # classification probabilities
-classify <- cp(em$posterior, sim_data$model)
+classify <- cp(em$posterior, data$model)
 round(classify, 3)
 
 # ------------------------------------------------------------
-# Item delta analysis
+# Item deltas
 # ------------------------------------------------------------
 
-em_model <- apply(em$posterior, 1, max)
-plot(abs(theta[odd] - theta[odd+1]), mean_delta)
+deltas <- item_delta(parms, theta[odd], theta[odd+1])/.25
+mean_delta <- apply(deltas, 1, mean)
 
-plot(sum_delta[sim_data$model == i], em$posterior[sim_data$model == i, i])
-cor(sum_delta[sim_data$model == i], em$posterior[sim_data$model == i, i])
+temp_posterior <- em$posterior
+temp_posterior[,2] <- temp_posterior[,2] + temp_posterior[,3]
+temp_model <- data$model
+temp_model[temp_model == 3] <- 2
 
-n_shortform <- 20
-n_forms <- nrow(parms) - n_shortform
-deltas <- item_delta(parms, theta[odd], theta[odd+1])
+temp <- data.frame(temp_model, mean_delta, temp_posterior[cbind(1:nrow(temp_posterior), temp_model)])
+names(temp) <- c("Model", "Delta", "Prob")
+temp$model[temp$model == 1] <- "Ind"
+temp$model[temp$model == 2] <- "Min + Max"
+temp$model[temp$model == 4] <- "AI"
 
-priors <- em$prior
-posteriors <- diag(classify)
-NAs <- NA*resp
-i = 1
-item_order <- t(apply(deltas, 1, order))
-i = 210
-deltas[˝i, item_order[i,]]
+# Figure X
 
-for(i in 1:n_forms) {
-  lower <- i
-  upper <- n_shortform + i - 1
-  NAs[item_order <= upper & item_order >= lower] <- 1
-  temp_resp <- resp * NAs
-  temp_em <- EM(models, temp_resp, parms, theta[odd], theta[odd+1])
-  priors <- rbind(priors, temp_em$prior)
-  posteriors <- rbind(posteriors, diag(cp(temp_em$posterior, sim_data$model)))
-  NAs <- NA*resp
-}
+ggplot(temp, aes(x = Delta, y = Prob, group = Model)) + stat_smooth(aes(linetype = Model), color = "black", se = F, method = "loess") +
+    xlab("Mean Item Delta") +
+    ylab("Probability of Correct Classification") +
+    ggtitle("Loess Smooth of Posterior Probability of Correct Model Classification") +
+    theme_bw() + scale_color_grey() + scale_fill_grey()
 
-priors
-posteriors
-apply(temp_deltas, 1, mean, na.rm = T)
-# Load item parms
+
+# ------------------------------------------------------------
+# Q-bar
+# ------------------------------------------------------------
+qbar <- em$posterior%*%1:4
+hist(qbar)
+
+# - boostrap each person 500 times with version 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+ # Load item parms
 setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
 parms <- read.csv("calibration_parms.csv", row.names = 1)
 

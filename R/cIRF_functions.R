@@ -365,7 +365,6 @@ bootstrap <- function(n_boot, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se
 }
 
 
-
 cp <-function(mix_prop, known_model = NULL){
   n_models <- ncol(mix_prop)
   out <- matrix(0, nrow = n_models, ncol = n_models)
