@@ -15,47 +15,52 @@ source("~/github/cirt/R/IRF_functions.R")
 # ------------------------------------------------------------
 # Data simulation
 # ------------------------------------------------------------
+
 models <- c("Ind", "Min", "Max", "AI")
 n_models <- 4
-n_theta <- 5000
-n_items <- 65
-n_boots <- 1
+n_obs <- 1000
+n_items <- 25
 
-set.seed(123)
+set.seed(121)
 
-theta <- rnorm(n_theta)
-beta <- sort(rnorm(n_items))
-alpha <- runif(n_items, .5, 2)
+theta <- rnorm(n_obs*2)
+beta <- sort(rnorm(n_items*2))
+alpha <- runif(n_items*2, .5, 2)
+mix_prop <-rep(1/n_models, n_models)
+
 temp_parms <- data.frame(alpha, beta)
-row.names(temp_parms) <- paste0("item", 1:n_items)
+ind_form <- rep(1, n_items*2)
+ind_form[sample.int(n_items*2, n_items)] <- 0
+theta_se <- SE(temp_parms[ind_form == 1, ], theta)
 
-form <- rep(1, n_items)
-form[sample.int(n_items, 25)] <- 0
-theta_se <- SE(temp_parms[form == 0, ], theta)
-plot(theta, theta_se)
 
-mix_prop <- matrix(.25, nrow = n_theta/2, ncol = n_models)
 
-odd <- seq(1, n_theta, by = 2)
-parms <- temp_parms[form == 1, ]
-
-data <- bootstrap(n_boots, mix_prop, parms, theta[odd], theta[odd+1])
-head(data)
-table(data$model) / n_theta * 2
+odd <- seq(1, n_obs*2, by = 2)
+theta1 <- theta[odd]
+theta2 <- theta[odd+1]
+parms <- temp_parms[ind_form == 0, ]
+row.names(parms) <- paste0("item", 1:n_items)
+data <- sim_data(mix_prop, parms, theta1, theta2)
+table(data$model) / n_obs
 
 # ------------------------------------------------------------
 # EM
 # ------------------------------------------------------------
 resp <- data[grep("item", names(data))]
-head(resp)
 em <- EM(models, resp, parms, theta[odd], theta[odd+1])
 
 # mixing proportions
 round(em$prior, 3)
+round(em$se, 3)
 
 # classification probabilities
-classify <- cp(em$posterior, data$model)
+classify <- class_probs(em$posterior, data$model)
 round(classify, 3)
+
+# ------------------------------------------------------------
+# Plausible Values
+# ------------------------------------------------------------
+
 
 # ------------------------------------------------------------
 # Item deltas
