@@ -19,29 +19,31 @@ source("~/github/cirt/R/IRF_functions.R")
 models <- c("Ind", "Min", "Max", "AI")
 n_models <- 4
 n_obs <- 1000
-n_items <- 25
+n_items <- 50
 
-set.seed(121)
-
+set.seed(123)
 theta <- rnorm(n_obs*2)
-beta <- sort(rnorm(n_items*2))
-alpha <- runif(n_items*2, .5, 2)
+beta <- sort(rnorm(n_items*2, sd = 1.3))
+alpha <- runif(n_items*2, .7, 2.5)
 mix_prop <-rep(1/n_models, n_models)
 
 temp_parms <- data.frame(alpha, beta)
 ind_form <- rep(1, n_items*2)
-ind_form[sample.int(n_items*2, n_items)] <- 0
+#ind_form[sample.int(n_items*2, n_items)] <- 0
 theta_se <- SE(temp_parms[ind_form == 1, ], theta)
-
-
+ind_form[sample.int(n_items*2, n_items)] <- 0
+plot(theta, theta_se)
 
 odd <- seq(1, n_obs*2, by = 2)
 theta1 <- theta[odd]
 theta2 <- theta[odd+1]
+theta1_se <- theta_se[odd]
+theta2_se <- theta_se[odd+1]
+
 parms <- temp_parms[ind_form == 0, ]
 row.names(parms) <- paste0("item", 1:n_items)
 data <- sim_data(mix_prop, parms, theta1, theta2)
-table(data$model) / n_obs
+sample_mix_prop <- table(data$model) / n_obs
 
 # ------------------------------------------------------------
 # EM
@@ -60,29 +62,89 @@ round(classify, 3)
 # ------------------------------------------------------------
 # Plausible Values
 # ------------------------------------------------------------
+n_reps <- 100
 
+pv_data <- PV(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, model = data$model)
+pv_data[models] = 0
+
+out <- data.frame(matrix(0, nrow = n_reps, ncol <- n_models*2))
+names(out) <- paste0(rep(c("prior", "se"), each = n_models), 1:n_models)
+
+for(i in 1:n_reps) {
+  ind <- pv_data$samples == i
+  temp <- pv_data[ind, grep("item", names(pv_data))]
+  temp_em <- EM(models, temp, parms, pv_data$theta1[ind], pv_data$theta2[ind])
+  out[i, ] <- c(temp_em$prior, temp_em$se^2)
+  pv_data[ind, models] <- temp_em$posterior
+
+}
+
+# ------------------------------------------------------------
+# Table 1
+# ------------------------------------------------------------
+
+mean_out <- apply(out, 2, mean, na.rm = T)
+var_out <- apply(out, 2, var, na.rm = T)
+pv_prior <- round(mean_out[1:4], 3)
+pv_se <- sqrt(mean_out[5:8] + (1 + 1/n_reps) * var_out[1:4])
+
+temp <- rbind(mix_prop, sample_mix_prop, em$prior, em$se, pv_prior, pv_se)
+row.names(temp) <- c("mix_prop", "sample_mix_prop", "em_prior", "em_se", "pv_prior", "pv_se")
+colnames(temp) <- models
+xtable::xtable(temp, digits = 3)
+temp
+
+# ------------------------------------------------------------
+# Figure 1
+# ------------------------------------------------------------
+
+pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% as.data.frame()
+
+raster_plot(pv_posterior, sort = T, grey_scale = T)
+
+
+# ------------------------------------------------------------
+# Figure 2 (??)
+# ------------------------------------------------------------
+
+temp <- as.matrix(pv_data[models]) %*% 1:4
+delta <- abs(pv_data$theta1 - pv_data$theta2)
+
+pv_q <- tapply(temp, pv_data$pairs, mean)
+pv_se <- tapply(temp, pv_data$pairs, sd)
+plot(pv_q, pv_se)
+hist(pv_se)
 
 # ------------------------------------------------------------
 # Item deltas
 # ------------------------------------------------------------
+pv_temp_delta <- item_delta(parms, pv_data$theta1, pv_data$theta2)/.25
+mean_delta <- tapply(apply(pv_temp_delta, 1, mean), pv_data$pair, mean)
+temp_posterior <- pv_posterior
 
-deltas <- item_delta(parms, theta[odd], theta[odd+1])/.25
-mean_delta <- apply(deltas, 1, mean)
-
+# or from the original data
+temp_delta <- item_delta(parms, data$theta1, data$theta2)/.25
+mean_delta <- apply(temp_delta, 1, mean)
 temp_posterior <- em$posterior
+
+
 temp_posterior[,2] <- temp_posterior[,2] + temp_posterior[,3]
 temp_model <- data$model
 temp_model[temp_model == 3] <- 2
 
+
 temp <- data.frame(temp_model, mean_delta, temp_posterior[cbind(1:nrow(temp_posterior), temp_model)])
-names(temp) <- c("Model", "Delta", "Prob")
+
+head(temp)
+names(temp) <- c("model", "delta", "prob")
 temp$model[temp$model == 1] <- "Ind"
 temp$model[temp$model == 2] <- "Min + Max"
 temp$model[temp$model == 4] <- "AI"
 
 # Figure X
 
-ggplot(temp, aes(x = Delta, y = Prob, group = Model)) + stat_smooth(aes(linetype = Model), color = "black", se = F, method = "loess") +
+ggplot(temp, aes(x = delta, y = prob, group = model)) + geom_point(aes(color = model)) +
+stat_smooth(aes(linetype = model), color = "black", se = F, method = "loess") +
     xlab("Mean Item Delta") +
     ylab("Probability of Correct Classification") +
     ggtitle("Loess Smooth of Posterior Probability of Correct Model Classification") +
@@ -107,7 +169,7 @@ hist(qbar)
 
 
 
-
+summary(parms)
 
  # Load item parms
 setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")

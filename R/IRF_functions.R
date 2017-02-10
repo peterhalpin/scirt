@@ -122,11 +122,11 @@ dJ <- function(parms, theta) {
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
 #' @export
 
-SE <- function(parms, theta) {
-  temp <- J(parms, theta)^2 + I(parms, theta) * dJ(parms, theta)
-  temp <- temp / 2 / I(parms, theta)^2 + I(parms, theta)
-  1/sqrt(temp)
-}
+  SE <- function(parms, theta) {
+    temp <- J(parms, theta)^2 + I(parms, theta) * dJ(parms, theta)
+    temp <- temp / 2 / I(parms, theta)^2 + I(parms, theta)
+    1/sqrt(temp)
+  }
 
 #--------------------------------------------------------------------------
 #' Loglikelihood of 2PL in theta

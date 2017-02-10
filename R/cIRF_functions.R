@@ -106,7 +106,7 @@ cIRF <- function(model, parms, theta1, theta2) {
 #' @export
 
 item_delta <- function(parms, theta1, theta2) {
-  Min(alpha, beta, theta1, theta2) * (1 - Max(alpha, beta, theta1, theta2))
+  Min(parms, theta1, theta2) * (1 - Max(parms, theta1, theta2))
 }
 
 
@@ -193,11 +193,15 @@ prior <- function(post) {
 #' @return An n_models- vector mixing proportions each component.
 
 prior_se <- function(components, mix_prop) {
-  temp <- apply(t(t(components) * mix_prop), 1, sum)
-  temp <- components / temp
-  H <- t(temp) %*% temp
-  I <- solve(H)
-  sqrt(diag(I))
+  if (sum(mix_prop < .001) == 0) {
+    temp <- apply(t(t(components) * mix_prop), 1, sum)
+    temp <- components / temp
+    H <- t(temp) %*% temp
+    I <- solve(H)
+    sqrt(diag(I))
+  } else {
+    rep(NA, times = length(mix_prop))
+  }
 }
 
 # Checked se against numeric Hessian.
@@ -245,9 +249,9 @@ EM <- function(models, resp, parms, theta1, theta2, max_iter = 100, conv = 1e-5)
 #--------------------------------------------------------------------------
 #' Formats responses a response data.frame to match the calibration data.frame
 #'
-#' Drops items in the target df not in the calibration sample; adds items (with NA entries) in the calibration df not in the target df. This simplifies using item parms obtained from the calibration df with the target df
+#' Drops items in the target sample not in the calibration sample; adds items (with NA entries) in the calibration sample not in the target sample. This simplifies using item parmaeters obtained from the calibration sample with the target sample.
 
-#' @param resp the target df to be formatted
+#' @param resp the target data.frame to be formatted
 #' @param item string vector of names of items in the calibration sample
 #' @param version an optional string used to subset resp via \code{grep(version, names(resp))}
 #' @return a version of resp that has the same names as calib
@@ -265,9 +269,8 @@ format_resp <- function(resp, items, version = NULL) {
 }
 
 #--------------------------------------------------------------------------
-#' Simulate data from the 2PL or a model of pairwise collaboration.
-#''
-#' Simulate data using either the 2PL or a model for pariwise collaboration obtained from the 2PL.
+#' Simulate data from the 2PL or a model of pairwise collaboration  obtained from the 2PL..
+
 #' @param model is one of \code{c("IRF", "Ind", "Min", "Max", "AI") }
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
 #' @param theta1 the latent trait for member 1
@@ -289,9 +292,8 @@ sim_model <- function(model, parms, theta1 = 0, theta2 = 0) {
 #--------------------------------------------------------------------------
 #' Used by sim_data to obtain the model index for each observation
 #'
-#'
 #' @param mix_prop is an n_obs by n_models matrix of mixing proportions
-
+#'
 #' @return An n_obs vector of integers that represent the model to be used for each row of mix_prop
 #' @export
 
@@ -303,7 +305,7 @@ sample_indices <- function(mix_prop){
     # overwites temp and temp2
     temp2[] <- mapply(function(x, y) x > y, temp2, temp)
     temp <- rep(4, n)
-    for (i in 3:1) {temp[temp2[,i] == 1] <- i }
+    for (i in 3:1) { temp[temp2[,i] == 1] <- i }
     temp
 }
 
@@ -313,10 +315,10 @@ sample_indices <- function(mix_prop){
 #'
 #' The desried output is to repeat each of \code{c("Ind", "Min", "Max", "AI")} n_i = mix_prop[i] * n_boot times for each row of mix_prop. This function (badly) handles rounding error when computing the n_i.
 #'
-#' @param mix_prop is em$posterior
-#' @param n_boot is the desired number of replications of each row of mix prop
+#' @param data
+#' @param NA_pattern
 
-#' @return An \code{nrow(miz_prop) * n_boot} vector that replicates \code{c("Ind", "Min", "Max", "AI")} according to the number simulated data sets desired for each model.
+#' @return
 #' @export
 drop_NA <- function(data, NA_pattern){
  if (!is.null(NA_pattern)) {
@@ -329,15 +331,14 @@ drop_NA <- function(data, NA_pattern){
 
 #--------------------------------------------------------------------------
 #' Simulates data from a mixture of models of collaboration.
-#'
-#
+
 #' @param mix_prop a vector with mixing proportions for each model
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
 #' @param NA_pattern an (optional) \code{length(theta)} by \code{nrow(parms)} data.frame with \code{NA} entries for each item a dyad did not answer. The missing values are preserved in the generated data.
 
-#' @return A data.frame with \code{length(theta)} rows containing an id variable for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
+#' @return A data.frame with \code{length(theta)} rows, containing an id variable for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
 sim_data <- function(mix_prop, parms, theta1, theta2, NA_pattern = NULL) {
@@ -388,6 +389,7 @@ class_probs <-function(mix_prop, known_model = NULL){
   out
 }
 
+
 #--------------------------------------------------------------------------
 #' Plausible values
 #'
@@ -401,13 +403,14 @@ class_probs <-function(mix_prop, known_model = NULL){
 #' @return A data.frame with \code{length(theta)} rows containing an id variable for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
-PV <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se) {
+PV <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, model = NULL) {
 
   # Expand data generating parms
   n_obs <- length(theta1)
   n_long <- n_obs * n_reps
   out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, each = n_obs))
   names(out) <- c("pairs", "samples")
+  if (!is.null(model)) { out$model <- rep(model, each = n_reps) }
 
 
   # Step 1. Get PVs for theta
@@ -416,10 +419,11 @@ PV <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se) {
 
   # Step 3. Expand data
   data <- kronecker(as.matrix(resp), rep(1, n_reps))
-
-  # Step 4. Mapply functions of interest? or just output the data sets?
+  colnames(data) <- row.names(parms)
+  # Step 4. Mapply functions of interest? or just output the data sets and do it externally?
 
   cbind(out[], data[])
+
 }
 
 
@@ -438,13 +442,13 @@ PV <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se) {
 
 # --- under construction / undocumented functions ----
 
-raster_plot <-function(em, sort = F) {
-  temp <- em$posterior
-  u <- temp%*%1:4
+raster_plot <-function(post, sort = F, grey_scale = F) {
+  post <- as.matrix(post)
+  u <- post%*%1:4
   if (sort) {
-      temp <- temp[order(u, decreasing = F),]
+      post <- post[order(u, decreasing = F),]
   }
-  temp <- data.frame(cbind(1:nrow(temp), temp))
+  temp <- data.frame(cbind(1:nrow(post), post))
   names(temp) <- c("pair", "Ind", "Min", "Max", "AI")
 
 
@@ -459,7 +463,11 @@ raster_plot <-function(em, sort = F) {
 
   #NYU <- rgb(87, 6, 140, maxColorValue = 255)
   # scale_fill_gradient2( high=muted('NYU'))
-  ggplot(q, aes(pair, model, fill = prob)) + geom_raster() + theme_bw()
+  p <- ggplot(q, aes(pair, model, fill = prob)) +
+    geom_raster() +  theme_bw()
+  if (grey_scale) {p <-  p + scale_fill_gradient(low="grey10",high="grey80")
+  }
+  p
   #   scale_fill_gradient2(high = NYU) +theme_bw()
 }
 
