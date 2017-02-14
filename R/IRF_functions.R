@@ -21,7 +21,7 @@
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
 #' @export
 
-IRF <-function(parms, theta1, theta2 = NULL) {
+IRF <-function(parms, theta1, theta2 = NULL, sorted = F) {
   Z <- matrix(0, nrow = length(theta1), ncol = nrow(parms))
   Z <- Z + theta1
   Z <- t(parms$alpha*(t(Z) - parms$beta))

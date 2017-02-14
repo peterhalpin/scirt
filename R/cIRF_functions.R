@@ -17,7 +17,7 @@ require(dplyr)
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
-Ind <- function(parms, theta1, theta2) {
+Ind <- function(parms, theta1, theta2, sorted = F) {
   IRF(parms, theta1)*IRF(parms, theta2)
 }
 
@@ -33,9 +33,13 @@ Ind <- function(parms, theta1, theta2) {
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
-Min <- function(parms, theta1, theta2) {
-  theta <- apply(cbind(theta1, theta2), 1, min, na.rm = T)
-  IRF(parms, theta)
+Min <- function(parms, theta1, theta2, sorted = F) {
+  if (sorted) {
+    IRF(parms, theta1)
+  } else {
+    theta <- apply(cbind(theta1, theta2), 1, min, na.rm = T)
+    IRF(parms, theta)
+  }
 }
 
 
@@ -50,9 +54,13 @@ Min <- function(parms, theta1, theta2) {
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
 #' @export
 
-Max <- function(parms, theta1, theta2) {
-  theta <- apply(cbind(theta1, theta2), 1, max, na.rm = T)
-  IRF(parms, theta)
+Max <- function(parms, theta1, theta2, sorted = F) {
+  if (sorted) {
+    IRF(parms, theta2)
+  } else {
+    theta <- apply(cbind(theta1, theta2), 1, max, na.rm = T)
+    IRF(parms, theta)
+  }
 }
 
 
@@ -67,7 +75,7 @@ Max <- function(parms, theta1, theta2) {
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
 #' @export
 
-AI <- function(parms, theta1, theta2) {
+AI <- function(parms, theta1, theta2, sorted = F) {
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
   p1 + p2 - p1*p2
@@ -86,10 +94,10 @@ AI <- function(parms, theta1, theta2) {
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
 #' @export
 
-cIRF <- function(model, parms, theta1, theta2) {
+cIRF <- function(model, parms, theta1, theta2, sorted = F) {
   if (model %in% c("Ind", "Min", "Max", "AI", "IRF")) {
     fun <- match.fun(model)
-    fun(parms, theta1, theta2)
+    fun(parms, theta1, theta2, sorted)
   } else {
     cat("\'model\' must be one of c(\"Ind\", \"Min\", \"Max\", \"AI\", \"IRF\")")
   }
@@ -105,8 +113,9 @@ cIRF <- function(model, parms, theta1, theta2) {
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities
 #' @export
 
-item_delta <- function(parms, theta1, theta2) {
-  Min(parms, theta1, theta2) * (1 - Max(parms, theta1, theta2))
+item_delta <- function(parms, theta1, theta2, sorted = F) {
+
+  Min(parms, theta1, theta2, sorted) * (1 - Max(parms, theta1, theta2, sorted))
 }
 
 
@@ -123,11 +132,11 @@ item_delta <- function(parms, theta1, theta2) {
 #' @return An \code{nrow(resp)} by \code{length(models)} matrix of log-likleihoods for each response pattern and each model
 #' @export
 
-likelihood <- function(models, resp, parms, theta1, theta2 = NULL, Log = T) {
+likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, Log = T) {
   n_models <- length(models)
   out <- array(0, dim = c(nrow(resp), n_models))
   for (i in 1:n_models) {
-    p <- cIRF(models[i], parms, theta1, theta2)
+    p <- cIRF(models[i], parms, theta1, theta2, sorted)
     out[,i] <- apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
   }
   if (n_models == 1) {out <- c(out)} # un-matrix
@@ -225,10 +234,10 @@ prior_se <- function(components, mix_prop) {
 #' @return A list of length 3 containing the optimization trace, priors, and posteriors
 #' @export
 
-EM <- function(models, resp, parms, theta1, theta2, max_iter = 100, conv = 1e-5) {
+EM <- function(models, resp, parms, theta1, theta2, sorted = F, max_iter = 100, conv = 1e-5) {
   n_models <- length(models)
   p <- rep(1/n_models, n_models)
-  l <- likelihood(models, resp, parms, theta1, theta2, Log = F)
+  l <- likelihood(models, resp, parms, theta1, theta2, sorted, Log = F)
   trace <- incomplete_data(l, p)
   i <- 1
   delta <- 1
@@ -278,11 +287,11 @@ format_resp <- function(resp, items, version = NULL) {
 #' @return \code{length(theta1)} by \code{nrow(parms)} matrix of binary response patterns
 #' @export
 
-sim_model <- function(model, parms, theta1 = 0, theta2 = 0) {
+sim_model <- function(model, parms, theta1 = 0, theta2 = 0, sorted = F) {
   n_row <- length(theta1)
   n_col <- nrow(parms)
   r <- array(runif(n_row * n_col), dim = c(n_row, n_col))
-  p <- cIRF(model, parms, theta1, theta2)
+  p <- cIRF(model, parms, theta1, theta2, sorted)
   out <- ifelse(p > r, 1, 0)
   colnames(out) <- row.names(parms)
   out
@@ -297,7 +306,7 @@ sim_model <- function(model, parms, theta1 = 0, theta2 = 0) {
 #' @return An n_obs vector of integers that represent the model to be used for each row of mix_prop
 #' @export
 
-sample_indices <- function(mix_prop){
+model_indices <- function(mix_prop){
     n <- nrow(mix_prop)
     temp <- runif(n)
     temp2 <- t(apply(mix_prop, 1, cumsum))
@@ -320,14 +329,15 @@ sample_indices <- function(mix_prop){
 
 #' @return
 #' @export
-drop_NA <- function(data, NA_pattern){
- if (!is.null(NA_pattern)) {
-   NA_pattern[!is.na(NA_pattern)] <- 1
-   data <- data*NA_pattern
+drop_NA <- function(data, NA_pattern = NULL){
+  if (!is.null(NA_pattern)) {
+    n_reps = nrow(data) / nrow(NA_pattern)
+    temp <- kronecker(as.matrix(NA_pattern), rep(1, n_reps))
+    temp[!is.na(temp)] <- 1
+    data <- data*temp
  }
  data
 }
-
 
 #--------------------------------------------------------------------------
 #' Simulates data from a mixture of models of collaboration.
@@ -341,7 +351,9 @@ drop_NA <- function(data, NA_pattern){
 #' @return A data.frame with \code{length(theta)} rows, containing an id variable for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
-sim_data <- function(mix_prop, parms, theta1, theta2, NA_pattern = NULL) {
+sim_data <- function(mix_prop, parms, theta1, theta2, NA_pattern = NULL, n_boot = 1) {
+
+
   n_obs <- length(theta1)
   models <- c("Ind", "Min", "Max", "AI")
   temp <- matrix(rep(mix_prop, each = n_obs), nrow = n_obs, ncol = length(models))
@@ -403,30 +415,97 @@ class_probs <-function(mix_prop, known_model = NULL){
 #' @return A data.frame with \code{length(theta)} rows containing an id variable for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
-PV <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, model = NULL) {
+pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, true_model = NULL) {
 
   # Expand data generating parms
   n_obs <- length(theta1)
   n_long <- n_obs * n_reps
-  out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, each = n_obs))
+  out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, times = n_obs))
   names(out) <- c("pairs", "samples")
-  if (!is.null(model)) { out$model <- rep(model, each = n_reps) }
+  if (!is.null(true_model)) {out$model <- rep(true_model, each = n_reps) }
 
+  # Step 0. Sort thetas
+  temp_theta <- theta_sort(theta1, theta2, theta1_se, theta2_se)
+  s_theta1 <- temp_theta$theta_min
+  s_theta1_se <- temp_theta$se_min
+  s_theta2 <- temp_theta$theta_max
+  s_theta2_se <- temp_theta$se_max
 
-  # Step 1. Get PVs for theta
-  out$theta1 <- rnorm(n_long, rep(theta1, each = n_reps), rep(theta1_se, each = n_reps))
-  out$theta2 <- rnorm(n_long, rep(theta2, each = n_reps), rep(theta2_se, each = n_reps))
+  # Get PVs for theta
+  out$theta1 <- theta_gen(n_reps, s_theta1, s_theta1_se)
+  out$theta2 <- theta_gen(n_reps, s_theta2, s_theta2_se)
 
-  # Step 3. Expand data
+  # Expand data
   data <- kronecker(as.matrix(resp), rep(1, n_reps))
   colnames(data) <- row.names(parms)
-  # Step 4. Mapply functions of interest? or just output the data sets and do it externally?
-
   cbind(out[], data[])
-
 }
 
 
+data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
+
+  # Expand data generating parms
+  models <- c("Ind", "Min", "Max", "AI")
+  n_obs <- length(theta1)
+  n_long <- n_obs * n_reps
+  mix_prop_long <- kronecker(as.matrix(mix_prop) , rep(1, n_reps))
+
+  # Storage
+  out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, times = n_obs))
+  names(out) <- c("pairs", "samples")
+
+  # Sort thetas
+  temp_theta <- theta_sort(theta1, theta2, theta1_se, theta2_se)
+  s_theta1 <- temp_theta$theta_min
+  s_theta1_se <- temp_theta$se_min
+  s_theta2 <- temp_theta$theta_max
+  s_theta2_se <- temp_theta$se_max
+
+  # Theta gen / replicate
+  out$theta1 <- theta_gen(n_reps, s_theta1, s_theta1_se)
+  out$theta2 <- theta_gen(n_reps, s_theta2, s_theta2_se)
+
+  # Get model indices
+  out[models] <- mix_prop_long
+  out$model <- model_indices(mix_prop_long)
+
+  # Simulate data
+  data <- data.frame(matrix(NA, nrow = n_long, ncol = nrow(parms)))
+  names(data) <- row.names(parms)
+
+  for (i in 1:length(models)) {
+    temp <- out$model == i
+    data[temp, ] <- sim_model(models[i], parms, out$theta1[temp], out$theta2[temp])
+  }
+  data <- drop_NA(data, NA_pattern)
+  cbind(out[], data[])
+}
+
+
+theta_gen <- function(n, theta, theta_se = NULL){
+  theta_long <- rep(theta, each = n)
+
+  if(!is.null(theta_se)) {
+    theta_long <- rnorm(length(theta_long), theta_long, rep(theta_se, each = n))
+  }
+  theta_long
+}
+
+
+theta_sort <- function(theta1, theta2, theta1_se = NULL, theta2_se = NULL) {
+  n <- length(theta1)
+  temp_theta <- cbind(theta1, theta2)
+  min_ind <- cbind(1:n, apply(temp_theta, 1, which.min))
+  max_ind <- cbind(1:n, apply(temp_theta, 1, which.max))
+  out <- list(theta_min = temp_theta[min_ind], theta_max = temp_theta[max_ind])
+  if (!is.null(theta1_se)) {
+    temp_se <- cbind(theta1_se, theta2_se)
+    out_se <- list(se_min = temp_se[min_ind], se_max = temp_se[max_ind])
+  } else {
+    out_se <- list(se_min = NULL, se_max = NULL)
+  }
+  c(out, out_se)
+}
 
 
 
@@ -608,6 +687,15 @@ lr_test_old <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 
 
 #' @return A data.frame with \code{length(theta)*n_boot} rows containing an id variable for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
+
+theta_gen <- function(n, theta, theta_se = NULL){
+  theta_long <- rep(theta, each = n)
+
+  if(!is.null(theta_se)) {
+    theta_long <- rnorm(n, theta_long, rep(theta_se, each = n))
+  }
+  theta_long
+}
 
 sim_data_old <- function(n_obs, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
 
