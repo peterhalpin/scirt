@@ -7,7 +7,6 @@
 # library("cirt")
 
 library("ggplot2")
-library("gridExtra")
 library("dplyr")
 source("~/github/cirt/R/cIRF_functions.R")
 source("~/github/cirt/R/IRF_functions.R")
@@ -16,34 +15,36 @@ source("~/github/cirt/R/IRF_functions.R")
 # Data simulation
 # ------------------------------------------------------------
 
+# Constants
+set.seed(101)
 models <- c("Ind", "Min", "Max", "AI")
 n_models <- 4
 n_obs <- 500
 n_items <- 25
 
-set.seed(100)
+# Data generating parameters
 theta <- rnorm(n_obs*2)
 beta <- sort(rnorm(n_items*2, mean = .35, sd = 1.3))
 alpha <- runif(n_items*2, .7, 2.5)
-mix_prop <- matrix(.25, ncol= n_models, nrow = n_obs)
 temp_parms <- data.frame(alpha, beta)
+mix_prop <- matrix(.25, ncol= n_models, nrow = n_obs)
 
+# Compute standard errors on theta using a half of the items
 ind_form <- rep(1, n_items*2)
 ind_form[sample.int(n_items*2, n_items)] <- 0
 theta_se <- SE(temp_parms[ind_form == 1, ], theta)
-#ind_form[sample.int(n_items*2, n_items)] <- 0
-plot(theta, theta_se)
 
+# Pair odd and even elements of theta / theta_se
 odd <- seq(1, n_obs*2, by = 2)
 theta1 <- theta[odd]
 theta2 <- theta[odd+1]
 theta1_se <- theta_se[odd]
 theta2_se <- theta_se[odd+1]
 
+# Generate collaborative data using the other half of items
 parms <- temp_parms[ind_form == 0, ]
 row.names(parms) <- paste0("item", 1:n_items)
 data <- data_gen(1, mix_prop, parms, theta1, theta2)
-head(data)
 sample_mix_prop <- table(data$model) / n_obs
 
 # ------------------------------------------------------------
@@ -64,15 +65,14 @@ round(classify, 3)
 # ------------------------------------------------------------
 # Plausible Values
 # ------------------------------------------------------------
-n_reps <- 10
+n_reps <- 200
 
 pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, true_model = data$model)
 pv_data[models] = 0
-head(pv_data)
 
 out <- data.frame(matrix(0, nrow = n_reps, ncol <- n_models*2))
 names(out) <- paste0(rep(c("prior", "se"), each = n_models), 1:n_models)
-i = 1
+
 for(i in 1:n_reps) {
   ind <- pv_data$samples == i
   temp <- pv_data[ind, grep("item", names(pv_data))]
@@ -90,7 +90,7 @@ var_out <- apply(out, 2, var, na.rm = T)
 pv_prior <- round(mean_out[1:4], 3)
 pv_se <- sqrt(mean_out[5:8] + (1 + 1/n_reps) * var_out[1:4])
 
-temp <- rbind(mix_prop, sample_mix_prop, em$prior, em$se, pv_prior, pv_se)
+temp <- rbind(mix_prop[1,], sample_mix_prop, em$prior, em$se, pv_prior, pv_se)
 row.names(temp) <- c("mix_prop", "sample_mix_prop", "em_prior", "em_se", "pv_prior", "pv_se")
 colnames(temp) <- models
 xtable::xtable(temp, digits = 3)
@@ -100,7 +100,7 @@ round(temp, 4)
 # Figure 1
 # ------------------------------------------------------------
 
-pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% as.data.frame()
+pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame()
 
 raster_plot(pv_posterior, sort = T, grey_scale = T)
 
@@ -113,43 +113,21 @@ temp <- as.matrix(pv_data[models]) %*% 1:4
 pv_q <- tapply(temp, pv_data$pairs, mean)
 pv_se <- tapply(temp, pv_data$pairs, sd)
 
-gg <- data.frame(pv_q, pv_se, data$model)
+gg <- data.frame(pv_q, pv_se, models[data$model])
 names(gg) <- c("pv", "se", "model")
-gg$model <- as.factor(gg$model)
+gg$model <- ordered(gg$model, models)
 
 ggplot(gg, aes(x = pv, y = se, group = model)) +
   geom_point(aes(pch = model)) +
   stat_smooth(se = F, lwd = 1, color = "black", aes(group = 1)) +
   xlab("Expectation of posterior") +
   ylab("Standard error") +
-  ggtitle("Standard error of expectation of posterior distribution") +
+  # ggtitle("Standard error of expectation of posterior distribution") +
   theme_bw()
 
 tapply(gg$pv, gg$model, mean)
 tapply(gg$pv, gg$model, sd)
 
-# or ??
-
-pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% as.data.frame()
-
-pv_se <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, sd)) %>% as.data.frame()
-
-gg <- cbind(c(pv_posterior %>% unlist()),
-  c(pv_se %>% unlist()),
-  rep(data$model, times = n_models),
-  rep(1:4, each = nrow(pv_posterior))) %>% data.frame()
-
-names(gg)  <- names(gg) <- c("pv", "se", "model", "class")
-gg$model <- as.factor(gg$model)
-gg$class <- as.factor(gg$class)
-
-ggplot(gg, aes(x = pv, y = se, group = class)) +
- stat_smooth(se = F, lwd = 1, aes(color = class))
-  scale_color_grey() +
-  theme_bw() +
-  xlab("Expected posterior probability") +
-  ylab("Standard error") +
-  ggtitle("Loess smooth of standard error of posterior distribution")
 
 # Worth showing?
 delta <- abs(data$theta1 - pv_data$theta2)
@@ -179,12 +157,13 @@ gg$model[gg$model == 4] <- "AI"
 
 # Figure X
 
-ggplot(gg, aes(x = delta, y = prob, group = model)) + geom_point(color = "grey60", aes(pch = model)) +
-stat_smooth(aes(linetype = model), color = "black", se = F, method = "loess") +
-    xlab("Mean Item Delta") +
-    ylab("Probability of Correct Classification") +
-    ggtitle("Posterior Probability of Correct Model Classification") +
-    theme_bw() + scale_color_grey() + scale_fill_grey()
+ggplot(gg, aes(x = delta, y = prob, group = model)) +
+  geom_point(color = "grey40", aes(pch = model)) +
+  stat_smooth(aes(linetype = model), color = "black", se = F, method = "loess") +
+  xlab("Mean Item Delta") +
+  ylab("Probability of Correct Classification") +
+  # ggtitle("Posterior Probability of Correct Model Classification") +
+  theme_bw() + scale_color_grey() + scale_fill_grey()
 
 
 # ------------------------------------------------------------
@@ -196,6 +175,10 @@ stat_smooth(aes(linetype = model), color = "black", se = F, method = "loess") +
 # Scalar            101.071       74       0.0200
 # Scalar (w/ drop)  84.358        70       0.1161
 # ------------------------------------------------------------
+
+ # Load calibrated item parms
+setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
+parms <- read.csv("calibration_parms.csv", row.names = 1)
 
 scalar <- "~/Dropbox/Academic/Projects/CA/Data/response_matrices/DIF/collaboration_DIF_scalar.out"
 
@@ -212,13 +195,14 @@ collab_beta <- substr(collab_temp[grepl(grep_items, collab_temp)], 23, 28) %>% a
 item_names <-substr(collab_temp[grepl(grep_items, collab_temp)], 6, 10)
 
 gg <- data.frame(item_names, collab_beta, calib_beta)
+head(gg)
 gg$dif <- resid(lm(collab_beta ~ calib_beta, gg)) > 1
 
 
 ggplot(gg, aes(x = calib_beta, y = collab_beta)) +
   geom_point(size = 2, aes(pch = dif, color = dif)) +
   stat_smooth(method = "lm", col = "black", se = F) +
-  ggtitle("Differential item functioning: difficulty estimates") +
+  # ggtitle("Differential item functioning: difficulty estimates") +
   xlab("Calibration sample") +
   ylab("Collaborative testing condition") +
   theme_bw() +
@@ -233,7 +217,7 @@ dif_items <- paste0(gg$item_names[gg$dif == T], collapse = "|")
 # real data example
 # ------------------------------------------------------------
 
- # Load item parms
+ # Load calibrated item parms
 setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
 parms <- read.csv("calibration_parms.csv", row.names = 1)
 
@@ -284,29 +268,49 @@ round(em$prior, 3)
 round(em$se, 3)
 
 # classification probabilities
-classify <- class_probs(em$posterior, data$model)
+classify <- class_probs(em$posterior)
 round(classify, 3)
 
 # ------------------------------------------------------------
-# real data: person fit
+# real data: person fit using contribution to likelihood
 # ------------------------------------------------------------
+
+# Get observed values
+components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
+logL <- incomplete_data(components, em$posterior, Sum = F)
+hist(-2*logL)
+
+# Simulate null distribution
 n_reps <- 200
 mix_prop <- em$posterior
+
 temp <- data_gen(n_reps, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, NA_pattern = resp)
 
-temp_l <- likelihood(models, temp[,grep(grep_items, names(temp))], parms, temp$theta1, temp$theta2, sorted = T, Log = F)
-
-temp$logl <- incomplete_data(temp_l, temp[models], Sum = F)
+temp_components <- likelihood(models, temp[,grep(grep_items, names(temp))], parms, temp$theta1, temp$theta2, sorted = T, Log = F)
 
 
-lower <- tapply(temp$logl, temp$pairs, function(x) quantile(x, p = .025))
-upper <- tapply(temp$logl, temp$pairs, function(x) quantile(x, p = .975))
+temp_logL <- incomplete_data(temp_components, temp[models], Sum = F)
+q <- tapply(temp_logL, temp$pair, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
 
-components <- likelihood(models, resp, parms, theta1, theta2, sorted = F, Log = F)
-logl <- incomplete_data(components, em$posterior, Sum = F)
-temp <- cbind(logl, upper, lower)
+fit <- rep("<.95", times = length(theta1))
+fit[logL < q[,2]] <- ">.95"
+fit <- ordered(fit, c(">.95", "<.95"))
 
-table(temp[,1] < temp[,2] & temp[,1] > temp[,3])
+gg <- data.frame(-2*temp_logL, -2*rep(logL, each = n_reps), rep(fit, each = n_reps), rep(-2*q[,1], each = n_reps))
+
+names(gg) <- c("l_dist", "l_obs", "fit", "median")
+gg <- gg[order(gg$median), ]
+gg$pair <- rep(1:length(theta1), each = n_reps)
+
+ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
+  geom_boxplot(outlier.size = 0, outlier.color = "white", aes(fill = fit)) +
+  geom_point(aes(x = pair, y = l_obs, pch = fit)) +
+  scale_shape_manual(values = c(4, 20)) +
+  theme_bw() + scale_fill_grey(start = 0.1, end = 0.8) +
+  xlab("Groups") +
+  ylab("-2 * loglikelihood")
+
+
 
 # ------------------------------------------------------------
 # real data:  Plausible Values
@@ -410,7 +414,6 @@ ggplot(gg, aes(x = delta, y = prob, group = model)) +
 
 mean_l <- function
 var_l
-
 
 scalar <- "~/Dropbox/Academic/Projects/CA/Data/response_matrices/DIF/collaboration_DIF_scalar.out"
 
