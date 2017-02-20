@@ -587,6 +587,47 @@ raster_plot <-function(mix_prop, sort = F, grey_scale = F) {
 }
 
 
+
+cirf <-function(mix_prop)
+gg <- em$postetior
+names(gg) <- models
+{
+  mix_prop <- as.matrix(mix_prop)
+
+  if (sort) {
+    #u <- mix_prop[,4]
+    u <- mix_prop%*%1:4
+    mix_prop <- mix_prop[order(u, decreasing = F),]
+  }
+
+  temp <- data.frame(cbind(1:nrow(mix_prop), mix_prop))
+  names(temp) <- c("pair", "Ind", "Min", "Max", "AI")
+
+  gg <- reshape(temp,
+    varying = names(temp)[-1],
+    v.names = "prob",
+    timevar = "model",
+    times = names(temp)[-1],
+    direction = "long"
+  )
+  gg$model <- ordered(gg$model, c("Ind", "Min", "Max", "AI"))
+
+  #NYU <- rgb(87, 6, 140, maxColorValue = 255)
+  # scale_fill_gradient2( high=muted('NYU'))
+
+  p <- ggplot(gg, aes(pair, model, fill = prob)) +
+    geom_raster() +
+    theme_bw() +
+    xlab("Group") +
+    ylab("Model")
+
+  if (grey_scale) {
+    p <-  p + scale_fill_gradient(low="grey10", high="grey80")
+  }
+  p
+}
+
+
 # --------------------------------------------------------------------------
 # --------------------------------------------------------------------------
 # --------------------------------------------------------------------------

@@ -53,7 +53,7 @@ sample_mix_prop <- table(data$model) / n_obs
 resp <- data[grep("item", names(data))]
 dim(resp)
 em <- EM(models, resp, parms, theta[odd], theta[odd+1])
-
+em
 # mixing proportions
 round(em$prior, 3)
 round(em$se, 3)
@@ -65,7 +65,7 @@ round(classify, 3)
 # ------------------------------------------------------------
 # Plausible Values
 # ------------------------------------------------------------
-n_reps <- 500
+n_reps <- 200
 
 pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, true_model = data$model)
 pv_data[models] = 0
@@ -104,9 +104,27 @@ round(temp, 4)
 # ------------------------------------------------------------
 
 pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame()
-
+pv_posterior
 raster_plot(pv_posterior[], sort = T, grey_scale = T)
 
+head(em$posterior)
+head(gg)
+unlist(pv_posterior)
+gg <- data.frame(unlist(pv_posterior))
+names(gg) <- "prob"
+head(gg)]
+gg$q <- rep(as.matrix(pv_posterior)%*%1:4, times = 4)
+gg$model <- rep(models[data$model], times = 4)
+gg$cp <- rep(apply(pv_posterior, 1, function(x) models[which.max(x)]), times = 4)
+
+head(gg)
+
+ggplot(gg[], aes(x = q, y = prob, group = cp)) +
+  geom_point(aes(pch = cp)) +
+  stat_smooth(se = F, lwd = 1, color = "black", aes(group = cp)) +
+  xlab("Expectation of posterior") +
+  ylab("Standard error") +
+  theme_bw()
 
 # ------------------------------------------------------------
 # Figure 2 (??)
