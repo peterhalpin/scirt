@@ -27,7 +27,7 @@ theta <- rnorm(n_obs*2)
 beta <- sort(rnorm(n_items*2, mean = .35, sd = 1.3))
 alpha <- runif(n_items*2, .7, 2.5)
 temp_parms <- data.frame(alpha, beta)
-mix_prop <- matrix(.25, ncol= n_models, nrow = n_obs)
+mix_prop <- matrix(.25, nrow= n_models, ncol = n_obs) %>% t
 
 # Compute standard errors on theta using a half of the items
 ind_form <- rep(1, n_items*2)
@@ -65,7 +65,7 @@ round(classify, 3)
 # ------------------------------------------------------------
 # Plausible Values
 # ------------------------------------------------------------
-n_reps <- 200
+n_reps <- 500
 
 pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, true_model = data$model)
 pv_data[models] = 0
@@ -89,12 +89,15 @@ mean_out <- apply(out, 2, mean, na.rm = T)
 var_out <- apply(out, 2, var, na.rm = T)
 pv_prior <- round(mean_out[1:4], 3)
 pv_se <- sqrt(mean_out[5:8] + (1 + 1/n_reps) * var_out[1:4])
+pvl <- (1 + 1/n_reps) * var_out[1:4]/mean_out[5:8]
 
-temp <- rbind(mix_prop[1,], sample_mix_prop, em$prior, em$se, pv_prior, pv_se)
-row.names(temp) <- c("mix_prop", "sample_mix_prop", "em_prior", "em_se", "pv_prior", "pv_se")
+temp <- rbind(mix_prop[1,], sample_mix_prop, em$prior, em$se, pv_prior, pv_se, pvl)
+row.names(temp) <- c("mix_prop", "sample_mix_prop", "em_prior", "em_se", "pv_prior", "pv_se", "pvl")
 colnames(temp) <- models
 xtable::xtable(temp, digits = 3)
 round(temp, 4)
+
+
 
 # ------------------------------------------------------------
 # Figure 1
@@ -102,7 +105,7 @@ round(temp, 4)
 
 pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame()
 
-raster_plot(pv_posterior, sort = T, grey_scale = T)
+raster_plot(pv_posterior[], sort = T, grey_scale = T)
 
 
 # ------------------------------------------------------------

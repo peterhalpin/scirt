@@ -554,6 +554,7 @@ raster_plot <-function(mix_prop, sort = F, grey_scale = F) {
   mix_prop <- as.matrix(mix_prop)
 
   if (sort) {
+    #u <- mix_prop[,4]
     u <- mix_prop%*%1:4
     mix_prop <- mix_prop[order(u, decreasing = F),]
   }
