@@ -104,27 +104,24 @@ round(temp, 4)
 # ------------------------------------------------------------
 
 pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame()
-pv_posterior
-raster_plot(pv_posterior[], sort = T, grey_scale = T)
 
-head(em$posterior)
-head(gg)
-unlist(pv_posterior)
+#raster_plot(pv_posterior, sort = F, grey_scale = F)
+
 gg <- data.frame(unlist(pv_posterior))
 names(gg) <- "prob"
-head(gg)]
 gg$q <- rep(as.matrix(pv_posterior)%*%1:4, times = 4)
-gg$model <- rep(models[data$model], times = 4)
-gg$cp <- rep(apply(pv_posterior, 1, function(x) models[which.max(x)]), times = 4)
+gg$model <- rep(models, each = nrow(pv_posterior))
 
-head(gg)
-
-ggplot(gg[], aes(x = q, y = prob, group = cp)) +
-  geom_point(aes(pch = cp)) +
-  stat_smooth(se = F, lwd = 1, color = "black", aes(group = cp)) +
-  xlab("Expectation of posterior") +
-  ylab("Standard error") +
-  theme_bw()
+ggplot(gg[], aes(x = q, y = prob, group = model)) +
+  geom_point(aes(pch = model), color = "grey20", alpha = .3) +
+  stat_smooth(lwd = .5, color = "black", aes(linetype = model)) +
+  xlab("Expectation of posterior distribtuion") +
+  ylab("Posterior probability of each model") +
+  guides(fill = FALSE, color = "black") +
+  guides(color=guide_legend(override.aes=list(fill=NA))) +
+  theme_bw() +
+  ylim(c(0, 1)) +
+  scale_linetype_manual(values=c(1,2,3,6))
 
 # ------------------------------------------------------------
 # Figure 2 (??)
