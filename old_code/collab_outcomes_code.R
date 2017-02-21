@@ -18,9 +18,11 @@ source("~/github/cirt/R/IRF_functions.R")
 # Constants
 set.seed(101)
 models <- c("Ind", "Min", "Max", "AI")
+Models <- ordered(models, models)
 n_models <- 4
 n_obs <- 500
-n_items <- 25
+#n_items <- 25
+n_items <- n_obs
 
 # Data generating parameters
 theta <- rnorm(n_obs*2)
@@ -41,6 +43,35 @@ theta2 <- theta[odd+1]
 theta1_se <- theta_se[odd]
 theta2_se <- theta_se[odd+1]
 
+# match thetas
+theta_range <- .5
+s1 <- s2 <- c()
+temp_sort <- sort(theta)
+temp_order <- order(theta)
+
+while(length(temp_sort) > 0){
+  bottom_score <- temp_sort[1]
+  top_score <- bottom_score + theta_range
+  ind <- which(temp_sort < top_score)
+  n_ind <- length(ind)
+
+  if(n_ind%%2 > 0) {
+      ind <- c(ind, ind[n_ind]+1)
+      n_ind <- n_ind + 1
+  }
+
+  s1 <- c(s1, temp_order[ind[1:(n_ind / 2)]])
+  s2 <- c(s2, temp_order[ind[(n_ind / 2+ 1):n_ind]])
+  temp_sort <- temp_sort[-ind]
+}
+
+theta1 <- theta[s1]
+theta2 <- theta[s2]
+hist(theta2 - theta1)
+theta1_se <- theta_se[s1]
+theta2_se <- theta_se[s2]
+
+
 # Generate collaborative data using the other half of items
 parms <- temp_parms[ind_form == 0, ]
 row.names(parms) <- paste0("item", 1:n_items)
@@ -51,21 +82,55 @@ sample_mix_prop <- table(data$model) / n_obs
 # EM
 # ------------------------------------------------------------
 resp <- data[grep("item", names(data))]
-dim(resp)
-em <- EM(models, resp, parms, theta[odd], theta[odd+1])
-em
+em <- EM(models, resp, parms, theta1, theta2)
+
 # mixing proportions
 round(em$prior, 3)
 round(em$se, 3)
 
 # classification probabilities
 classify <- class_probs(em$posterior, data$model)
+#classify <- class_probs(em$posterior)
+
 round(classify, 3)
+
+
+# ------------------------------------------------------------
+# CP versus item deltas
+# ------------------------------------------------------------
+deltas <- item_delta(parms, theta1, theta2)/.25/n_items
+temp_resp <- resp
+drops <- sample(n_items, n_items-1)
+out <- data.frame(rbind(diag(classify)), sum(deltas), n_items)
+names(out) <- c(models, "deltas", "n_items")
+
+for(i in 1:length(drops)) {
+  temp_resp[drops[i]] <- NA
+  deltas[drops[i]] <- NA
+  components <- likelihood(models, temp_resp, parms, theta1, theta2, Log = F)
+  temp_post <- posterior(components, em$prior)
+  out[(i+1), 1:4] <- diag(class_probs(temp_post, data$model))
+  out$deltas[i+1] <- sum(deltas, na.rm = T)
+  out$n_items[i+1] <- n_items - i
+  cat(i)
+}
+
+zout <- out
+out <- out[1:i,]
+gg <- data.frame(unlist(out[models]),
+  rep(models, each = i),
+  rep(out$delta, times = n_models),
+  rep(out$n_items, times = n_models)
+  )
+
+names(gg) <- c("prob", "model", "delta", "items")
+ggplot(gg, aes(x = delta, y = prob, group = model)) + geom_line(aes(color = model))
+ggplot(gg, aes(x = items, y = prob, group = model)) + geom_line(aes(color = model))
 
 # ------------------------------------------------------------
 # Plausible Values
 # ------------------------------------------------------------
-n_reps <- 200
+n_reps <- 20
 
 pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, true_model = data$model)
 pv_data[models] = 0
@@ -85,6 +150,7 @@ for(i in 1:n_reps) {
 # ------------------------------------------------------------
 # Table 1
 # ------------------------------------------------------------
+
 mean_out <- apply(out, 2, mean, na.rm = T)
 var_out <- apply(out, 2, var, na.rm = T)
 pv_prior <- round(mean_out[1:4], 3)
@@ -109,19 +175,19 @@ pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mea
 
 gg <- data.frame(unlist(pv_posterior))
 names(gg) <- "prob"
-gg$q <- rep(as.matrix(pv_posterior)%*%1:4, times = 4)
-gg$model <- rep(models, each = nrow(pv_posterior))
+gg$q <- rep(as.matrix(pv_posterior) %*% 1:n_models, times = n_models)
+gg$model <- rep(Models, each = n_obs)
 
 ggplot(gg[], aes(x = q, y = prob, group = model)) +
-  geom_point(aes(pch = model), color = "grey20", alpha = .3) +
-  stat_smooth(lwd = .5, color = "black", aes(linetype = model)) +
+  stat_smooth(aes(linetype = model), lwd = 1, se = F, color = "black") +
+  geom_point(aes(pch = model), color = "black", alpha = .5) +
   xlab("Expectation of posterior distribtuion") +
   ylab("Posterior probability of each model") +
-  guides(fill = FALSE, color = "black") +
-  guides(color=guide_legend(override.aes=list(fill=NA))) +
-  theme_bw() +
+  guides(pch= guide_legend(override.aes = list(alpha = 1, size = 1))) +
   ylim(c(0, 1)) +
-  scale_linetype_manual(values=c(1,2,3,6))
+  scale_linetype_manual(values=c(1,2,3,6)) +
+  scale_shape_manual(values=c(0,1,2,3))
+
 
 # ------------------------------------------------------------
 # Figure 2 (??)
@@ -140,12 +206,11 @@ ggplot(gg, aes(x = pv, y = se, group = model)) +
   stat_smooth(se = F, lwd = 1, color = "black", aes(group = 1)) +
   xlab("Expectation of posterior") +
   ylab("Standard error") +
-  # ggtitle("Standard error of expectation of posterior distribution") +
-  theme_bw()
+  scale_shape_manual(values=c(0,1,2,3))
+
 
 tapply(gg$pv, gg$model, mean)
 tapply(gg$pv, gg$model, sd)
-
 
 # Worth showing?
 delta <- abs(data$theta1 - pv_data$theta2)
@@ -172,16 +237,15 @@ names(gg) <- c("model", "delta", "prob")
 gg$model[gg$model == 1] <- "Ind"
 gg$model[gg$model == 2] <- "Min + Max"
 gg$model[gg$model == 4] <- "AI"
-
+gg$model <- ordered(gg$model, c("Ind", "Min + Max", "AI"))
 # Figure X
 
 ggplot(gg, aes(x = delta, y = prob, group = model)) +
-  geom_point(color = "grey40", aes(pch = model)) +
-  stat_smooth(aes(linetype = model), color = "black", se = F, method = "loess") +
+  geom_point(aes(pch = model), color = "black", alpha = .5) +
+  stat_smooth(aes(linetype = model), lwd = 1, se = F, color = "black") +
   xlab("Mean Item Delta") +
   ylab("Probability of Correct Classification") +
-  # ggtitle("Posterior Probability of Correct Model Classification") +
-  theme_bw() + scale_color_grey() + scale_fill_grey()
+  scale_shape_manual(values=c(0,1,3))
 
 
 # ------------------------------------------------------------
