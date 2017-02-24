@@ -1,8 +1,3 @@
-# ------------------------------------------------------------
-# Code for the analysis in Halpin, P. F. & Bergner, Y. (2016).
-# Psychometric models of Small Group Collaborations.
-# ------------------------------------------------------------
-
 # devtools::install_github("peterhalpin/cirt")
 # library("cirt")
 
@@ -21,20 +16,23 @@ models <- c("Ind", "Min", "Max", "AI")
 Models <- ordered(models, models)
 n_models <- 4
 n_obs <- 500
-#n_items <- 25
-n_items <- n_obs
+n_items <- 200
+n_ind_items <- 25
 
 # Data generating parameters
 theta <- rnorm(n_obs*2)
-beta <- sort(rnorm(n_items*2, mean = .35, sd = 1.3))
-alpha <- runif(n_items*2, .7, 2.5)
-temp_parms <- data.frame(alpha, beta)
+beta <- sort(rnorm(n_items, mean = .35, sd = 1.3))
+alpha <- runif(n_items, .7, 2.5)
+parms <- data.frame(alpha, beta)
+row.names(parms) <- paste0("item", 1:n_items)
 mix_prop <- matrix(.25, nrow= n_models, ncol = n_obs) %>% t
 
 # Compute standard errors on theta using a half of the items
-ind_form <- rep(1, n_items*2)
-ind_form[sample.int(n_items*2, n_items)] <- 0
-theta_se <- SE(temp_parms[ind_form == 1, ], theta)
+ind_beta <- sort(rnorm(n_ind_items, mean = .35, sd = 1.3))
+ind_alpha <- runif(n_ind_items, .7, 2.5)
+ind_parms <- data.frame(ind_alpha, ind_beta)
+names(ind_parms) <- c("alpha", "beta")
+theta_se <- SE(ind_parms, theta)
 
 # Pair odd and even elements of theta / theta_se
 odd <- seq(1, n_obs*2, by = 2)
@@ -43,40 +41,38 @@ theta2 <- theta[odd+1]
 theta1_se <- theta_se[odd]
 theta2_se <- theta_se[odd+1]
 
-# match thetas
-theta_range <- .5
-s1 <- s2 <- c()
-temp_sort <- sort(theta)
-temp_order <- order(theta)
-
-while(length(temp_sort) > 0){
-  bottom_score <- temp_sort[1]
-  top_score <- bottom_score + theta_range
-  ind <- which(temp_sort < top_score)
-  n_ind <- length(ind)
-
-  if(n_ind%%2 > 0) {
-      ind <- c(ind, ind[n_ind]+1)
-      n_ind <- n_ind + 1
-  }
-
-  s1 <- c(s1, temp_order[ind[1:(n_ind / 2)]])
-  s2 <- c(s2, temp_order[ind[(n_ind / 2+ 1):n_ind]])
-  temp_sort <- temp_sort[-ind]
-}
-
-theta1 <- theta[s1]
-theta2 <- theta[s2]
-hist(theta2 - theta1)
-theta1_se <- theta_se[s1]
-theta2_se <- theta_se[s2]
-
-
-# Generate collaborative data using the other half of items
-parms <- temp_parms[ind_form == 0, ]
-row.names(parms) <- paste0("item", 1:n_items)
+# Generate data
 data <- data_gen(1, mix_prop, parms, theta1, theta2)
 sample_mix_prop <- table(data$model) / n_obs
+
+
+# match thetas
+# theta_range <- .5
+# s1 <- s2 <- c()
+# temp_sort <- sort(theta)
+# temp_order <- order(theta)
+#
+# while(length(temp_sort) > 0){
+#   bottom_score <- temp_sort[1]
+#   top_score <- bottom_score + theta_range
+#   ind <- which(temp_sort < top_score)
+#   n_ind <- length(ind)
+#
+#   if(n_ind%%2 > 0) {
+#       ind <- c(ind, ind[n_ind]+1)
+#       n_ind <- n_ind + 1
+#   }
+#
+#   s1 <- c(s1, temp_order[ind[1:(n_ind / 2)]])
+#   s2 <- c(s2, temp_order[ind[(n_ind / 2+ 1):n_ind]])
+#   temp_sort <- temp_sort[-ind]
+# }
+
+# theta1 <- theta[s1]
+# theta2 <- theta[s2]
+# hist(theta2 - theta1)
+# theta1_se <- theta_se[s1]
+# theta2_se <- theta_se[s2]
 
 # ------------------------------------------------------------
 # EM
@@ -282,17 +278,18 @@ gg$dif <- resid(lm(collab_beta ~ calib_beta, gg)) > 1
 
 
 ggplot(gg, aes(x = calib_beta, y = collab_beta)) +
-  geom_point(size = 2, aes(pch = dif, color = dif)) +
+  geom_point(aes(pch = dif, color = dif, size = dif)) +
   stat_smooth(method = "lm", col = "black", se = F) +
   # ggtitle("Differential item functioning: difficulty estimates") +
   xlab("Calibration sample") +
   ylab("Collaborative testing condition") +
-  theme_bw() +
+  # theme_bw() +
   theme(legend.position = "none") +
   scale_shape_manual(values = c(20, 4)) +
-  scale_color_manual(values = c("black", "red"))
+  scale_color_manual(values = c("black", "red")) +
+  scale_size_manual(values = c(2, 4))
 
-
+dim(gg)
 dif_items <- paste0(gg$item_names[gg$dif == T], collapse = "|")
 
 # ------------------------------------------------------------
@@ -302,7 +299,7 @@ dif_items <- paste0(gg$item_names[gg$dif == T], collapse = "|")
  # Load calibrated item parms
 setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
 parms <- read.csv("calibration_parms.csv", row.names = 1)
-
+summary(parms)
 # drop DIF items
 #dif_items <- "045|065"
 parms <- parms[!grepl(dif_items, row.names(parms)),]
@@ -363,7 +360,7 @@ logL <- incomplete_data(components, em$posterior, Sum = F)
 hist(-2*logL)
 
 # Simulate null distribution
-n_reps <- 200
+n_reps <- 250
 mix_prop <- em$posterior
 
 temp <- data_gen(n_reps, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, NA_pattern = resp)
@@ -386,11 +383,14 @@ gg$pair <- rep(1:length(theta1), each = n_reps)
 
 ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
   geom_boxplot(outlier.size = 0, outlier.color = "white", aes(fill = fit)) +
-  geom_point(aes(x = pair, y = l_obs, pch = fit)) +
+  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
   scale_shape_manual(values = c(4, 20)) +
-  theme_bw() + scale_fill_grey(start = 0.1, end = 0.8) +
+  # theme_bw() +
+  scale_fill_grey(start = 0.1, end = 0.8) +
   xlab("Groups") +
-  ylab("-2 * loglikelihood")
+  ylab("-2 * loglikelihood") +
+  scale_size_manual(values = c(4, 1)) +
+  theme(legend.title=element_blank())
 
 
 
@@ -422,9 +422,10 @@ mean_out <- apply(out, 2, mean, na.rm = T)
 var_out <- apply(out, 2, var, na.rm = T)
 pv_prior <- round(mean_out[1:4], 3)
 pv_se <- sqrt(mean_out[5:8] + (1 + 1/n_reps) * var_out[1:4])
+pvl <- (1 + 1/n_reps) * var_out[1:4]/mean_out[5:8]
 
-temp <- rbind(em$prior, em$se, pv_prior, pv_se)
-row.names(temp) <- c("em_prior", "em_se", "pv_prior", "pv_se")
+temp <- rbind(em$prior, em$se, pv_prior, pv_se, pvl)
+row.names(temp) <- c("em_prior", "em_se", "pv_prior", "pv_se", "pvl")
 colnames(temp) <- models
 xtable::xtable(temp, digits = 3)
 round(temp, 4)
@@ -432,10 +433,31 @@ round(temp, 4)
 # ------------------------------------------------------------
 # real data: raster plot
 # ------------------------------------------------------------
+# ------------------------------------------------------------
+# Figure 1
+# ------------------------------------------------------------
 
-pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% as.data.frame()
+pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame()
 
-raster_plot(pv_posterior, sort = T, grey_scale = T)
+#raster_plot(pv_posterior, sort = F, grey_scale = F)
+
+gg <- data.frame(unlist(pv_posterior))
+names(gg) <- "prob"
+gg$q <- rep(as.matrix(pv_posterior) %*% 1:n_models, times = n_models)
+gg$model <- rep(Models, each = nrow(resp))
+
+ggplot(gg[], aes(x = q, y = prob, group = model)) +
+  stat_smooth(aes(linetype = model), lwd = 1, se = T, color = "black") +
+  geom_point(aes(pch = model), color = "black", alpha = .5) +
+  xlab("Expectation of posterior distribtuion") +
+  ylab("Posterior probability of each model") +
+  guides(pch= guide_legend(override.aes = list(alpha = 1, size = 1))) +
+  ylim(c(-.05, 1)) +
+  scale_linetype_manual(values=c(1,2,3,6)) +
+  scale_shape_manual(values=c(0,1,2,3)) +
+   guides(fill=guide_legend(override.aes=list(fill=NA)))
+
+
 
 # ------------------------------------------------------------
 # real data: standard error of posterior
