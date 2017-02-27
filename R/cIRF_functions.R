@@ -143,10 +143,22 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, L
   out <- array(0, dim = c(nrow(resp), n_models))
   for (i in 1:n_models) {
     p <- cIRF(models[i], parms, theta1, theta2, sorted)
-    out[,i] <- apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
+    if (Log) {
+      out[,i] <- apply(log(p) * resp + log(1-p) * (1-resp), 1, sum, na.rm = T)
+    } else {
+      out[,i] <- apply(p * resp + (1-p) * (1-resp), 1, prod, na.rm = T)
+    }
   }
+
+  # for (i in 1:n_models) {
+  #   p <- cIRF(models[i], parms, theta1, theta2, sorted)
+  #
+  #   out[,i] <- apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
+  # }
+  # if (Log) {out} else {exp(out)}
+
   if (n_models == 1) {out <- c(out)} # un-matrix
-  if (Log) {out} else {exp(out)}
+  out
 }
 
 
@@ -291,12 +303,16 @@ format_resp <- function(resp, items, version = NULL) {
 #' @return \code{length(theta1)} by \code{nrow(parms)} matrix of binary responses.
 #' @export
 
-sim_model <- function(model, parms, theta1 = 0, theta2 = 0, sorted = F) {
+sim_model <- function(model, parms, theta1 = 0, theta2 = 0, sorted = F, expected = F) {
   n_row <- length(theta1)
   n_col <- nrow(parms)
   r <- array(runif(n_row * n_col), dim = c(n_row, n_col))
   p <- cIRF(model, parms, theta1, theta2, sorted)
-  out <- ifelse(p > r, 1, 0)
+  if (expected) {
+    out <- p
+  } else {
+    out <- ifelse(p > r, 1, 0)
+  }
   colnames(out) <- row.names(parms)
   out
 }
@@ -407,7 +423,7 @@ pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, tr
 #' @return A data.frame with \code{length(theta)} rows containing an id variable for each pair and each sample, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
-data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
+data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL, expected = F) {
 
   # Expand data generating parms
   models <- c("Ind", "Min", "Max", "AI")
@@ -441,7 +457,7 @@ data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, 
 
   for (i in 1:length(models)) {
     temp <- out$model == i
-    data[temp, ] <- sim_model(models[i], parms, out$theta1[temp], out$theta2[temp])
+    data[temp, ] <- sim_model(models[i], parms, out$theta1[temp], out$theta2[temp], sorted = T, expected = expected)
   }
   data <- format_NA(data, NA_pattern)
   cbind(out[], data[])
