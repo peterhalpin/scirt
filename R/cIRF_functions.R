@@ -423,7 +423,7 @@ pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, tr
 #' @return A data.frame with \code{length(theta)} rows containing an id variable for each pair and each sample, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
-data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL, expected = F) {
+data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL, expected = F, fixed_class = F) {
 
   # Expand data generating parms
   models <- c("Ind", "Min", "Max", "AI")
@@ -448,8 +448,15 @@ data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, 
 
   # Get model indices
   out[models] <- mix_prop_long
-  out$model <- apply(mix_prop_long, 1,
-    function(x) sample.int(length(models), 1, prob = x))
+
+  # Get DGM
+  if (fixed_class) {
+    out$model <- apply(mix_prop, 1,
+      function(x) sample.int(length(models), 1, prob = x)) %>% rep(each = n_reps)
+  } else {
+    out$model <- apply(mix_prop_long, 1,
+      function(x) sample.int(length(models), 1, prob = x))
+  }
 
   # Simulate data
   data <- data.frame(matrix(NA, nrow = n_long, ncol = nrow(parms)))

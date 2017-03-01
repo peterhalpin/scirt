@@ -7,11 +7,11 @@ source("~/github/cirt/R/cIRF_functions.R")
 source("~/github/cirt/R/IRF_functions.R")
 
 # ------------------------------------------------------------
-# Data simulation 1
+# Data simulation
 # ------------------------------------------------------------
 
 # Constants
-set.seed(102)
+set.seed(101)
 models <- c("Ind", "Min", "Max", "AI")
 Models <- ordered(models, models)
 n_models <- 4
@@ -81,17 +81,28 @@ round(class_probs(temp_post2, data$model), 3)
 # 3 examples
 # ------------------------------------------------------------
 
-
 # Pair odd and even elements of theta / theta_se
-odd <- seq(1, n_obs*2, by = 2)
-random1 <- theta[odd]
-random2 <- theta[odd+1]
-random_data <- data_gen(1, mix_prop, parms, random1, random2, expected = F)
-random_resp <- random_data[grep("item", names(random_data))]
-temp_components <- exp(likelihood(models, random_resp, parms, random1, random2, Log = T))
-temp_post <- posterior(temp_components, rep(.25, times = 4))
-random_cp <- round(class_probs(temp_post, random_data$model), 3)
 
+
+odd <- seq(1, n_obs*2, by = 2)
+theta1 <- theta[odd]
+theta2 <- theta[odd+1]
+data <- data_gen(200, mix_prop, parms, theta1, theta2, fixed_class = T)
+head(data)
+resp <- data[grep("item", names(data))]
+
+data[paste0("component_", models)] <- likelihood(models, resp, parms, theta1, theta2, Log = F)
+
+data[paste0("posterior_", models)]  <- posterior(data[paste0("component_", models)], rep(.25, times = 4))
+head(data)
+
+
+random
+pv_post <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame()
+cp <- round(class_probs(temp_post, data$model), 3)
+em <- EM(models, resp, parms, theta1, theta2)
+em$prior
+em$se
 
 # Pair high and low
 
@@ -103,6 +114,9 @@ far_resp <- far_data[grep("item", names(far_data))]
 temp_components <- exp(likelihood(models, far_resp, parms, far1, far2, Log = T))
 temp_post <- posterior(temp_components, rep(.25, times = 4))
 far_cp <- round(class_probs(temp_post, far_data$model), 3)
+far_em <- EM(models, far_resp, parms, far1, far2)
+far_em$prior
+far_em$se
 
 
 # Pair neighbors
@@ -114,15 +128,25 @@ near_resp <- near_data[grep("item", names(near_data))]
 temp_components <- exp(likelihood(models, near_resp, parms, near1, near2, Log = T))
 temp_post <- posterior(temp_components, rep(.25, times = 4))
 near_cp <- round(class_probs(temp_post, near_data$model), 3)
-
+near_em <- EM(models, near_resp, parms, near1, near2)
+near_em$prior
+near_em$se
 
 # ------------------------------------------------------------
 # CP versus item deltas
 # ------------------------------------------------------------
+t1 <- random1
+t2 <- random2
+data <- random_data
+resp <- data[grep("item", names(data))]
+classify <- random_cp
+
+
 t1 <- far1
 t2 <- far2
 data <- far_data
 resp <- data[grep("item", names(data))]
+classify <- far_cp
 
 t1 <- near1
 t2 <- near2
@@ -133,38 +157,42 @@ resp <- data[grep("item", names(data))]
 deltas <- item_delta(parms, t1, t2)
 delta_order <- apply(deltas, 1, order) %>% t
 
-n_short <- 25
-i <- 1
-ind <- cbind(1:4, 1:4)
+n_short <- 50
+j <- n_short
+cp_ind <- cbind(1:4, 1:4)
+cp_ind <- cbind(1:4, c(2,3,2,3))
 
-out <- data.frame(rbind((classify)[ind]), sum(deltas), n_items)
-names(out) <- c(models, "deltas", "n_items")
+out <- data.frame(rbind((classify)[cp_ind]), sum(deltas))
+names(out) <- c(models, "deltas")
 
-for(i in n_short:n_items) {
+
+for(j in n_short:n_items) {
   screen <- deltas*NA
-  ones <- which(delta_order < (i+1) & delta_order > (i - n_short), arr.ind = T)
-  screen[ones] <- 1
+  i <- j - n_short + 1
+  ind <- cbind(rep(1:n_obs, times = n_short), c(delta_order[,i:j]))
+  screen[ind] <- 1
   components <- likelihood(models, resp*screen, parms, t1, t2, Log = F)
   temp_post <- posterior(components, rep(.25, times = 4))
-  out[(i+1), 1:4] <- class_probs(temp_post, data$model)[ind]
-  out$deltas[i+1] <- sum(deltas*screen, na.rm = T)
+  out[i, 1:4] <- class_probs(temp_post, data$model)[cp_ind]
+  out$deltas[i] <- sum(deltas*screen, na.rm = T)
   cat(i)
 }
-
-out <- out[n_short:n_items,]
+out
+# q_out <- out
 gg <- data.frame(unlist(out[models]),
   rep(models, each = nrow(out)),
-  rep(out$deltas, times = n_models),
-  rep(out$n_items, times = n_models)
+  rep(out$deltas, times = n_models)
   )
 
+names(gg) <- c("prob", "model", "delta")
 head(gg)
-names(gg) <- c("prob", "model", "delta", "items")
+
 #gg1 <- gg
 
 ggplot(gg, aes(x = delta, y = prob, group = model)) +
-  geom_smooth(se = F, aes(color = model)) +
-  ylim(c(.25, .90))
+  geom_line(aes(color = model)) +
+  #geom_smooth(se = F, aes(color = model)) +
+  ylim(c(0, 1))
 
 ggplot(gg, aes(x = items, y = prob, group = model)) + geom_line(aes(color = model))
 
