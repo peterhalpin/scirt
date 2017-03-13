@@ -18,7 +18,7 @@ Models <- ordered(models, models)
 n_models <- 4
 n_obs <- 500
 n_items <- 100
-n_reps <- 25
+n_reps <- 500
 test_length <- 25
 odd <- seq(1, n_obs*2, by = 2)
 
@@ -29,12 +29,13 @@ alpha <- runif(n_items, 1, 2.5)
 parms <- data.frame(alpha, beta)
 row.names(parms) <- paste0("item", 1:n_items)
 
-# Random classes
-mix_prop <- matrix(.25, nrow= n_models, ncol = n_obs) %>% t
-
 # Determined classes
-mix_prop_ones <- matrix(diag(rep(1, 4)), nrow= n_models, ncol = n_obs) %>% t
+mix_prop_ones <- matrix(diag(rep(1, 4)), nrow = n_models, ncol = n_obs) %>% t
 
+# load("gg")
+# gg_a$sample <- sample.int(10, nrow(gg_a), replace = T)
+# gg_b$sample <- sample.int(10, nrow(gg_b), replace = T)
+# gg_c$sample <- sample.int(10, nrow(gg_c), replace = T)
 
 # ------------------------------------------------------------
 # Simulated example A: Randomly selected partners
@@ -49,31 +50,36 @@ table(data_a$model[data_a$sample == 1])/ n_obs
 
 # Boostrapped EM estimates and SEs
 em_a <- boot_em(data_a, parms, parallel = T)
-apply(em_a[,1:4], 2, mean)
-apply(em_a[,1:4], 2, sd)
+prior_a <- apply(em_a[,1:4], 2, mean) %>% round(3)
+prior_se_a <- apply(em_a[,1:4], 2, sd) %>% round(3)
 
 # Classification matrix and SEs
 cp_a <- boot_cp(data_a, mix_prop[1,], parms)
-round(cp_a$mean, 3)
-round(cp_a$se, 3)
+post_a <- round(cp_a$mean, 3)
+post_se_a <- round(cp_a$se, 3)
 
 # Relationship bewteen item detal and model classification, for tests of fixed length
 gg_a <- item_delta_gg(test_length, data_a, mix_prop[1,], parms, parallel = T)
 
+pa <-
 ggplot(gg_a, aes(x = delta, y = prob, group = model)) +
   geom_smooth(se = F, color = "black", method = "loess", aes(linetype = model)) +
-  geom_point(aes(pch = model), color = "black", alpha = .1) +
+  geom_point(data = gg_a[gg_a$sample == 1,], aes(pch = model), color = "black", alpha = .02) +
   scale_linetype_manual(values=c(2,4,6,1)) +
   scale_shape_manual(values=c(0,1,2,3), name = "") +
-  guides(line = guide_legend(order = 2)) +
-  guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
-  theme(legend.spacing = unit(-.8, "cm")) +
-  theme(legend.key.size = unit(.9, "cm")) +
-  theme(legend.box = "horizontal")+
   ylim(c(0, 1)) +
-  xlab("Average scaled item delta") +
-  ylab("Probability of correct classification")
-
+  #xlab("Average scaled item delta") +
+  #ylab("Probability of correct classification") +
+  xlab("") +
+  ylab("") +
+  ggtitle("Random Ability") +
+  #guides(line = guide_legend(order = 2)) +
+  #guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
+  #theme(legend.spacing = unit(-.8, "cm")) +
+  #theme(legend.key.size = unit(.9, "cm")) +
+  #theme(legend.box = "horizontal") +
+  theme(legend.position = "none")  +
+  theme(plot.title = element_text(hjust = 0.5))
 
 # ------------------------------------------------------------
 # Simulated example B: high and low ability partners
@@ -89,31 +95,43 @@ table(data_b$model[data_b$sample == 1])/ n_obs
 
 # Boostrapped EM estimates and SEs
 em_b <- boot_em(data_b, parms, parallel = T)
-apply(em_b[,1:4], 2, mean)
-apply(em_b[,1:4], 2, sd)
+prior_b <- apply(em_b[,1:4], 2, mean) %>% round(3)
+prior_se_b <- apply(em_b[,1:4], 2, sd) %>% round(3)
 
 # Classification matrix and SEs
 cp_b <- boot_cp(data_b, mix_prop[1,], parms)
-round(cp_b$mean, 3)
-round(cp_b$se, 3)
+post_b <- round(cp_b$mean, 3)
+post_se_b <- round(cp_b$se, 3)
+
 
 # Relationship bewteen item detal and model classification, for tests of fixed length
+load("gg")
 gg_b <- item_delta_gg(test_length, data_b, mix_prop[1,], parms, parallel = T)
 
+gg_b$sample <- sample.int(10, nrow(gg_b), replace = T)
 
+
+pb <-
 ggplot(gg_b, aes(x = delta, y = prob, group = model)) +
   geom_smooth(se = F, color = "black", method = "loess", aes(linetype = model)) +
-  geom_point(aes(pch = model), color = "black", alpha = .1) +
+  geom_point(data = gg_b[gg_b$sample == 1,], aes(pch = model), color = "black", alpha = .015) +
   scale_linetype_manual(values=c(2,4,6,1)) +
   scale_shape_manual(values=c(0,1,2,3), name = "") +
+  ylim(c(0, 1)) +
+  xlab("Average scaled item delta") +
+  #ylab("Probability of correct classification") +
+  ylab("") +
+  ggtitle("Disparate Ability") +
   guides(line = guide_legend(order = 2)) +
   guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
   theme(legend.spacing = unit(-.8, "cm")) +
   theme(legend.key.size = unit(.9, "cm")) +
-  theme(legend.box = "horizontal")+
-  ylim(c(0, 1)) +
-  xlab("Average scaled item delta") +
-  ylab("Probability of correct classification")
+  theme(legend.box = "horizontal") +
+  theme(legend.position = c(.5, .15)) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
 
 # ------------------------------------------------------------
 # Simulated example C: matching partners close in ability
@@ -128,40 +146,87 @@ table(data_c$model[data_c$sample == 1])/ n_obs
 
 # Boostrapped EM estimates and SEs
 em_c <- boot_em(data_c, parms, parallel = T)
-apply(em_c[,1:4], 2, mean)
-apply(em_c[,1:4], 2, sd)
+prior_c <- apply(em_c[,1:4], 2, mean) %>% round(3)
+prior_se_c <- apply(em_c[,1:4], 2, sd) %>% round(3)
 
 # Classification matrix and SEs
 cp_c <- boot_cp(data_c, mix_prop[1,], parms)
-round(cp_c$mean, 3)
-round(cp_c$se, 3)
+post_c <- round(cp_c$mean, 3)
+post_se_c <- round(cp_c$se, 3)
+
 
 # Relationship bewteen item detal and model classification, for tests of fixed length
 gg_c <- item_delta_gg(test_length, data_c, mix_prop[1,], parms, parallel = T)
 
-
+pc <-
 ggplot(gg_c, aes(x = delta, y = prob, group = model)) +
   geom_smooth(se = F, color = "black", method = "loess", aes(linetype = model)) +
-  geom_point(aes(pch = model), color = "black", alpha = .1) +
+  geom_point(data = gg_c[gg_c$sample == 1,], aes(pch = model), color = "black", alpha = .02) +
   scale_linetype_manual(values=c(2,4,6,1)) +
   scale_shape_manual(values=c(0,1,2,3), name = "") +
-  guides(line = guide_legend(order = 2)) +
-  guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
-  theme(legend.spacing = unit(-.8, "cm")) +
-  theme(legend.key.size = unit(.9, "cm")) +
-  theme(legend.box = "horizontal")+
   ylim(c(0, 1)) +
-  xlab("Average scaled item delta") +
-  ylab("Probability of correct classification")
-
-
-
+  xlab("") +
+  #xlab("Average scaled item delta") +
+  ylab("Probability of correct classification") +
+  ggtitle("Similar Ability") +
+  #guides(line = guide_legend(order = 2)) +
+  #guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
+  #theme(legend.spacing = unit(-.8, "cm")) +
+  #theme(legend.key.size = unit(.9, "cm")) +
+  #theme(legend.box = "horizontal") +
+  theme(legend.position = "none")  +
+  theme(plot.title = element_text(hjust = 0.5))
 
 
 
 # ------------------------------------------------------------
-# Real data example: DIF
-# Items 45 and 65 identified as problematic in scalar model
+# Tables and Figures
+# ------------------------------------------------------------
+
+# Priors
+xtable::xtable(rbind(
+    paste0(prior_c, " (", prior_se_c, ") "),
+    paste0(prior_b, " (", prior_se_b, ") "),
+    paste0(prior_a, " (", prior_se_a, ") ")))
+
+# Classification probabilities
+post_a <- round(cp_a$mean, 3)
+post_se_a <- round(cp_a$se, 3)
+xtable::xtable(rbind(
+    paste0(post_c, " (", post_se_c, ") ") %>% array(, dim = c(4,4)),
+    paste0(post_b, " (", post_se_b, ") ") %>% array(, dim = c(4,4)),
+    paste0(post_a, " (", post_se_a, ") ") %>% array(, dim = c(4,4))))
+
+gridExtra::grid.arrange(pc, pb, pa, nrow = 1, ncol = 3)
+
+
+# ------------------------------------------------------------
+# Real data example: demographics
+#------------------------------------------------------------
+
+setwd("~/Dropbox/Academic/Projects/CA/Data")
+demo <- read.csv("Long_AMT_IDs_Match(1.30.17).csv")
+names(demo)
+vars <- c("Age", "Gender", "Ethnicity", "English", "leveledu", "liveusa")
+
+temp <- demo[vars]
+temp$Ethnicity[temp$Ethnicity != 10] <- 0
+temp$Ethnicity[temp$Ethnicity != 0] <- 1
+temp$Gender <- temp$Gender - 1
+temp$English <- abs(temp$English - 2)
+temp$leveledu[temp$leveledu < 3] <- 0
+temp$leveledu[temp$leveledu != 0] <- 1
+temp$liveusa <- abs(temp$liveusa - 2)
+
+head(temp)
+
+apply(temp, 2, mean)
+summary(temp$Age)
+
+
+
+#------------------------------------------------------------
+# DIF: Items 45 and 65 identified as problematic in scalar model
 # After dropping, scalar model fits OK
 
 # Metric            36.971        37       0.4704
@@ -307,9 +372,10 @@ ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
 # real data:  Plausible Values
 # ------------------------------------------------------------
 n_reps <- 500
+set.seed(101)
 pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se)
 pv_data[models] = 0
-
+head(pv_data)
 out <- data.frame(matrix(0, nrow = n_reps, ncol <- n_models*2))
 names(out) <- paste0(rep(c("prior", "se"), each = n_models), 1:n_models)
 
@@ -323,8 +389,9 @@ for(i in 1:n_reps) {
 
 
 # ------------------------------------------------------------
-# real data:  Table 1
+# real data:  priors
 # ------------------------------------------------------------
+
 mean_out <- apply(out, 2, mean, na.rm = T)
 var_out <- apply(out, 2, var, na.rm = T)
 pv_prior <- round(mean_out[1:4], 3)
@@ -337,21 +404,39 @@ colnames(temp) <- models
 xtable::xtable(temp, digits = 3)
 round(temp, 4)
 
+
+
+# ------------------------------------------------------------
+# real data: posteriors
+# ------------------------------------------------------------
+
+# Get the "true model" from PVs
+
+temp <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame
+pv_data$model <- rep(apply(temp, 1, which.max), each = n_reps)
+
+cp  <- boot_cp(pv_data, pv_prior, parms)
+post <- round(cp$mean, 3)
+post_se <- round(cp$se, 3)
+
+xtable::xtable(paste0(post, " (", post_se, ") ") %>% array(, dim = c(4,4)))
+
+
 # ------------------------------------------------------------
 # real data: classification probabilities
 # ------------------------------------------------------------
 
-pv_posterior <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame()
-
-
-gg <- data.frame(unlist(pv_posterior))
+gg <- data.frame(unlist(pv_data[models]))
 names(gg) <- "prob"
-gg$q <- rep(as.matrix(pv_posterior) %*% 1:n_models, times = n_models)
-gg$model <- rep(Models, each = nrow(resp))
+gg$q <- rep(as.matrix(pv_data[models]) %*% 1:n_models, times = n_models)
+gg$model <- rep(Models, each = nrow(pv_data))
+gg$sample <- sample.int(500, nrow(gg), replace = T)
+sum(gg$sample == 1)
 
-ggplot(gg[], aes(x = q, y = prob, group = model)) +
-  stat_smooth(aes(linetype = model), lwd = 1, se = T, color = "black") +
-  geom_point(aes(pch = model), color = "black", alpha = .5) +
+p1 <-
+ggplot(gg, aes(x = q, y = prob, group = model)) +
+  stat_smooth(aes(linetype = model), se = F, lwd = 1, color = "black") +
+  geom_point(data = gg[gg$sample == 1,], aes(pch = model), color = "black", alpha = .5) +
   xlab("Expectation of posterior distribtuion") +
   ylab("Posterior probability of each model") +
   scale_linetype_manual(values=c(2,4,6,1)) +
@@ -362,7 +447,7 @@ ggplot(gg[], aes(x = q, y = prob, group = model)) +
   theme(legend.spacing = unit(-.8, "cm")) +
   theme(legend.key.size = unit(.9, "cm")) +
   theme(legend.box = "horizontal")+
-  ylim(c(-.1, 1))
+  ylim(c(0, 1))
 
 
 
@@ -373,22 +458,119 @@ ggplot(gg[], aes(x = q, y = prob, group = model)) +
 temp <- as.matrix(pv_data[models]) %*% 1:4
 pv_q <- tapply(temp, pv_data$pairs, mean)
 pv_se <- tapply(temp, pv_data$pairs, sd)
-model <- apply(em$posterior, 1, function(x) models[which.max(x)])
+model <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame() %>% apply(1, which.max)
+gg$model <- Models[gg$model]
 gg <- data.frame(pv_q, pv_se, model)
 names(gg) <- c("pv", "se", "model")
 
+
+p2 <-
 ggplot(gg, aes(x = pv, y = se, group = model)) +
-  geom_point(aes(pch = model)) +
-  stat_smooth(se = F, lwd = 1, color = "black", aes(group = 1)) +
+  stat_smooth(aes(group = 1), se = F, lwd = 1, color = "black") +
+  geom_point(aes(pch = model), color = "black", alpha = .5) +
+  scale_linetype_manual(values=c(2,4,6,1)) +
+  scale_shape_manual(values=c(0,1,2,3), name = "") +
+  guides(line = guide_legend(order = 2)) +
+  guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
+  guides(fill = FALSE) +
+  theme(legend.spacing = unit(-.8, "cm")) +
+  theme(legend.key.size = unit(.9, "cm")) +
+  theme(legend.box = "horizontal")+
   xlab("Expectation of posterior") +
-  ylab("Standard error") +
-  ggtitle("Standard error of expectation of posterior distribution") +
-  theme_bw()
+  ylab("Standard error")
+  # ggtitle("Standard error of expectation of posterior distribution")
+
+
+tapply(gg$pv, gg$model, mean)
+tapply(gg$pv, gg$model, sd)
+gridExtra::grid.arrange(p1, p2, nrow = 1)
+
+# ------------------------------------------------------------
+# AI / Max by theta deltas
+# ------------------------------------------------------------
+
+
+
+gg <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame()
+
+temp <- item_delta(parms, pv_data$theta1, pv_data$theta2, sorted = T, NA_pattern = resp)/.25
+temp[temp > 1] <- 1
+temp <- apply(temp, 1, mean, na.rm = T)
+gg$delta <-  tapply(temp, pv_data$pairs, mean)
+head(gg)
+
+gg$model <- Models[apply(gg[models], 1, which.max)]
+ggplot(gg, aes(x = delta, fill = model)) + geom_histogram(color = "black") + scale_fill_grey(start = 0.9, end = 0.2, na.value = "grey50")
+
+plot(gg$delta, gg$AI)
+hist(gg$delta)
+
+temp <- item_delta(parms, pv_data$theta1, pv_data$theta2, sorted = T, NA_pattern = resp)
+
+head(temp)
+
+gg$delta <-  apply(temp, 1, mean, na.rm = T) %>% rep(times = n_models)
+
+gg$model <- rep(Models, each = nrow(pv_data))
+gg$sample <- sample.int(500, nrow(gg), replace = T)
+head(gg)
+
+ggplot(gg[model == "AI"], aes(x = delta, y = prob, group = model)) +
+  stat_smooth(aes(linetype = model), se = F, lwd = 1, color = "black") +
+  geom_point(aes(pch = model), color = "black", alpha = .01) +
+  scale_linetype_manual(values=c(2,4,6,1)) +
+  scale_shape_manual(values=c(0,1,2,3), name = "") +
+  guides(line = guide_legend(order = 2)) +
+  guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
+  guides(fill = FALSE) +
+  theme(legend.spacing = unit(-.8, "cm")) +
+  theme(legend.key.size = unit(.9, "cm")) +
+  theme(legend.box = "horizontal")
+
+  +
+  xlab("Expectation of posterior") +
+  ylab("Standard error")
+  # ggtitle("Standard error of expectation of posterior distribution")
+
 
 tapply(gg$pv, gg$model, mean)
 tapply(gg$pv, gg$model, sd)
 
 
+gg <- data.frame("model" = apply(em$posterior, 1, which.max))
+gg$t_delta <- abs(theta1 - theta2)
+gg$i_delta <- apply(deltas(parms, theta1, theta2)/.25, 1 mean)
+gg[models] <- em$posterior
+head(gg)
+
+plot(gg$delta, gg$AI)
+
+
+# ------------------------------------------------------------
+# CP versus item deltas
+# ------------------------------------------------------------
+deltas <- item_delta(parms, theta1, theta2)/.25
+delta_order <- t(apply(deltas, 1, order))
+round(deltas[1,delta_order[1,]], 4)
+screen <- deltas*NA
+n_short <- 50
+ind <- cbind(1:4, c(2,3,2,3))
+ind <- cbind(1:4, 1:4)
+out <- data.frame(rbind((classify)[ind]), sum(deltas), n_items)
+names(out) <- c(models, "deltas", "n_items")
+i = 50
+for(i in n_short:n_items) {
+  screen <- deltas*NA
+  screen[delta_order < (i+1) & delta_order > (i - n_short)] <- 1
+  apply(screen, 1, sum, na.rm = T)
+  components <- likelihood(models, resp*screen, parms, theta1, theta2, Log = F)
+  temp_post <- posterior(components, c(sample_mix_prop))
+  #temp_post <- posterior(components, em$prior)
+  out[(i+1), 1:4] <- class_probs(temp_post, data$model)[ind]
+  out$deltas[i+1] <- sum(deltas*screen, na.rm = T)
+  #out$n_items[i+1] <- n_items - i
+  cat(i)
+}
 
 # ------------------------------------------------------------
 # ------------------------------------------------------------

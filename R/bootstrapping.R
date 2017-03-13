@@ -30,10 +30,11 @@ boot_em <- function(sim_data, parms, parallel = T) {
 boot_cp <- function(sim_data, mix_prop, parms) {
   n_reps <- max(sim_data$samples)
   models <- c("Ind", "Min", "Max", "AI")
-  resp <- sim_data[grep("item", names(sim_data))]
-  components <- likelihood(models, resp, parms, sim_data$theta1, sim_data$theta2, Log = F)
+  item_names <- paste(row.names(parms) , collapse = "|")
+  resp <- sim_data[grep(item_names, names(sim_data))]
+  components <- likelihood(models, resp, parms, sim_data$theta1, sim_data$theta2, sorted = T, Log = F)
   post  <- posterior(components, mix_prop)
-  temp_cp <- lapply(1:n_reps, function(x) class_probs(post[sim_data$sample == x,], sim_data$model[sim_data$sample == x]))
+  temp_cp <- lapply(1:n_reps, function(x) class_probs(post[sim_data$samples == x,], sim_data$model[sim_data$samples == x]))
   mean <- Reduce(`+`, temp_cp) / n_reps
   se <- Reduce(`+`, lapply(temp_cp, function(x) (x - mean)^2 / (n_reps-1))) %>% sqrt
   out <- list(mean, se)

@@ -120,8 +120,9 @@ cIRF <- function(model, parms, theta1, theta2, sorted = F) {
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
-item_delta <- function(parms, theta1, theta2, sorted = F) {
-  Min(parms, theta1, theta2, sorted) * (1 - Max(parms, theta1, theta2, sorted))
+item_delta <- function(parms, theta1, theta2, sorted = F, NA_pattern = NULL) {
+  temp <- Min(parms, theta1, theta2, sorted) * (1 - Max(parms, theta1, theta2, sorted))
+  format_NA(temp, NA_pattern)
 }
 
 
