@@ -314,16 +314,25 @@ resp <- col_form[odd, ]
 # ------------------------------------------------------------
 # real data: EM
 # ------------------------------------------------------------
+models <- c("Ind", "Min", "Max", "AI")
+Models <- ordered(models, models)
+n_models <- 4
 em <- EM(models, resp, parms, theta1, theta2)
-
+em2 <- EM(models[c(1, 3, 4)], resp, parms, theta1, theta2)
 # mixing proportions
 round(em$prior, 3)
 round(em$se, 3)
+
+round(em2$prior, 3)
+round(em2$se, 3)
+em2
 
 # classification probabilities
 classify <- class_probs(em$posterior)
 round(classify, 3)
 
+plot(em2$posterior[,2], em$posterior[,3])
+hist(em2$posterior[,3])
 # ------------------------------------------------------------
 # real data: person fit using contribution to likelihood
 # ------------------------------------------------------------
@@ -405,7 +414,6 @@ xtable::xtable(temp, digits = 3)
 round(temp, 4)
 
 
-
 # ------------------------------------------------------------
 # real data: posteriors
 # ------------------------------------------------------------
@@ -420,6 +428,60 @@ post <- round(cp$mean, 3)
 post_se <- round(cp$se, 3)
 
 xtable::xtable(paste0(post, " (", post_se, ") ") %>% array(, dim = c(4,4)))
+
+# ------------------------------------------------------------
+# real data: posteriors by deltas
+# ------------------------------------------------------------
+
+# Get the "true model" from PVs
+
+gg <- (lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean))) %>% unlist %>% data.frame
+
+head(gg)
+names(gg) <- "prob"
+gg$model <- rep(Models, each = length(theta1))
+
+temp <- item_delta(parms, pv_data$theta1, pv_data$theta2, sorted = T, NA_pattern = resp)/.25
+temp[temp > 1] <- 1
+temp <- apply(temp, 1, mean, na.rm = T)
+
+gg$delta <-  tapply(temp, pv_data$pairs, mean) %>% rep(4)
+head(gg)
+gg$delta
+head(gg, 200)
+gg$delta2 <- as.ordered(round(gg$delta,10))
+
+
+ggplot(gg, aes(x = delta2, y = prob, fill = model)) +
+    geom_bar(position = "fill", stat = "identity")  +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+    scale_x_discrete(breaks = levels(gg$delta2)[seq(1, 151, 5)], label = abbreviate)
+
+     +
+    scale_fill_grey(start = 0.8, end = 0.2, na.value = "grey50")
+
+t1 <- t2 <- seq(-3, 3, .1)
+
+d <- function(t) {
+  -apply(item_delta(parms, t[1], t[2])/.25, 1, mean)
+}
+
+optim(c(0,0), d) 
+q <- outer(t1,t2, d)
+
+persp(t1, t2, q, theta = 5, phi = 25, main = "SE", expand = .5, ticktype = "detailed", nticks = 5)
+
+
+gg <- (lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean))) %>% data.frame
+gg$model <- apply(gg, 1, which.max)
+gg$Ind_Mind <-
+head(gg)
+names(gg) <- "prob"
+gg$model <- rep(Models, each = length(theta1))
+
+temp <- item_delta(parms, pv_data$theta1, pv_data$theta2, sorted = T, NA_pattern = resp)/.25
+temp[temp > 1] <- 1
+temp <- apply(temp, 1, mean, na.rm = T)
 
 
 # ------------------------------------------------------------
