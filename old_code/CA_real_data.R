@@ -8,200 +8,7 @@ source("~/github/cirt/R/IRF_functions.R")
 source("~/github/cirt/R/bootstrapping.R")
 
 # ------------------------------------------------------------
-# Data simulation
-# ------------------------------------------------------------
-
-# Constants
-set.seed(101)
-models <- c("Ind", "Min", "Max", "AI")
-Models <- ordered(models, models)
-n_models <- 4
-n_obs <- 500
-n_items <- 100
-n_reps <- 500
-test_length <- 25
-odd <- seq(1, n_obs*2, by = 2)
-
-# Data generating parameters
-theta <- rnorm(n_obs*2)
-beta <- sort(rnorm(n_items, mean = .35, sd = 1.3))
-alpha <- runif(n_items, 1, 2.5)
-parms <- data.frame(alpha, beta)
-row.names(parms) <- paste0("item", 1:n_items)
-
-# Determined classes
-mix_prop_ones <- matrix(diag(rep(1, 4)), nrow = n_models, ncol = n_obs) %>% t
-
-# load("gg")
-# gg_a$sample <- sample.int(10, nrow(gg_a), replace = T)
-# gg_b$sample <- sample.int(10, nrow(gg_b), replace = T)
-# gg_c$sample <- sample.int(10, nrow(gg_c), replace = T)
-
-# ------------------------------------------------------------
-# Simulated example A: Randomly selected partners
-# ------------------------------------------------------------
-
-theta_1a <- theta[odd]
-theta_2a <- theta[odd+1]
-dif_a <- theta_2a - theta_1a
-
-data_a <- data_gen(n_reps, mix_prop_ones, parms, theta_1a, theta_2a, fixed_class = T)
-table(data_a$model[data_a$sample == 1])/ n_obs
-
-# Boostrapped EM estimates and SEs
-em_a <- boot_em(data_a, parms, parallel = T)
-prior_a <- apply(em_a[,1:4], 2, mean) %>% round(3)
-prior_se_a <- apply(em_a[,1:4], 2, sd) %>% round(3)
-
-# Classification matrix and SEs
-cp_a <- boot_cp(data_a, mix_prop[1,], parms)
-post_a <- round(cp_a$mean, 3)
-post_se_a <- round(cp_a$se, 3)
-
-# Relationship bewteen item detal and model classification, for tests of fixed length
-gg_a <- item_delta_gg(test_length, data_a, mix_prop[1,], parms, parallel = T)
-
-pa <-
-ggplot(gg_a, aes(x = delta, y = prob, group = model)) +
-  geom_smooth(se = F, color = "black", method = "loess", aes(linetype = model)) +
-  geom_point(data = gg_a[gg_a$sample == 1,], aes(pch = model), color = "black", alpha = .02) +
-  scale_linetype_manual(values=c(2,4,6,1)) +
-  scale_shape_manual(values=c(0,1,2,3), name = "") +
-  ylim(c(0, 1)) +
-  #xlab("Average scaled item delta") +
-  #ylab("Probability of correct classification") +
-  xlab("") +
-  ylab("") +
-  ggtitle("Random Ability") +
-  #guides(line = guide_legend(order = 2)) +
-  #guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
-  #theme(legend.spacing = unit(-.8, "cm")) +
-  #theme(legend.key.size = unit(.9, "cm")) +
-  #theme(legend.box = "horizontal") +
-  theme(legend.position = "none")  +
-  theme(plot.title = element_text(hjust = 0.5))
-
-# ------------------------------------------------------------
-# Simulated example B: high and low ability partners
-# ------------------------------------------------------------
-
-ind <- order(theta)
-theta_1b <- theta[ind[1:n_obs]]
-theta_2b <- theta[ind[(n_obs+1):(n_obs*2)]]
-summary(theta_2a - theta_2b)
-
-data_b <- data_gen(n_reps, mix_prop_ones, parms, theta_1b, theta_2b, fixed_class = T)
-table(data_b$model[data_b$sample == 1])/ n_obs
-
-# Boostrapped EM estimates and SEs
-em_b <- boot_em(data_b, parms, parallel = T)
-prior_b <- apply(em_b[,1:4], 2, mean) %>% round(3)
-prior_se_b <- apply(em_b[,1:4], 2, sd) %>% round(3)
-
-# Classification matrix and SEs
-cp_b <- boot_cp(data_b, mix_prop[1,], parms)
-post_b <- round(cp_b$mean, 3)
-post_se_b <- round(cp_b$se, 3)
-
-
-# Relationship bewteen item detal and model classification, for tests of fixed length
-load("gg")
-gg_b <- item_delta_gg(test_length, data_b, mix_prop[1,], parms, parallel = T)
-
-gg_b$sample <- sample.int(10, nrow(gg_b), replace = T)
-
-
-pb <-
-ggplot(gg_b, aes(x = delta, y = prob, group = model)) +
-  geom_smooth(se = F, color = "black", method = "loess", aes(linetype = model)) +
-  geom_point(data = gg_b[gg_b$sample == 1,], aes(pch = model), color = "black", alpha = .015) +
-  scale_linetype_manual(values=c(2,4,6,1)) +
-  scale_shape_manual(values=c(0,1,2,3), name = "") +
-  ylim(c(0, 1)) +
-  xlab("Average scaled item delta") +
-  #ylab("Probability of correct classification") +
-  ylab("") +
-  ggtitle("Disparate Ability") +
-  guides(line = guide_legend(order = 2)) +
-  guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
-  theme(legend.spacing = unit(-.8, "cm")) +
-  theme(legend.key.size = unit(.9, "cm")) +
-  theme(legend.box = "horizontal") +
-  theme(legend.position = c(.5, .15)) +
-  theme(plot.title = element_text(hjust = 0.5))
-
-
-
-
-# ------------------------------------------------------------
-# Simulated example C: matching partners close in ability
-# ------------------------------------------------------------
-ind <- order(theta)
-theta_1c <- theta[ind[odd]]
-theta_2c <- theta[ind[odd+1]]
-summary(theta_2c - theta_1c)
-
-data_c <- data_gen(n_reps, mix_prop_ones, parms, theta_1c, theta_2c, fixed_class = T)
-table(data_c$model[data_c$sample == 1])/ n_obs
-
-# Boostrapped EM estimates and SEs
-em_c <- boot_em(data_c, parms, parallel = T)
-prior_c <- apply(em_c[,1:4], 2, mean) %>% round(3)
-prior_se_c <- apply(em_c[,1:4], 2, sd) %>% round(3)
-
-# Classification matrix and SEs
-cp_c <- boot_cp(data_c, mix_prop[1,], parms)
-post_c <- round(cp_c$mean, 3)
-post_se_c <- round(cp_c$se, 3)
-
-
-# Relationship bewteen item detal and model classification, for tests of fixed length
-gg_c <- item_delta_gg(test_length, data_c, mix_prop[1,], parms, parallel = T)
-
-pc <-
-ggplot(gg_c, aes(x = delta, y = prob, group = model)) +
-  geom_smooth(se = F, color = "black", method = "loess", aes(linetype = model)) +
-  geom_point(data = gg_c[gg_c$sample == 1,], aes(pch = model), color = "black", alpha = .02) +
-  scale_linetype_manual(values=c(2,4,6,1)) +
-  scale_shape_manual(values=c(0,1,2,3), name = "") +
-  ylim(c(0, 1)) +
-  xlab("") +
-  #xlab("Average scaled item delta") +
-  ylab("Probability of correct classification") +
-  ggtitle("Similar Ability") +
-  #guides(line = guide_legend(order = 2)) +
-  #guides(shape = guide_legend(order = 1, override.aes = list(alpha = 1, size = 2))) +
-  #theme(legend.spacing = unit(-.8, "cm")) +
-  #theme(legend.key.size = unit(.9, "cm")) +
-  #theme(legend.box = "horizontal") +
-  theme(legend.position = "none")  +
-  theme(plot.title = element_text(hjust = 0.5))
-
-
-
-# ------------------------------------------------------------
-# Tables and Figures
-# ------------------------------------------------------------
-
-# Priors
-xtable::xtable(rbind(
-    paste0(prior_c, " (", prior_se_c, ") "),
-    paste0(prior_b, " (", prior_se_b, ") "),
-    paste0(prior_a, " (", prior_se_a, ") ")))
-
-# Classification probabilities
-post_a <- round(cp_a$mean, 3)
-post_se_a <- round(cp_a$se, 3)
-xtable::xtable(rbind(
-    paste0(post_c, " (", post_se_c, ") ") %>% array(, dim = c(4,4)),
-    paste0(post_b, " (", post_se_b, ") ") %>% array(, dim = c(4,4)),
-    paste0(post_a, " (", post_se_a, ") ") %>% array(, dim = c(4,4))))
-
-gridExtra::grid.arrange(pc, pb, pa, nrow = 1, ncol = 3)
-
-
-# ------------------------------------------------------------
-# Real data example: demographics
+# Demographics
 #------------------------------------------------------------
 
 setwd("~/Dropbox/Academic/Projects/CA/Data")
@@ -222,7 +29,6 @@ head(temp)
 
 apply(temp, 2, mean)
 summary(temp$Age)
-
 
 
 #------------------------------------------------------------
@@ -268,7 +74,7 @@ ggplot(gg, aes(x = calib_beta, y = collab_beta)) +
 
 
 # ------------------------------------------------------------
-# Real data example: load data and estimate individual thetas
+# Load data and estimate individual thetas
 # ------------------------------------------------------------
 
 # Load calibrated item parms
@@ -299,7 +105,7 @@ col_form <-col_form[!collab$group_id%in%drop_groups,]
 ind_form <-ind_form[!collab$group_id%in%drop_groups,]
 
 # Reset odd for dropped items
-odd <- odd[1:(nrow(col_form)/2)]
+odd <- seq(1, nrow(col_form), by = 2)
 
 # Estimate theta for ind forms
 ind <- MLE(ind_form, parms, WMLE = T)
@@ -313,21 +119,28 @@ theta2_se <- ind$se[odd+1]
 resp <- col_form[odd, ]
 
 
-# select on  delta
+# ?? select on  delta
+
 delta <- abs(theta1 - theta2)
-se_delta <- sqrt((theta1_se^2 + theta2_se^2) / 2)
+se_delta <- apply(cbind(theta1_se, theta2_se^2), 1, max)
 ind_se <- delta < (1 + se_delta)
 
 resp <- resp[ind_se, ]
 theta1 <- theta1[ind_se]
 theta2 <- theta2[ind_se]
+theta1_se <- theta1_se[ind_se]
+theta2_se  <-theta2_se[ind_se]
+odd <- seq(1, nrow(resp), by = 2)
 # ------------------------------------------------------------
-# real data: EM
+#  EM
 # ------------------------------------------------------------
 
+# Constants
+n_reps <- 250
 models <- c("Ind", "Min", "Max", "AI")
 Models <- ordered(models, models)
 n_models <- 4
+
 em <- EM(models, resp, parms, theta1, theta2)
 
 # mixing proportions
@@ -339,7 +152,7 @@ classify <- class_probs(em$posterior)
 round(classify, 3)
 
 # ------------------------------------------------------------
-# real data: person fit using contribution to likelihood
+# Person fit using contribution to likelihood
 # ------------------------------------------------------------
 
 # Get observed values
@@ -347,9 +160,9 @@ components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
 logL <- incomplete_data(components, em$posterior, Sum = F)
 
 # Simulate null distribution
-n_reps <- 250
 mix_prop <- em$posterior
 
+set.seed(101)
 temp <- data_gen(n_reps, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, NA_pattern = resp)
 
 temp_components <- likelihood(models, temp[,grep(items, names(temp))], parms, temp$theta1, temp$theta2, sorted = T, Log = F)
@@ -383,25 +196,53 @@ ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
 
 
 # ------------------------------------------------------------
-# real data:  Plausible Values
+# Process loss
 # ------------------------------------------------------------
-n_reps <- 250
+
+PL <- function(mix_prop, parms, theta1, theta2 = NULL, sorted = F) {
+  pA <- cIRF("AI", parms, theta1, theta2, sorted)
+  pI <- cIRF("IND", parms, theta1, theta2, sorted)
+  
+
+  n_models <- length(models)
+  out <- array(0, dim = c(nrow(resp), n_models))
+  for (i in 1:n_models) {
+    p <- cIRF(models[i], parms, theta1, theta2, sorted)
+    if (Log) {
+      out[,i] <- apply(log(p) * resp + log(1-p) * (1-resp), 1, sum, na.rm = T)
+    } else {
+      out[,i] <- apply(p * resp + (1-p) * (1-resp), 1, prod, na.rm = T)
+    }
+  }
+
+
+# ------------------------------------------------------------
+# Plausible Values
+# ------------------------------------------------------------
+n_reps <- 10
 set.seed(101)
 pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se)
 head(pv_data)
+
 fun <- function(i){
   ind <- pv_data$samples == i
-  temp <- pv_data[ind, grep(paste0(row.names(parms), collapse = "|"), names(pv_data))]
+  temp <- pv_data[ind, grep(items, names(pv_data))]
   EM(models, temp, parms, pv_data$theta1[ind], pv_data$theta2[ind], sorted = T)
 }
 
 temp_em <- parallel::mclapply(1:n_reps, fun)
+
+# prior and se
 out <- lapply(temp_em, function(x) c(x$prior, x$se^2)) %>% unlist %>% matrix(nrow = n_reps, ncol = 8, byrow = T) %>% data.frame
 names(out) <- paste0(rep(c("prior", "se"), each = n_models), 1:n_models)
-pv_data[models] <- lapply(temp_em, function(x) x$posterior) %>% {do.call(rbind, .)}
+
+# posterior
+temp <- lapply(temp_em, function(x) x$posterior) %>% {do.call(rbind, .)}
+pv_data[models] <- temp[order(rep(1:95, times = n_reps)),]
+
 
 # ------------------------------------------------------------
-# real data:  priors
+# PV priors
 # ------------------------------------------------------------
 
 mean_out <- apply(out, 2, mean, na.rm = T)
@@ -416,38 +257,50 @@ colnames(temp) <- models
 xtable::xtable(temp, digits = 3)
 round(temp, 4)
 
-
 # ------------------------------------------------------------
-# real data: posteriors
+# PV posterior
 # ------------------------------------------------------------
 
 # Get the "true model" from PVs
-
 temp <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame
 pv_data$model <- rep(apply(temp, 1, which.max), each = n_reps)
+pv_data$model[pv_data$model == 3] <- 2
+pv_data$model[pv_data$model == 4] <- 3
 
 cp  <- boot_cp(pv_data, pv_prior, parms)
 post <- round(cp$mean, 3)
 post_se <- round(cp$se, 3)
+xtable::xtable(paste0(post, " (", post_se, ") ") %>% array(, dim = c(3,3)))
 
-xtable::xtable(paste0(post, " (", post_se, ") ") %>% array(, dim = c(4,4)))
-
-
-
+boot_cp <- function(data, mix_prop, parms) {
+  n_reps <- max(data$samples)
+  models <- c("Ind", "Min", "Max", "AI")
+  item_names <- paste(row.names(parms) , collapse = "|")
+  resp <- data[grep(item_names, names(data))]
+  components <- likelihood(models, resp, parms, data$theta1, data$theta2, sorted = T, Log = F)
+  post  <- posterior(components, mix_prop)
+  post <- cbind(post[,1], post[,2] + post[,3], post[,4])
+  temp_cp <- lapply(1:n_reps, function(x) class_probs(post[data$samples == x,], data$model[data$samples == x]))
+  mean <- Reduce(`+`, temp_cp) / n_reps
+  se <- Reduce(`+`, lapply(temp_cp, function(x) (x - mean)^2 / (n_reps-1))) %>% sqrt
+  out <- list(mean, se)
+  names(out) <- c("mean", "se")
+  out
+}
 
 # ------------------------------------------------------------
-# real data: posteriors by deltas
+# Posteriors by deltas
 # ------------------------------------------------------------
 
 # Get the "true model" from PVs
 
-gg <- (lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean))) %>% unlist %>% data.frame
+gg <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% unlist %>% data.frame
 
 head(gg)
 names(gg) <- "prob"
 gg$model <- rep(Models, each = length(theta1))
 
-temp <- item_delta(parms, pv_data$theta1, pv_data$theta2, sorted = T, NA_pattern = resp)/.25
+temp <- item_delta(parms, pv_data$theta1, pv_data$theta2, sorted = F, NA_pattern = resp)/.25
 temp[temp > 1] <- 1
 temp <- apply(temp, 1, mean, na.rm = T)
 hist(temp)
@@ -455,37 +308,28 @@ gg$delta <-  tapply(temp, pv_data$pairs, mean) %>% rep(4)
 head(gg, 200)
 gg$delta2 <- as.ordered(round(gg$delta,10))
 
-
 ggplot(gg, aes(x = delta2, y = prob, fill = model)) +
     geom_bar(position = "fill", stat = "identity")  +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-    scale_x_discrete(breaks = levels(gg$delta2)[seq(1, 151, 5)], label = abbreviate)
-
-     +
-    scale_fill_grey(start = 0.8, end = 0.2, na.value = "grey50")
+    scale_x_discrete(breaks = levels(gg$delta2)[seq(1, 151, 5)], label = abbreviate) +
+    #scale_fill_grey(start = 0.8, end = 0.2, na.value = "grey50")
+     scale_fill_manual(values = c("grey80", "grey50", "grey50", "grey20"))
 
 t1 <- t2 <- seq(-3, 3, .1)
 
 d <- function(t) {
-  -apply(item_delta(parms, t[1], t[2])/.25, 1, mean)
+  -apply(item_delta(parms, t[1], t[2])/.25, 1, mean, na.rm = T)
 }
 
 optim(c(0,0), d)
+
+d <- function(t1, t2) {
+  apply(item_delta(parms, t1, t2)/.25, 1, mean, na.rm = T)
+}
+
 q <- outer(t1,t2, d)
 
-persp(t1, t2, q, theta = 5, phi = 25, main = "SE", expand = .5, ticktype = "detailed", nticks = 5)
-
-
-gg <- (lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean))) %>% data.frame
-gg$model <- apply(gg, 1, which.max)
-gg$Ind_Mind <-
-head(gg)
-names(gg) <- "prob"
-gg$model <- rep(Models, each = length(theta1))
-
-temp <- item_delta(parms, pv_data$theta1, pv_data$theta2, sorted = T, NA_pattern = resp)/.25
-temp[temp > 1] <- 1
-temp <- apply(temp, 1, mean, na.rm = T)
+persp(t1, t2, q, theta = 15, phi = 25, main = "SE", expand = .5, ticktype = "detailed", nticks = 5)
 
 
 # ------------------------------------------------------------
@@ -498,11 +342,11 @@ gg$q <- rep(as.matrix(pv_data[models]) %*% 1:n_models, times = n_models)
 gg$model <- rep(Models, each = nrow(pv_data))
 gg$sample <- sample.int(500, nrow(gg), replace = T)
 sum(gg$sample == 1)
-
+head(gg)
 p1 <-
 ggplot(gg, aes(x = q, y = prob, group = model)) +
-  stat_smooth(aes(linetype = model), se = F, lwd = 1, color = "black") +
-  geom_point(data = gg[gg$sample == 1,], aes(pch = model), color = "black", alpha = .5) +
+  stat_smooth(aes(linetype = model), se = T, lwd = 1, color = "black") +
+  geom_point(data = gg[gg$sample > 1,], aes(pch = model), color = "black", alpha = .5) +
   xlab("Expectation of posterior distribtuion") +
   ylab("Posterior probability of each model") +
   scale_linetype_manual(values=c(2,4,6,1)) +
@@ -525,10 +369,10 @@ temp <- as.matrix(pv_data[models]) %*% 1:4
 pv_q <- tapply(temp, pv_data$pairs, mean)
 pv_se <- tapply(temp, pv_data$pairs, sd)
 model <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame() %>% apply(1, which.max)
-gg$model <- Models[gg$model]
+gg$model <-  Models[gg$model]
 gg <- data.frame(pv_q, pv_se, model)
 names(gg) <- c("pv", "se", "model")
-
+gg$model
 
 p2 <-
 ggplot(gg, aes(x = pv, y = se, group = model)) +

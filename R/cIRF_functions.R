@@ -360,8 +360,8 @@ class_probs <-function(mix_prop, known_model = NULL){
   for(i in 1:n_models) {
     out[i, ] <-  apply(mix_prop[known_model == i, ], 2, mean)
   }
-  row.names(out) <- paste0("model", 1:4)
-  colnames(out) <- paste0("prob", 1:4)
+  row.names(out) <- paste0("model", 1:n_models)
+  colnames(out) <- paste0("prob", 1:n_models)
   out
 }
 
