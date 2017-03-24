@@ -8,72 +8,6 @@ source("~/github/cirt/R/IRF_functions.R")
 source("~/github/cirt/R/bootstrapping.R")
 
 # ------------------------------------------------------------
-# Demographics
-#------------------------------------------------------------
-
-setwd("~/Dropbox/Academic/Projects/CA/Data")
-demo <- read.csv("Long_AMT_IDs_Match(1.30.17).csv")
-names(demo)
-vars <- c("Age", "Gender", "Ethnicity", "English", "leveledu", "liveusa")
-
-temp <- demo[vars]
-temp$Ethnicity[temp$Ethnicity != 10] <- 0
-temp$Ethnicity[temp$Ethnicity != 0] <- 1
-temp$Gender <- temp$Gender - 1
-temp$English <- abs(temp$English - 2)
-temp$leveledu[temp$leveledu < 3] <- 0
-temp$leveledu[temp$leveledu != 0] <- 1
-temp$liveusa <- abs(temp$liveusa - 2)
-
-head(temp)
-
-apply(temp, 2, mean)
-summary(temp$Age)
-
-
-#------------------------------------------------------------
-# DIF: Items 45 and 65 identified as problematic in scalar model
-# After dropping, scalar model fits OK
-
-# Metric            36.971        37       0.4704
-# Scalar            101.071       74       0.0200
-# Scalar (w/ drop)  84.358        70       0.1161
-# ------------------------------------------------------------
-
- # Load calibrated item parms
-setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
-parms <- read.csv("calibration_parms.csv", row.names = 1)
-grep_items <- paste0(row.names(parms), collapse = "|")
-scalar.out <- "./DIF/collaboration_DIF_scalar.out"
-
-temp <- readLines(scalar.out)
-Begin <- grep("Item Difficulties", temp)
-End <- grep("Variances", temp)
-
-calib_temp <- temp[Begin[1]:End[End > Begin[1] & End < Begin[2]]]
-collab_temp <- temp[Begin[2]:End[End > Begin[2] & End < Begin[3]][1]]
-
-calib_beta <- substr(calib_temp[grepl(grep_items, calib_temp)], 23, 28) %>% as.numeric
-collab_beta <- substr(collab_temp[grepl(grep_items, collab_temp)], 23, 28) %>% as.numeric
-item_names <- substr(collab_temp[grepl(grep_items, collab_temp)], 6, 10)
-
-gg <- data.frame(item_names, collab_beta, calib_beta)
-gg$dif <- resid(lm(collab_beta ~ calib_beta, gg)) > 1
-dif_items <- paste0(gg$item_names[gg$dif == T], collapse = "|")
-
-# DIF Figure
-ggplot(gg, aes(x = calib_beta, y = collab_beta)) +
-  geom_point(aes(pch = dif, color = dif, size = dif)) +
-  stat_smooth(method = "lm", col = "black", se = F) +
-  xlab("Calibration sample") +
-  ylab("Collaborative testing condition") +
-  theme(legend.position = "none") +
-  scale_shape_manual(values = c(20, 4)) +
-  scale_color_manual(values = c("black", "red")) +
-  scale_size_manual(values = c(2, 4))
-
-
-# ------------------------------------------------------------
 # Load data and estimate individual thetas
 # ------------------------------------------------------------
 
@@ -119,18 +53,6 @@ theta2_se <- ind$se[odd+1]
 resp <- col_form[odd, ]
 
 
-# ?? select on  delta
-
-delta <- abs(theta1 - theta2)
-se_delta <- apply(cbind(theta1_se, theta2_se^2), 1, max)
-ind_se <- delta < (1 + se_delta)
-
-resp <- resp[ind_se, ]
-theta1 <- theta1[ind_se]
-theta2 <- theta2[ind_se]
-theta1_se <- theta1_se[ind_se]
-theta2_se  <-theta2_se[ind_se]
-odd <- seq(1, nrow(resp), by = 2)
 # ------------------------------------------------------------
 #  EM
 # ------------------------------------------------------------
@@ -151,75 +73,12 @@ round(em$se, 3)
 classify <- class_probs(em$posterior)
 round(classify, 3)
 
-# ------------------------------------------------------------
-# Person fit using contribution to likelihood
-# ------------------------------------------------------------
-
-# Get observed values
-components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
-logL <- incomplete_data(components, em$posterior, Sum = F)
-
-# Simulate null distribution
-mix_prop <- em$posterior
-
-set.seed(101)
-temp <- data_gen(n_reps, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, NA_pattern = resp)
-
-temp_components <- likelihood(models, temp[,grep(items, names(temp))], parms, temp$theta1, temp$theta2, sorted = T, Log = F)
-
-temp_logL <- incomplete_data(temp_components, temp[models], Sum = F)
-
-# Get quantiles
-quant <- tapply(temp_logL, temp$pair, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
-
-# Visual key for misfit
-fit <- rep("<.95", times = length(theta1))
-fit[logL < quant[,2]] <- ">.95"
-fit <- ordered(fit, c(">.95", "<.95"))
-
-# Set up and plot
-gg <- data.frame(-2*temp_logL, -2*rep(logL, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
-
-names(gg) <- c("l_dist", "l_obs", "fit", "median")
-gg <- gg[order(gg$median), ]
-gg$pair <- rep(1:length(theta1), each = n_reps)
-
-ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
-  geom_boxplot(outlier.size = 0, outlier.color = "white", aes(fill = fit)) +
-  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
-  scale_shape_manual(values = c(4, 20)) +
-  scale_fill_grey(start = 0.1, end = 0.8) +
-  xlab("Groups") +
-  ylab("-2 * loglikelihood") +
-  scale_size_manual(values = c(4, 1)) +
-  theme(legend.title=element_blank())
-
-
-# ------------------------------------------------------------
-# Process loss
-# ------------------------------------------------------------
-
-PL <- function(mix_prop, parms, theta1, theta2 = NULL, sorted = F) {
-  pA <- cIRF("AI", parms, theta1, theta2, sorted)
-  pI <- cIRF("IND", parms, theta1, theta2, sorted)
-  
-
-  n_models <- length(models)
-  out <- array(0, dim = c(nrow(resp), n_models))
-  for (i in 1:n_models) {
-    p <- cIRF(models[i], parms, theta1, theta2, sorted)
-    if (Log) {
-      out[,i] <- apply(log(p) * resp + log(1-p) * (1-resp), 1, sum, na.rm = T)
-    } else {
-      out[,i] <- apply(p * resp + (1-p) * (1-resp), 1, prod, na.rm = T)
-    }
-  }
 
 
 # ------------------------------------------------------------
 # Plausible Values
 # ------------------------------------------------------------
-n_reps <- 10
+n_reps <- 100
 set.seed(101)
 pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se)
 head(pv_data)
@@ -227,18 +86,18 @@ head(pv_data)
 fun <- function(i){
   ind <- pv_data$samples == i
   temp <- pv_data[ind, grep(items, names(pv_data))]
-  EM(models, temp, parms, pv_data$theta1[ind], pv_data$theta2[ind], sorted = T)
+  EM(models, temp, parms, pv_data$theta1[ind], pv_data$theta2[ind], sorted = F)
 }
 
 temp_em <- parallel::mclapply(1:n_reps, fun)
 
-# prior and se
+# priors and se
 out <- lapply(temp_em, function(x) c(x$prior, x$se^2)) %>% unlist %>% matrix(nrow = n_reps, ncol = 8, byrow = T) %>% data.frame
 names(out) <- paste0(rep(c("prior", "se"), each = n_models), 1:n_models)
 
-# posterior
+# posteriors
 temp <- lapply(temp_em, function(x) x$posterior) %>% {do.call(rbind, .)}
-pv_data[models] <- temp[order(rep(1:95, times = n_reps)),]
+pv_data[models] <- temp[order(rep(1:length(theta1), times = n_reps)),]
 
 
 # ------------------------------------------------------------
@@ -256,6 +115,39 @@ row.names(temp) <- c("em_prior", "em_se", "pv_prior", "pv_se", "pvl")
 colnames(temp) <- models
 xtable::xtable(temp, digits = 3)
 round(temp, 4)
+
+
+# ------------------------------------------------------------
+# Process loss
+# ------------------------------------------------------------
+e_max <- e_logl(models, c(0,0,1,0), parms, pv_data$theta1, pv_data$theta2, sorted = F)
+e_mix <- e_logl(models, pv_data[models], parms, pv_data$theta1, pv_data$theta2, sorted = F)
+
+pl_max <- 1- PL(e_max, parms, pv_data$theta1, pv_data$theta2)
+pl_mix <- 1- PL(e_mix, parms, pv_data$theta1, pv_data$theta2)
+pl_ref <- rep(tapply(pl_max, pv_data$pair, mean), each = n_reps)
+ind <- order(pl_ref)
+gg <- data.frame(pl_max[ind], pl_ref[ind], pl_mix[ind], rep(1:max(pv_data$pair), each = n_reps))
+names(gg) <- c("max", "ref", "obs", "pair")
+head(gg)
+
+ggplot(gg, aes(x = pair, y = obs)) +
+geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "white") +
+  geom_smooth(aes(x = pair, y = max), se = F, col = "black")
+
+pl_se <- tapply(pl_mix, pv_data$pair, sd)
+pl_mean <- tapply(pl_mix, pv_data$pair, mean)
+plot(pl_mean, pl_se)
+d <-  tapply(temp, pv_data$pairs, mean)
+plot(tapply(e_mix, pv_data$pairs, mean), pl_se)
+post <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame
+par(mfrow=c(2,2))
+for(i in 1:4) plot(post[,i], pl_se)
+
+ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
+  geom_boxplot(outlier.size = 0, outlier.color = "white", aes(fill = fit)) +
+  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
+
 
 # ------------------------------------------------------------
 # PV posterior
@@ -481,6 +373,128 @@ for(i in n_short:n_items) {
   #out$n_items[i+1] <- n_items - i
   cat(i)
 }
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------
+# Demographics
+#------------------------------------------------------------
+
+setwd("~/Dropbox/Academic/Projects/CA/Data")
+demo <- read.csv("Long_AMT_IDs_Match(1.30.17).csv")
+names(demo)
+vars <- c("Age", "Gender", "Ethnicity", "English", "leveledu", "liveusa")
+
+temp <- demo[vars]
+temp$Ethnicity[temp$Ethnicity != 10] <- 0
+temp$Ethnicity[temp$Ethnicity != 0] <- 1
+temp$Gender <- temp$Gender - 1
+temp$English <- abs(temp$English - 2)
+temp$leveledu[temp$leveledu < 3] <- 0
+temp$leveledu[temp$leveledu != 0] <- 1
+temp$liveusa <- abs(temp$liveusa - 2)
+
+head(temp)
+
+apply(temp, 2, mean)
+summary(temp$Age)
+
+
+
+# ------------------------------------------------------------
+# Person fit using contribution to likelihood
+# ------------------------------------------------------------
+
+# Get observed values
+components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
+logL <- incomplete_data(components, em$posterior, Sum = F)
+
+# Simulate null distribution
+mix_prop <- em$posterior
+
+set.seed(101)
+temp <- data_gen(n_reps, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, NA_pattern = resp)
+
+temp_components <- likelihood(models, temp[,grep(items, names(temp))], parms, temp$theta1, temp$theta2, sorted = T, Log = F)
+
+temp_logL <- incomplete_data(temp_components, temp[models], Sum = F)
+
+# Get quantiles
+quant <- tapply(temp_logL, temp$pair, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+
+# Visual key for misfit
+fit <- rep("<.95", times = length(theta1))
+fit[logL < quant[,2]] <- ">.95"
+fit <- ordered(fit, c(">.95", "<.95"))
+
+# Set up and plot
+gg <- data.frame(-2*temp_logL, -2*rep(logL, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
+
+names(gg) <- c("l_dist", "l_obs", "fit", "median")
+gg <- gg[order(gg$median), ]
+gg$pair <- rep(1:length(theta1), each = n_reps)
+
+ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
+  geom_boxplot(outlier.size = 0, outlier.color = "white", aes(fill = fit)) +
+  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
+  scale_shape_manual(values = c(4, 20)) +
+  scale_fill_grey(start = 0.1, end = 0.8) +
+  xlab("Groups") +
+  ylab("-2 * loglikelihood") +
+  scale_size_manual(values = c(4, 1)) +
+  theme(legend.title=element_blank())
+
+
+#------------------------------------------------------------
+# DIF: Items 45 and 65 identified as problematic in scalar model
+# After dropping, scalar model fits OK
+
+# Metric            36.971        37       0.4704
+# Scalar            101.071       74       0.0200
+# Scalar (w/ drop)  84.358        70       0.1161
+# ------------------------------------------------------------
+
+ # Load calibrated item parms
+setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
+parms <- read.csv("calibration_parms.csv", row.names = 1)
+grep_items <- paste0(row.names(parms), collapse = "|")
+scalar.out <- "./DIF/collaboration_DIF_scalar.out"
+
+temp <- readLines(scalar.out)
+Begin <- grep("Item Difficulties", temp)
+End <- grep("Variances", temp)
+
+calib_temp <- temp[Begin[1]:End[End > Begin[1] & End < Begin[2]]]
+collab_temp <- temp[Begin[2]:End[End > Begin[2] & End < Begin[3]][1]]
+
+calib_beta <- substr(calib_temp[grepl(grep_items, calib_temp)], 23, 28) %>% as.numeric
+collab_beta <- substr(collab_temp[grepl(grep_items, collab_temp)], 23, 28) %>% as.numeric
+item_names <- substr(collab_temp[grepl(grep_items, collab_temp)], 6, 10)
+
+gg <- data.frame(item_names, collab_beta, calib_beta)
+gg$dif <- resid(lm(collab_beta ~ calib_beta, gg)) > 1
+dif_items <- paste0(gg$item_names[gg$dif == T], collapse = "|")
+
+# DIF Figure
+ggplot(gg, aes(x = calib_beta, y = collab_beta)) +
+  geom_point(aes(pch = dif, color = dif, size = dif)) +
+  stat_smooth(method = "lm", col = "black", se = F) +
+  xlab("Calibration sample") +
+  ylab("Collaborative testing condition") +
+  theme(legend.position = "none") +
+  scale_shape_manual(values = c(20, 4)) +
+  scale_color_manual(values = c("black", "red")) +
+  scale_size_manual(values = c(2, 4))
+
+
+
+
 
 # ------------------------------------------------------------
 # ------------------------------------------------------------
