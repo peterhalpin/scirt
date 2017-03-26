@@ -149,6 +149,29 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, L
   if (Log) {out} else {exp(out)}
 }
 
+# e_likelihood <- function(posteriors, parms, theta1, theta2, sorted = F) {
+#   models <- c("Ind", "Min", "Max", "AI")
+#   priors <- matrix(apply(posteriors, 2, mean), nrow = nrow(posteriors), ncol= ncol(posteriors), byrow = T)
+#   p_ai <- cIRF("AI", parms, theta1, theta2)
+#   components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
+#   apply(components * posteriors, 1, sum) +
+#   apply(log(priors) * posteriors, 1, sum, na.rm = T) -
+#   apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
+# }
+
+e_likelihood <- function(posteriors, parms, theta1, theta2, sorted = F) {
+  models <- c("Ind", "Min", "Max", "AI")
+  p_ai <- cIRF("AI", parms, theta1, theta2)
+  components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
+  apply(components * posteriors, 1, sum)
+}
+
+PL <- function(e_mod, parms, theta1, theta2){
+  p_ai <- cIRF("AI", parms, theta1, theta2)
+  e_ind <- likelihood("Ind", p_ai, parms, theta1, theta2)
+  e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
+  (e_ai - e_mod) / (e_ai - e_ind)
+}
 
 
 
@@ -161,26 +184,19 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, L
 #' @return A scalar (if \code{Sum = T}) or a n_resp-vector of incomplete data loglikelihoods.
 #' @export
 
-incomplete_data <- function(components, mix_prop, Log = T, Sum = T) {
+incomplete_data <- function(components, mix_prop, Sum = T) {
   if (!is.null(dim(mix_prop))) {
     temp <- components * mix_prop
   } else {
     temp <- t(t(components) * mix_prop)
   }
-  out <- apply(temp, 1, sum)
-  if(Log) {out <- log(out)}
+  out <- log(apply(temp, 1, sum))
   if(Sum) {sum(out)} else {out}
 }
 
 
-e_logl <- function(models, mix_prop, parms, theta1, theta2 = NULL, sorted = F){
-  if(is.null(dim(mix_prop))){
-    mix_prop <- matrix(mix_prop, ncol = length(models), nrow = length(theta1), byrow = T)
-  }
-  p_ai <- cIRF("AI", parms, theta1, theta2)
-  components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
-  incomplete_data(components, mix_prop, Log = F, Sum = F) - apply(log(mix_prop)*mix_prop, 1, sum, na.rm = T)
-}
+
+
 
 #--------------------------------------------------------------------------
 #' Posterior probabilities of components in a mixture of collaboration models.
@@ -271,22 +287,7 @@ EM <- function(models, resp, parms, theta1, theta2, sorted = F, max_iter = 100, 
 
 
 
-e_logl <- function(models, mix_prop, parms, theta1, theta2 = NULL, sorted = F){
-  if(is.null(dim(mix_prop))){
-    mix_prop <- matrix(mix_prop, ncol = length(models), nrow = length(theta1), byrow = T)
-  }
-  p_ai <- cIRF("AI", parms, theta1, theta2)
-  components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
-  incomplete_data(components, mix_prop, Log = F, Sum = F) - apply(log(mix_prop)*mix_prop, 1, sum, na.rm = T)
-}
 
-
-PL <- function(e_mod, parms, theta1, theta2 = NULL){
-  p_ai <- cIRF("AI", parms, theta1, theta2)
-  e_ind <- likelihood("Ind", p_ai, parms, theta1, theta2)
-  e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
-  (e_ai - e_mod) / (e_ai - e_ind)
-}
 
 
 #--------------------------------------------------------------------------

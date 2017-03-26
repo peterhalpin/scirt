@@ -58,7 +58,9 @@ resp <- col_form[odd, ]
 # ------------------------------------------------------------
 
 # Constants
-n_reps <- 250
+n_reps <- 100
+n_obs <- length(theta1)
+rep_order <- order(rep(1:length(theta1), times = n_reps))
 models <- c("Ind", "Min", "Max", "AI")
 Models <- ordered(models, models)
 n_models <- 4
@@ -73,31 +75,28 @@ round(em$se, 3)
 classify <- class_probs(em$posterior)
 round(classify, 3)
 
-
-
 # ------------------------------------------------------------
 # Plausible Values
 # ------------------------------------------------------------
-n_reps <- 100
 set.seed(101)
 pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se)
-head(pv_data)
 
+# Run EM on pv data
 fun <- function(i){
   ind <- pv_data$samples == i
   temp <- pv_data[ind, grep(items, names(pv_data))]
-  EM(models, temp, parms, pv_data$theta1[ind], pv_data$theta2[ind], sorted = F)
+  EM(models, temp, parms, pv_data$theta1[ind], pv_data$theta2[ind], sorted = T)
 }
 
 temp_em <- parallel::mclapply(1:n_reps, fun)
 
-# priors and se
+# Save priors and se
 out <- lapply(temp_em, function(x) c(x$prior, x$se^2)) %>% unlist %>% matrix(nrow = n_reps, ncol = 8, byrow = T) %>% data.frame
 names(out) <- paste0(rep(c("prior", "se"), each = n_models), 1:n_models)
 
-# posteriors
+# Save posteriors
 temp <- lapply(temp_em, function(x) x$posterior) %>% {do.call(rbind, .)}
-pv_data[models] <- temp[order(rep(1:length(theta1), times = n_reps)),]
+pv_data[models] <- temp[rep_order,]
 
 
 # ------------------------------------------------------------
@@ -120,33 +119,36 @@ round(temp, 4)
 # ------------------------------------------------------------
 # Process loss
 # ------------------------------------------------------------
-e_max <- e_logl(models, c(0,0,1,0), parms, pv_data$theta1, pv_data$theta2, sorted = F)
-e_mix <- e_logl(models, pv_data[models], parms, pv_data$theta1, pv_data$theta2, sorted = F)
 
-pl_max <- 1- PL(e_max, parms, pv_data$theta1, pv_data$theta2)
-pl_mix <- 1- PL(e_mix, parms, pv_data$theta1, pv_data$theta2)
-pl_ref <- rep(tapply(pl_max, pv_data$pair, mean), each = n_reps)
-ind <- order(pl_ref)
-gg <- data.frame(pl_max[ind], pl_ref[ind], pl_mix[ind], rep(1:max(pv_data$pair), each = n_reps))
-names(gg) <- c("max", "ref", "obs", "pair")
+# Expected log likelihoods
+p_max <- matrix(c(0,0,1,0), ncol = 4, nrow = nrow(pv_data), byrow = T)
+e_max <- e_likelihood(p_max, parms, pv_data$theta1, pv_data$theta2, sorted = T)
+e_mix <- e_likelihood(pv_data[models], parms, pv_data$theta1, pv_data$theta2, sorted = T)
+
+# Process loss
+pl_max <- 1 - PL(e_max, parms, pv_data$theta1, pv_data$theta2)
+pl_mix <- 1 - PL(e_mix, parms, pv_data$theta1, pv_data$theta2)
+
+quant <- tapply(pl_mix, pv_data$pair, function(x) quantile(x, p = c(.5, .05))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+
+ind <- order(rep(quant[,1], each = n_reps))
+ref <- rep(as.factor(quant[,2] > tapply(pl_max, pv_data$pair, median)), each = n_reps)
+levels(ref) <- c("", "> Max")
+ref2 <- rep(tapply(pl_max, pv_data$pair, mean), each = n_reps)
+gg <- data.frame(pl_max[ind], pl_mix[ind], ref[ind], ref2[ind], rep(1:n_obs, each = n_reps))
+names(gg) <- c("max", "obs", "ref", "ref2", "pair")
 head(gg)
 
-ggplot(gg, aes(x = pair, y = obs)) +
-geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "white") +
-  geom_smooth(aes(x = pair, y = max), se = F, col = "black")
+ggplot(gg, aes(x = pair, y = obs, fill = ref)) +
+  geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .05) +
+  scale_fill_manual(values = c("grey70", "grey20")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  ylab("1 - process loss") +
+  xlab("Pair") +
+  theme(legend.title=element_blank())
 
-pl_se <- tapply(pl_mix, pv_data$pair, sd)
-pl_mean <- tapply(pl_mix, pv_data$pair, mean)
-plot(pl_mean, pl_se)
-d <-  tapply(temp, pv_data$pairs, mean)
-plot(tapply(e_mix, pv_data$pairs, mean), pl_se)
-post <- lapply(pv_data[models], function(x) tapply(x, pv_data$pairs, mean)) %>% data.frame
-par(mfrow=c(2,2))
-for(i in 1:4) plot(post[,i], pl_se)
 
-ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
-  geom_boxplot(outlier.size = 0, outlier.color = "white", aes(fill = fit)) +
-  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
+# And thats all we need???
 
 
 # ------------------------------------------------------------
