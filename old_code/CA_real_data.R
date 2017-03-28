@@ -417,8 +417,11 @@ summary(temp$Age)
 components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
 logL <- incomplete_data(components, em$posterior, Sum = F)
 
+logL <- incomplete_data(components, em$prior, Sum = F)
+
 # Simulate null distribution
 mix_prop <- em$posterior
+mix_prop <- matrix(em$prior, nrow = n_obs, ncol = n_models, byrow = T)
 
 set.seed(101)
 temp <- data_gen(n_reps, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, NA_pattern = resp)
@@ -443,7 +446,7 @@ gg <- gg[order(gg$median), ]
 gg$pair <- rep(1:length(theta1), each = n_reps)
 
 ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
-  geom_boxplot(outlier.size = 0, outlier.color = "white", aes(fill = fit)) +
+  geom_boxplot(outlier.size = 0, outlier.color = "grey90", aes(fill = fit)) +
   geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
   scale_shape_manual(values = c(4, 20)) +
   scale_fill_grey(start = 0.1, end = 0.8) +

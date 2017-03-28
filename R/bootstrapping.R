@@ -8,8 +8,7 @@ boot_em <- function(sim_data, parms, parallel = T) {
   fun <- function(i) {
     ind <- sim_data$samples == i
     temp <- sim_data[ind, grep("item", names(sim_data))]
-    temp_em <- EM(models, temp, parms, sim_data$theta1[ind], sim_data$theta2[ind], sorted = T)
-    c(temp_em$prior, temp_em$se^2)
+    EM(models, temp, parms, sim_data$theta1[ind], sim_data$theta2[ind], sorted = T)
   }
 
   if (parallel) {

@@ -149,22 +149,22 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, L
   if (Log) {out} else {exp(out)}
 }
 
-# e_likelihood <- function(posteriors, parms, theta1, theta2, sorted = F) {
-#   models <- c("Ind", "Min", "Max", "AI")
-#   priors <- matrix(apply(posteriors, 2, mean), nrow = nrow(posteriors), ncol= ncol(posteriors), byrow = T)
-#   p_ai <- cIRF("AI", parms, theta1, theta2)
-#   components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
-#   apply(components * posteriors, 1, sum) +
-#   apply(log(priors) * posteriors, 1, sum, na.rm = T) -
-#   apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
-# }
-
 e_likelihood <- function(posteriors, parms, theta1, theta2, sorted = F) {
   models <- c("Ind", "Min", "Max", "AI")
+  priors <- matrix(apply(posteriors, 2, mean), nrow = nrow(posteriors), ncol= ncol(posteriors), byrow = T)
   p_ai <- cIRF("AI", parms, theta1, theta2)
   components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
-  apply(components * posteriors, 1, sum)
+  apply(components * posteriors, 1, sum) +
+  apply(log(priors) * posteriors, 1, sum, na.rm = T) -
+  apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
 }
+
+# e_likelihood <- function(posteriors, parms, theta1, theta2, sorted = F) {
+#   models <- c("Ind", "Min", "Max", "AI")
+#   p_ai <- cIRF("AI", parms, theta1, theta2)
+#   components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
+#   apply(components * posteriors, 1, sum)
+# }
 
 PL <- function(e_mod, parms, theta1, theta2){
   p_ai <- cIRF("AI", parms, theta1, theta2)
