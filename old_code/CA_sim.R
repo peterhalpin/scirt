@@ -12,6 +12,7 @@ source("~/github/cirt/R/bootstrapping.R")
 # ------------------------------------------------------------
 
 # Constants
+
 set.seed(101)
 models <- c("Ind", "Min", "Max", "AI")
 Models <- ordered(models, models)
