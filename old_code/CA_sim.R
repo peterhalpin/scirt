@@ -17,8 +17,8 @@ models <- c("Ind", "Min", "Max", "AI")
 Models <- ordered(models, models)
 n_models <- 4
 n_obs <- 500
-n_items <- 100
-n_reps <- 500
+n_items <- 25
+n_reps <- 1
 test_length <- 25
 odd <- seq(1, n_obs*2, by = 2)
 
@@ -28,6 +28,7 @@ beta <- sort(rnorm(n_items, mean = .35, sd = 1.3))
 alpha <- runif(n_items, 1, 2.5)
 parms <- data.frame(alpha, beta)
 row.names(parms) <- paste0("item", 1:n_items)
+parm_names <- paste("item", 1:n_items, collapse = "|")
 
 # Determined classes
 mix_prop_ones <- matrix(diag(rep(1, 4)), nrow = n_models, ncol = n_obs) %>% t
