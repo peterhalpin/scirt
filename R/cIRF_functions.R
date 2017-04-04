@@ -5,6 +5,7 @@
 source("~/github/cirt/R/IRF_functions.R")
 require(ggplot2)
 require(dplyr)
+require(cubature)
 
 
 #--------------------------------------------------------------------------
@@ -149,30 +150,34 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, L
   if (Log) {out} else {exp(out)}
 }
 
-e_likelihood <- function(posteriors, parms, theta1, theta2, sorted = F) {
+e_mix <- function(posteriors, parms, theta1, theta2, sorted = F) {
   models <- c("Ind", "Min", "Max", "AI")
   priors <- matrix(apply(posteriors, 2, mean), nrow = nrow(posteriors), ncol= ncol(posteriors), byrow = T)
   p_ai <- cIRF("AI", parms, theta1, theta2)
   components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
   apply(components * posteriors, 1, sum) +
-  apply(log(priors) * posteriors, 1, sum, na.rm = T) -
-  apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
+    apply(log(priors) * posteriors, 1, sum, na.rm = T) -
+    apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
 }
 
-# e_likelihood <- function(posteriors, parms, theta1, theta2, sorted = F) {
-#   models <- c("Ind", "Min", "Max", "AI")
-#   p_ai <- cIRF("AI", parms, theta1, theta2)
-#   components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
-#   apply(components * posteriors, 1, sum)
-# }
-
-PL <- function(e_mod, parms, theta1, theta2){
+PL <- function(e_model, parms, theta1, theta2, normed = T){
   p_ai <- cIRF("AI", parms, theta1, theta2)
-  e_ind <- likelihood("Ind", p_ai, parms, theta1, theta2)
   e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
-  (e_ai - e_mod) / (e_ai - e_ind)
+  temp <- e_ai - e_model
+  if (normed) {
+    e_ind <- likelihood("Ind", p_ai, parms, theta1, theta2)
+    temp <- temp / (e_ai - e_ind)
+    temp[temp < 0] <- 0 # Kludge for e_mix
+  }
+  temp
 }
 
+redundancy <- function(parms, theta1, theta2){
+  p_ai <- cIRF("AI", parms, theta1, theta2)
+  e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
+  e_max <- likelihood("Max", p_ai, parms, theta1, theta2)
+  e_ai - e_max
+}
 
 
 #--------------------------------------------------------------------------
@@ -323,16 +328,12 @@ format_resp <- function(resp, items, version = NULL) {
 #' @return \code{length(theta1)} by \code{nrow(parms)} matrix of binary responses.
 #' @export
 
-sim_model <- function(model, parms, theta1 = 0, theta2 = 0, sorted = F, expected = F) {
+sim_model <- function(model, parms, theta1 = 0, theta2 = 0, sorted = F) {
   n_row <- length(theta1)
   n_col <- nrow(parms)
   r <- array(runif(n_row * n_col), dim = c(n_row, n_col))
   p <- cIRF(model, parms, theta1, theta2, sorted)
-  if (expected) {
-    out <- p
-  } else {
-    out <- ifelse(p > r, 1, 0)
-  }
+  out <- ifelse(p > r, 1, 0)
   colnames(out) <- row.names(parms)
   out
 }
@@ -401,25 +402,21 @@ class_probs <-function(mix_prop, known_model = NULL){
 #' @return A data.frame with \code{length(theta) \times n_reps} rows containing an id variable for each pair and for each sample, the plausible values of theta1, theta2, the observed data for each plausible value, and (optionally) the true_model for each value plausible value.
 #' @export
 
-pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, true_model = NULL) {
+pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, model = NULL) {
 
   # Expand data generating parms
   n_obs <- length(theta1)
   n_long <- n_obs * n_reps
   out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, times = n_obs))
   names(out) <- c("pairs", "samples")
-  if (!is.null(true_model)) {out$model <- rep(true_model, each = n_reps) }
+  if (!is.null(model)) {out$model <- rep(model, each = n_reps) }
 
-  # Sort thetas (for using sorted = T in post processing)
+  # Sort thetas
   temp_theta <- theta_sort(theta1, theta2, theta1_se, theta2_se)
-  s_theta1 <- temp_theta$theta_min
-  s_theta1_se <- temp_theta$se_min
-  s_theta2 <- temp_theta$theta_max
-  s_theta2_se <- temp_theta$se_max
 
   # Generate PVs for theta
-  out$theta1 <- theta_gen(n_reps, s_theta1, s_theta1_se)
-  out$theta2 <- theta_gen(n_reps, s_theta2, s_theta2_se)
+  out$theta1 <- theta_gen(n_reps, temp_theta$theta_min, temp_theta$se_min)
+  out$theta2 <- theta_gen(n_reps, temp_theta$theta_max, temp_theta$se_max)
 
   # Expand data (replicate each row n_reps times)
   data <- kronecker(as.matrix(resp), rep(1, n_reps))
@@ -443,13 +440,14 @@ pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, tr
 #' @return A data.frame with \code{length(theta)} rows containing an id variable for each pair and each sample, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
-data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL, expected = F, fixed_class = F) {
+data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
 
-  # Expand data generating parms
+  # Set up parms
   models <- c("Ind", "Min", "Max", "AI")
   n_obs <- length(theta1)
-  n_long <- n_obs * n_reps
-  mix_prop_long <- kronecker(as.matrix(mix_prop) , rep(1, n_reps))
+  if (is.null(dim(mix_prop))) {
+   mix_prop <- kronecker(mix_prop, rep(1, n_obs))
+  }
 
   # Storage
   out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, times = n_obs))
@@ -457,36 +455,28 @@ data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, 
 
   # Sort thetas
   temp_theta <- theta_sort(theta1, theta2, theta1_se, theta2_se)
-  s_theta1 <- temp_theta$theta_min
-  s_theta1_se <- temp_theta$se_min
-  s_theta2 <- temp_theta$theta_max
-  s_theta2_se <- temp_theta$se_max
 
-  # Theta gen / replicate
-  out$theta1 <- theta_gen(n_reps, s_theta1, s_theta1_se)
-  out$theta2 <- theta_gen(n_reps, s_theta2, s_theta2_se)
+  # Generate / replicate thetas
+  out$theta1 <- theta_gen(n_reps, temp_theta$theta_min, temp_theta$se_min)
+  out$theta2 <- theta_gen(n_reps, temp_theta$theta_max, temp_theta$se_max)
 
-  # Get model indices
-  out[models] <- mix_prop_long
-
-  # Get DGM
-  if (fixed_class) {
-    out$model <- apply(mix_prop, 1,
-      function(x) sample.int(length(models), 1, prob = x)) %>% rep(each = n_reps)
-  } else {
-    out$model <- apply(mix_prop_long, 1,
-      function(x) sample.int(length(models), 1, prob = x))
-  }
+  # Select model
+  out[models] <- mix_prop
+  out$model <- apply(mix_prop, 1, function(x) sample.int(length(models), 1, prob = x))
 
   # Simulate data
-  data <- data.frame(matrix(NA, nrow = n_long, ncol = nrow(parms)))
+  data <- data.frame(matrix(NA, nrow = n_reps*n_obs, ncol = nrow(parms)))
   names(data) <- row.names(parms)
 
   for (i in 1:length(models)) {
     temp <- out$model == i
-    data[temp, ] <- sim_model(models[i], parms, out$theta1[temp], out$theta2[temp], sorted = T, expected = expected)
+    data[temp, ] <- sim_model(models[i], parms, out$theta1[temp], out$theta2[temp], sorted = T)
   }
+
+  # Apply NA pattern
   data <- format_NA(data, NA_pattern)
+
+  # Return
   cbind(out[], data[])
 }
 
