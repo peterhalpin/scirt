@@ -5,7 +5,7 @@
 source("~/github/cirt/R/IRF_functions.R")
 require(ggplot2)
 require(dplyr)
-require(cubature)
+
 
 
 #--------------------------------------------------------------------------
@@ -84,7 +84,7 @@ Max <- function(parms, theta1, theta2, sorted = F) {
 AI <- function(parms, theta1, theta2, sorted = F) {
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
-  p1 + p2 - p1*p2
+  p1 + p2 - p1 * p2
 }
 
 #--------------------------------------------------------------------------
@@ -151,6 +151,7 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, L
 }
 
 e_mix <- function(posteriors, parms, theta1, theta2, sorted = F) {
+  # something is off when compared to incomplete_data
   models <- c("Ind", "Min", "Max", "AI")
   priors <- matrix(apply(posteriors, 2, mean), nrow = nrow(posteriors), ncol= ncol(posteriors), byrow = T)
   p_ai <- cIRF("AI", parms, theta1, theta2)
@@ -160,6 +161,7 @@ e_mix <- function(posteriors, parms, theta1, theta2, sorted = F) {
     apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
 }
 
+
 PL <- function(e_model, parms, theta1, theta2, normed = T){
   p_ai <- cIRF("AI", parms, theta1, theta2)
   e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
@@ -167,17 +169,28 @@ PL <- function(e_model, parms, theta1, theta2, normed = T){
   if (normed) {
     e_ind <- likelihood("Ind", p_ai, parms, theta1, theta2)
     temp <- temp / (e_ai - e_ind)
-    temp[temp < 0] <- 0 # Kludge for e_mix
+    temp[temp < 0] <- 0
+    temp[temp > 1] <- 1 # Kludge for e_mix
   }
   temp
 }
 
-redundancy <- function(parms, theta1, theta2){
+redundancy <- function(parms, theta1, theta2, normed = F, NA_pattern = NULL){
   p_ai <- cIRF("AI", parms, theta1, theta2)
+  if(!is.null(NA_pattern)) {p_ai <- p_ai * NA_pattern}
   e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
   e_max <- likelihood("Max", p_ai, parms, theta1, theta2)
-  e_ai - e_max
+  temp <- e_ai - e_max
+  if (normed) {
+    e_ind <- likelihood("Ind", p_ai, parms, theta1, theta2)
+    temp <- temp / (e_ai - e_ind)
+    temp[temp < 0] <- 0
+    temp[temp > 1] <- 1 # Kludge for e_mix
+  }
+  temp
 }
+
+
 
 
 #--------------------------------------------------------------------------
@@ -200,15 +213,12 @@ incomplete_data <- function(components, mix_prop, Sum = T) {
 }
 
 
-
-
-
 #--------------------------------------------------------------------------
 #' Posterior probabilities of components in a mixture of collaboration models.
 #'
 #' This is the E-step of the EM algorithm for estimating the mixing proportions.
 #'
-#' @param components n_resp by n_models matrix of componentss (\strong{not logcomponentss}) for each response pattern and each model (e.g., the output of \code{components} with \code{Log = F}).
+#' @param components n_resp by n_models matrix of componentss (\strong{not log components}) for each response pattern and each model (e.g., the output of \code{components} with \code{Log = F}).
 #' @param mix_prop a \code{length(models)}-vector of mixing proporitions for the models.
 #' @return An n_resp by n_models matrix of posterior proabilities for each response pattern and each component.
 #' @export
