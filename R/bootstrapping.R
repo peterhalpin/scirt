@@ -1,3 +1,29 @@
+em_parallel <- function(i, sim_data, parms) {
+  ind <- sim_data$samples == i
+  EM(models,
+    sim_data[ind, grep("item", names(sim_data))],
+    parms,
+    sim_data$theta1[ind],
+    sim_data$theta2[ind],
+    sorted = T)
+}
+
+pv_priors <- function(temp_em){
+  n_reps <- length(temp_em)
+  temp <- lapply(temp_em, function(x) c(x$prior, x$se^2)) %>% unlist %>% matrix(nrow = n_reps, ncol = n_models*2, byrow = T) %>% data.frame
+  mean <- apply(temp, 2, mean, na.rm = T)
+  var <- apply(temp, 2, var, na.rm = T)
+  pv_se <- sqrt(mean[5:8] + (1 + 1/n_reps) * var[1:4])
+  pv_increase <- (1 + 1/n_reps) * var[1:4]/mean[5:8]
+  rbind(mean[1:4], sqrt(mean[5:8]), sqrt(var[1:4]), pv_se, pv_increase)
+}
+
+pv_posteriors <- function(temp_em, rep_order){
+  temp <- lapply(em_pv_b, function(x) x$posterior) %>% {do.call(rbind, .)}
+  temp[rep_order, ]
+}
+
+
 boot_em <- function(sim_data, parms, parallel = T) {
   models <- c("Ind", "Min", "Max", "AI")
   n_reps <- max(sim_data$samples)
@@ -8,8 +34,7 @@ boot_em <- function(sim_data, parms, parallel = T) {
   fun <- function(i) {
     ind <- sim_data$samples == i
     temp <- sim_data[ind, grep("item", names(sim_data))]
-    temp_em <- EM(models, temp, parms, sim_data$theta1[ind], sim_data$theta2[ind], sorted = T)
-    c(temp_em$prior, temp_em$se^2)
+    EM(models, temp, parms, sim_data$theta1[ind], sim_data$theta2[ind], sorted = T)
   }
 
   if (parallel) {
