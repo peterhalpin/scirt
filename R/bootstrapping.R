@@ -15,14 +15,18 @@ pv_priors <- function(temp_em){
   var <- apply(temp, 2, var, na.rm = T)
   pv_se <- sqrt(mean[5:8] + (1 + 1/n_reps) * var[1:4])
   pv_increase <- (1 + 1/n_reps) * var[1:4]/mean[5:8]
-  rbind(mean[1:4], sqrt(mean[5:8]), sqrt(var[1:4]), pv_se, pv_increase)
+  out <- rbind(mean[1:4], sqrt(mean[5:8]), sqrt(var[1:4]), pv_se, pv_increase)
+  row.names(out) <- c("pv", "se_between", "se_within", "pv_se", "pv_increase")
+  colnames(out) <- models
+  out
 }
 
 pv_posteriors <- function(temp_em, rep_order){
-  temp <- lapply(em_pv_b, function(x) x$posterior) %>% {do.call(rbind, .)}
+  temp <- lapply(temp_em, function(x) x$posterior) %>% {do.call(rbind, .)}
   temp[rep_order, ]
 }
 
+#////////////////////////////////////////////////////////////
 
 boot_em <- function(sim_data, parms, parallel = T) {
   models <- c("Ind", "Min", "Max", "AI")
