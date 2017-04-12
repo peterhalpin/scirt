@@ -22,7 +22,7 @@ Conditions <- ordered(conditions, conditions)
 n_models <- length(models)
 n_obs <- 500
 n_items <- 100
-n_reps <- 10
+n_reps <- 500
 alpha <- runif(n_items, .65, 2.5)
 beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))
 parms <- data.frame(alpha, beta)
@@ -47,8 +47,6 @@ a2 <- ind[odd + 1]
 
 A <- data_gen(1, mix_prop, parms, theta[a1], theta[a2])
 em_a <- EM(models, A[item_names], parms, theta[a1], theta[a2])
-em_a$prior
-table(apply(em_a$posterior, 1, which.max), A$model)
 
 pv_a <- pv_gen(n_reps, A[item_names], parms, theta[a1], theta[a2], theta_se[a1], theta_se[a2], model = A$model)
 em_pv_a <- parallel::mclapply(1:n_reps, em_parallel, sim_data = pv_a, parms = parms)
@@ -60,8 +58,6 @@ b1 <- ind[1:n_obs]
 b2 <- ind[(n_obs + 1):(n_obs * 2)]
 B <- data_gen(1, mix_prop, parms, theta[b1], theta[b2])
 em_b <- EM(models, B[item_names], parms, theta[b1], theta[b2])
-em_b$prior
-table(apply(em_b$posterior, 1, which.max), B$model)
 
 pv_b <- pv_gen(n_reps, B[item_names], parms, theta[b1], theta[b2], theta_se[b1], theta_se[b2], model = B$model)
 em_pv_b <- parallel::mclapply(1:n_reps, em_parallel, sim_data = pv_b, parms = parms)
@@ -73,8 +69,6 @@ c1 <- odd
 c2 <- odd + 1
 C <- data_gen(1, mix_prop, parms, theta[c1], theta[c2])
 em_c <- EM(models, C[item_names], parms, theta[c1], theta[c2])
-em_c$prior
-table(apply(em_c$posterior, 1, which.max), C$model)
 
 pv_c <- pv_gen(n_reps, C[item_names], parms, theta[c1], theta[c2], theta_se[c1], theta_se[c2], model = C$model)
 em_pv_c <- parallel::mclapply(1:n_reps, em_parallel, sim_data = pv_c, parms = parms)
@@ -82,11 +76,24 @@ em_pv_c <- parallel::mclapply(1:n_reps, em_parallel, sim_data = pv_c, parms = pa
 # ------------------------------------------------------------
 # Parameter recovery
 # ------------------------------------------------------------
+em_priors_a <-  rbind(em_a$prior, em_a$se) %>% round(3)
+em_priors_b <-  rbind(em_b$prior, em_b$se) %>% round(3)
+em_priors_c <-  rbind(em_c$prior, em_c$se) %>% round(3)
+
 pv_priors_a <- pv_priors(em_pv_a) %>% round(3)
 pv_priors_b <- pv_priors(em_pv_b) %>% round(3)
 pv_priors_c <- pv_priors(em_pv_c) %>% round(3)
 
-xtable::xtable(rbind(pv_priors_a, pv_priors_b, pv_priors_c))
+xtable::xtable(rbind(
+  paste0(em_priors_a[1,], " (", em_priors_a[2,], ")"),
+  paste0(pv_priors_a[1,], " (", pv_priors_a[4,], ")"),
+  paste0(pv_priors_a[5,]),
+  paste0(em_priors_b[1,], " (", em_priors_b[2,], ")"),
+  paste0(pv_priors_b[1,], " (", pv_priors_b[4,], ")"),
+  paste0(pv_priors_b[5,]),
+  paste0(em_priors_c[1,], " (", em_priors_c[2,], ")"),
+  paste0(pv_priors_c[1,], " (", pv_priors_c[4,], ")"),
+  paste0(pv_priors_c[5,])))
 
 # ------------------------------------------------------------
 # Process loss with pv
@@ -185,10 +192,14 @@ ggplot(gg, aes(x = test2, y = redun)) +
   geom_boxplot(outlier.shape = NA, size = .2, aes(fill = Condition)) +
   scale_fill_manual(values = c("grey30", "grey60", "white")) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_x_discrete(breaks=seq(0,75,5))
+  scale_x_discrete(breaks=seq(0,75,5)) +
+  ylab("Process Loss") +
+  xlab("Test")
 
 ggplot(gg, aes(x = test2, y = pl)) +
   geom_boxplot(outlier.shape = NA, size = .2, aes(fill = Condition)) +
   scale_fill_manual(values = c("grey30", "grey60", "white")) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_x_discrete(breaks=seq(0,75,5))
+  scale_x_discrete(breaks=seq(0,75,5)) +
+  ylab("1 - Process Loss") +
+  xlab("Test")
