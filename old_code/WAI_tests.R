@@ -38,7 +38,6 @@ a <- c(.25, .25, .25, .25)
 
 # Functions for GAI -----------------------------------------------------------------------------
 #install.packages("Rsolnp")
-library("Rsolnp")
 
 GAI <- function(w, alpha, beta, theta1, theta2){
   (w[1] + w[2]) * twoPL(alpha, beta, theta1) + (w[1] + w[3]) * twoPL(alpha, beta, theta2) + (w[4] - w[1]) * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
@@ -47,6 +46,11 @@ GAI <- function(w, alpha, beta, theta1, theta2){
 WAI <- function(w, alpha, beta, theta1, theta2){
   w[1] * twoPL(alpha, beta, theta1) + w[2] * twoPL(alpha, beta, theta2) + (1 - w[1] - w[2]) * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
 }
+
+GAI <- function(w, alpha, beta, theta1, theta2){
+  w * twoPL(alpha, beta, theta1) + w * twoPL(alpha, beta, theta2) + (1 - 2*w) * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
+}
+
 
 neglogGAI <- function(w, resp, alpha, beta, theta1, theta2){
   #w <- exp(a)/(1+exp(a))
@@ -62,27 +66,44 @@ lambda1 <- function(w, resp, alpha, beta, theta1, theta2){
 }
 
 # between 1 and zero
-lambda2 <- function(w, resp, alpha, beta, theta1, theta2){
+lambda2 <- function(a, resp, alpha, beta, theta1, theta2){
   #exp(a)/(1+exp(a))
   w
 }
 
 # ML for GAI ------------------------------------------------------------------
+library("Rsolnp")
 
 x0 <- c(.25,.25,.25,.25)
-i = 1
+x0 <- c(0)
 
+i = 8
 q <- solnp(x0, neglogGAI,
-   eqfun = lambda1,
-   eqB = 1,
    ineqfun = lambda2,
-   ineqUB = rep(.9999, 4),
-   ineqLB = rep(.0001, 4),
+   ineqUB = 2,
+   ineqLB = -2,
    resp = resp[i,],
    alpha = alpha,
    beta = beta,
    theta1 = theta1[i],
    theta2 = theta2[i])
+q
+1/sqrt(q$hessian[2,2])
+
+q <- solnp(x0, neglogGAI,
+   eqfun = lambda1,
+   eqB = 1,
+   ineqfun = lambda2,
+   ineqUB = 1,
+   ineqLB = 0,
+   #ineqUB = rep(.9999, 4),
+   #ineqLB = rep(.0001, 4),
+   resp = resp[i,],
+   alpha = alpha,
+   beta = beta,
+   theta1 = theta1[i],
+   theta2 = theta2[i])
+
 q
 P <- round(q$par, 4)
 sqrt(P*(1-P))
@@ -154,6 +175,11 @@ gradGAI <- function(w, resp, alpha, beta, theta1, theta2){
 WAI <- function(w, alpha, beta, theta1, theta2){
   #w <- exp(a)/(1+exp(a))
   w[1] * twoPL(alpha, beta, theta1) + w[2] * twoPL(alpha, beta, theta2) + (1 - w[1] - w[2]) * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
+}
+
+WAI <- function(w, alpha, beta, theta1, theta2){
+  #w <- exp(a)/(1+exp(a))
+  w * twoPL(alpha, beta, theta1) + w * twoPL(alpha, beta, theta2) + (1 - 2 * w) * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
 }
 
 neglogWAI <- function(a, resp, alpha, beta, theta1, theta2){
@@ -270,3 +296,44 @@ d <- outer(theta1, theta2, d2)
 d[lower.tri(d, diag = F)] <- NA
 persp(theta1, theta2, d, theta = -0, phi = 20, ticktype = "detailed", nticks = 5)
 max(d, na.rm = T)
+
+# ////////////////////////////////////////
+
+WA <- function(w, alpha, beta, theta1, theta2){
+  w * twoPL(alpha, beta, theta1) + w * twoPL(alpha, beta, theta2) + (1 - 2 * w) * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)
+}
+
+I_WA <- function(w, alpha, beta, theta1, theta2){
+    W <- WA(w, alpha, beta, theta1, theta2)
+    (twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) - 2 * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2))^2 / W / (1-W)
+}
+
+w = seq(0, 1, .01)
+alpha = 1
+beta = 0
+theta1 = -1
+theta2 = 1
+plot(w, I_WA(w, alpha, beta+1, theta1, theta2), type = "l")
+points(w, I_WA(w, alpha, beta, theta1, theta2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta-1, theta1, theta2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta+2, theta1, theta2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta+3, theta1, theta2), type = "l", col = 2)
+
+
+I2 <- function(delta, w, alpha, beta){
+  theta1 <- beta + delta/2
+  theta2 <- beta - delta/2
+  I_WA(w, alpha, beta, theta1, theta2)
+}
+delta <- seq(-5, 5, by = .25)
+plot(delta, I2(delta, .5, 1, 1), type = "l")
+
+I2 <- function(theta1, theta2, w, alpha, beta){
+  I_WA(w, alpha, beta, theta1, theta2)
+}
+
+theta1 <- theta2 <- seq(-5, 5, by = .5)
+w = .5
+l <- outer(theta1, theta2, I2, w, 1, 0)
+l[lower.tri(l, diag = F)] <- NA
+persp(theta1, theta2, l, theta = 90, phi = 15, col = "grey")

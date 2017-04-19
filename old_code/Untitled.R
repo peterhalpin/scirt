@@ -8,7 +8,7 @@ source("~/github/cirt/R/IRF_functions.R")
 source("~/github/cirt/R/bootstrapping.R")
 
 # ------------------------------------------------------------
-# dataata simulation
+# Data simulation
 # ------------------------------------------------------------
 
 # Constants
