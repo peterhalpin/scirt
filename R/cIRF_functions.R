@@ -161,7 +161,6 @@ e_mix <- function(posteriors, parms, theta1, theta2, sorted = F) {
     apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
 }
 
-
 PL <- function(e_model, parms, theta1, theta2, normed = T){
   p_ai <- cIRF("AI", parms, theta1, theta2)
   e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
@@ -450,7 +449,7 @@ pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, mo
 #' @return A data.frame with \code{length(theta)} rows containing an id variable for each pair and each sample, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
-data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
+data_gen_mix <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
 
   # Set up parms
   models <- c("Ind", "Min", "Max", "AI")

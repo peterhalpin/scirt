@@ -73,6 +73,15 @@ lambda2 <- function(a, resp, alpha, beta, theta1, theta2){
 
 # ML for GAI ------------------------------------------------------------------
 library("Rsolnp")
+q <- solnp(x0, neglogGAI,
+   ineqfun = lambda2,
+   ineqUB = 2,
+   ineqLB = -2,
+   resp = resp[i,],
+   alpha = alpha,
+   beta = beta,
+   theta1 = theta1[i],
+   theta2 = theta2[i])
 
 x0 <- c(.25,.25,.25,.25)
 x0 <- c(0)
