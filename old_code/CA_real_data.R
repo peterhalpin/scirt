@@ -51,6 +51,142 @@ theta1_se <- ind$se[odd]
 theta2_se <- ind$se[odd+1]
 
 resp <- col_form[odd, ]
+q <- apply(is.na(resp), 1, sum) - 25
+
+# ------------------------------------------------------------
+#  WA parameter recovery
+# ------------------------------------------------------------
+
+ml <- mle_WA(resp, parms, theta1, theta2, SE = "exp")
+pv <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, weights = ml$w)
+dim(pv)
+ml_pv <- mle_WA(pv[grep(items, names(pv))], parms, pv$theta1, pv$theta2, SE = "exp", starts = pv$w, parallel = T)
+pv <- cbind(pv, ml_pv)
+head(pv)
+
+pv_w <- tapply(pv$w, pv$pairs, mean)
+var_w <- tapply(pv$se^2, pv$pairs, mean)
+var_b <- tapply(pv$w, pv$pairs, var)
+pv_se <- sqrt(var_w + (1 + 1/n_reps) * var_b)
+
+summary(var_prop)
+summary(var_increase)
+
+plot(ml$w, pv_w)
+plot(sqrt(var_w), pv_se)
+plot(ml$se, pv_se)
+abline(a=0,b=1)
+
+
+# ------------------------------------------------------------
+# Goodness of fit
+# ------------------------------------------------------------
+
+logL <- ml$logL
+sim <- data_gen(n_reps, pv_w, parms, theta1, theta2, NA_pattern = resp)
+temp <- mle_WA(sim[grep(items, names(sim))], parms, sim$theta1, sim$theta2, SE = "exp", starts = sim$w, parallel = T)
+sim <- cbind(sim, temp)
+head(sim)
+
+quant <- tapply(sim$logL, sim$pairs, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+
+# Visual key for misfit
+fit <- rep("<.95", times = length(theta1))
+fit[logL < quant[,2]] <- ">.95"
+fit <- ordered(fit, c(">.95", "<.95"))
+
+# Set up and plot
+gg <- data.frame(-2*sim$logL, -2*rep(logL, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
+
+names(gg) <- c("l_dist", "l_obs", "fit", "median")
+gg <- gg[order(gg$median), ]
+gg$pair <- rep(1:length(theta1), each = n_reps)
+
+ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
+  geom_boxplot(outlier.size = 0, outlier.color = "grey90", aes(fill = fit)) +
+  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
+  scale_shape_manual(values = c(4, 20)) +
+  scale_fill_grey(start = 0.1, end = 0.8) +
+  xlab("Groups") +
+  ylab("-2 * loglikelihood") +
+  scale_size_manual(values = c(4, 1)) +
+  theme(legend.title=element_blank())
+
+
+# ------------------------------------------------------------
+# Process loss
+# ------------------------------------------------------------
+
+# Expected log likelihoods
+n_obs = 151
+p_add <- format_NA(cIRF("AI", parms, pv$theta1, pv$theta2), NA_pattern = resp)
+e_max <- likelihood("Max", p_add, parms, pv$theta1, pv$theta2)
+e_ai <- likelihood("AI", p_add, parms, pv$theta1, pv$theta2)
+e_ind <- likelihood("Ind", p_add, parms, pv$theta1, pv$theta2)
+e_wa <- l_WA(p_add, rep(pv_w, each = n_reps) , parms, pv$theta1, pv$theta2)
+
+pl_wa <- round(1 - (e_ai - e_wa)/(e_ai - e_ind), 3)
+pl_max <- round(1 - (e_ai - e_max)/(e_ai - e_ind), 3)
+
+# Process loss
+
+quant_wa <- tapply(pl_wa, pv$pairs, function(x) quantile(x, p = c(.5, .05))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+
+quant_max <- tapply(pl_max, pv$pairs, function(x) quantile(x, p = c(.5, .95))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+
+ind <- order(rep(quant_wa[,1], each = n_reps))
+
+# fix this for mean difference or non-overlapping CI -------------------
+
+ref <- rep(as.factor(quant_wa[,2] > quant_max[2]), each = n_reps)
+levels(ref) <- c("", "> Max")
+ref2 <- rep(tapply(pl_max, pv$pair, mean), each = n_reps)
+length(pl_max)
+
+gg <- data.frame(pl_max[ind], pl_wa[ind], ref[ind], ref2[ind], rep(1:n_obs, each = n_reps))
+names(gg) <- c("max", "obs", "ref", "ref2", "pair")
+head(gg)
+
+ggplot(gg, aes(x = pair, y = obs, fill = ref)) +
+  geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .2) +
+  scale_fill_manual(values = c("grey50", "red")) +
+  ylab("1 - process loss") +
+  xlab("Pair") +
+  theme(legend.title=element_blank())
+
+
+ggplot(gg, aes(x = pair, y = obs, fill = ref)) +
+  geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .2) +
+  scale_fill_manual(values = c("grey50", "red")) +
+  ylab("1 - process loss") +
+  xlab("Pair") +
+  theme(legend.title=element_blank()) +
+  geom_rect(aes(xmin = 70 - .05, xmax = 151 + 0.5, ymin = .8 - 0.05, ymax = 1 + 0.05),
+               fill = "transparent", color = "red", size = 1.5)
+
+
+ggplot(gg[gg$pair > 70, ], aes(x = pair, y = obs, fill = ref)) +
+  geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .3) +
+  scale_fill_manual(values = c("grey50", "red")) +
+  ylab("1 - process loss") +
+  xlab("Pair") +
+  theme(legend.title=element_blank()) +
+  theme(panel.border = element_rect(colour = "red", fill = NA, size = 1.5))
+
+
+
+24/151
+
+
+
+
+
+
+
+
+
+
+
 
 
 # ------------------------------------------------------------

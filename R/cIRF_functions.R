@@ -161,6 +161,15 @@ e_mix <- function(posteriors, parms, theta1, theta2, sorted = F) {
     apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
 }
 
+e_wa <- function(w, parms, theta1, theta2, sorted = F) {
+
+  p_ai <- cIRF("AI", parms, theta1, theta2)
+
+  apply(components * posteriors, 1, sum) +
+    apply(log(priors) * posteriors, 1, sum, na.rm = T) -
+    apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
+}
+
 PL <- function(e_model, parms, theta1, theta2, normed = T){
   p_ai <- cIRF("AI", parms, theta1, theta2)
   e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
@@ -411,14 +420,14 @@ class_probs <-function(mix_prop, known_model = NULL){
 #' @return A data.frame with \code{length(theta) \times n_reps} rows containing an id variable for each pair and for each sample, the plausible values of theta1, theta2, the observed data for each plausible value, and (optionally) the true_model for each value plausible value.
 #' @export
 
-pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, model = NULL) {
+pv_gen_mix <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, w = NULL) {
 
   # Expand data generating parms
   n_obs <- length(theta1)
   n_long <- n_obs * n_reps
   out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, times = n_obs))
   names(out) <- c("pairs", "samples")
-  if (!is.null(model)) {out$model <- rep(model, each = n_reps) }
+  if (!is.null(w)) {out$w <- rep(w, each = n_reps) }
 
   # Sort thetas
   temp_theta <- theta_sort(theta1, theta2, theta1_se, theta2_se)
