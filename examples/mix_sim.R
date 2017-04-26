@@ -6,28 +6,29 @@ library("dplyr")
 source("~/github/cirt/R/cIRF_functions.R")
 source("~/github/cirt/R/IRF_functions.R")
 source("~/github/cirt/R/bootstrapping.R")
-source("~/github/cirt/old_code/functions_WAI2.R")
+
 # ------------------------------------------------------------
 # Data simulation
-# Parameter recovery with and without PV
-# Var increase as a function of item information
-# Test Redundancy?
 # ------------------------------------------------------------
 
 # Constants
 set.seed(101)
+models <- c("Ind", "Min", "Max", "AI")
+Models <- ordered(models, models)
+conditions <- c("Similar", "Disparate", "Random")
+Conditions <- ordered(conditions, conditions)
 
 # Data generating parameters
-n_obs <- 100
-n_items <- 25
-n_reps <- 100
+n_models <- length(models)
+n_obs <- 500
+n_items <- 100
+n_reps <- 500
 alpha <- runif(n_items, .65, 2.5)
 beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))
 parms <- data.frame(alpha, beta)
 theta <- rnorm(n_obs*2)
 theta_se <- SE(parms[sample.int(n_items, 25), ], theta)
-a <- rnorm(n_obs)
-w <- exp(a)/(1+exp(a))
+mix_prop <- matrix(diag(rep(1, 4)), nrow = n_models, ncol = n_obs) %>% t
 
 # Other stuff
 item_names <- paste0("item", 1:n_items)
@@ -36,106 +37,41 @@ odd <- seq(1, n_obs*2, by = 2)
 rep_order <- order(rep(1:n_obs, times = n_reps))
 test_length <- 25
 
-# # ------------------------------------------------------------
-# # Simulated example A: Similar abililty
-# # ------------------------------------------------------------
-# ind <- order(theta)
-# a1 <- ind[odd]
-# a2 <- ind[odd + 1]
-#
-# A <- data_gen(1, w, parms, theta[odd], theta[odd+1])
-# ml_a <- ML_WA(A[item_names], parms, A$theta1, A$theta2)
-#
-# plot(w, ml_a$w)
-# plot(ml_a$w, ml_a$se)
-#
-# pv_a <- pv_gen(n_reps, A[item_names], parms, theta[a1], theta[a2], theta_se[a1], theta_se[a2], model = A$model)
-#
-#
-# # ------------------------------------------------------------
-# # Simulated example B: Disparate ability
-# # ------------------------------------------------------------
-# b1 <- ind[1:n_obs]
-# b2 <- ind[(n_obs + 1):(n_obs * 2)]
-# B <- data_gen(1, mix_prop, parms, theta[b1], theta[b2])
-# em_b <- EM(models, B[item_names], parms, theta[b1], theta[b2])
-#
-# pv_b <- pv_gen(n_reps, B[item_names], parms, theta[b1], theta[b2], theta_se[b1], theta_se[b2], model = B$model)
-# em_pv_b <- parallel::mclapply(1:n_reps, em_parallel, sim_data = pv_b, parms = parms)
+
+# ------------------------------------------------------------
+# Simulated example A: Similar abililty
+# ------------------------------------------------------------
+ind <- order(theta)
+a1 <- ind[odd]
+a2 <- ind[odd + 1]
+
+A <- data_gen(1, mix_prop, parms, theta[a1], theta[a2])
+em_a <- EM(models, A[item_names], parms, theta[a1], theta[a2])
+
+pv_a <- pv_gen(n_reps, A[item_names], parms, theta[a1], theta[a2], theta_se[a1], theta_se[a2], model = A$model)
+em_pv_a <- parallel::mclapply(1:n_reps, em_parallel, sim_data = pv_a, parms = parms)
+
+# ------------------------------------------------------------
+# Simulated example B: Disparate ability
+# ------------------------------------------------------------
+b1 <- ind[1:n_obs]
+b2 <- ind[(n_obs + 1):(n_obs * 2)]
+B <- data_gen(1, mix_prop, parms, theta[b1], theta[b2])
+em_b <- EM(models, B[item_names], parms, theta[b1], theta[b2])
+
+pv_b <- pv_gen(n_reps, B[item_names], parms, theta[b1], theta[b2], theta_se[b1], theta_se[b2], model = B$model)
+em_pv_b <- parallel::mclapply(1:n_reps, em_parallel, sim_data = pv_b, parms = parms)
 
 # ------------------------------------------------------------
 # Simulated example C: Randomly selected partners
-# w = {0,1} is problematic
-#
 # ------------------------------------------------------------
+c1 <- odd
+c2 <- odd + 1
+C <- data_gen(1, mix_prop, parms, theta[c1], theta[c2])
+em_c <- EM(models, C[item_names], parms, theta[c1], theta[c2])
 
-theta1 <- theta[odd]
-theta2 <- theta[odd + 1]
-data <- data_gen(1, w, parms, theta1, theta2)
-resp <- data[item_names]
-ml <- mle_WA(resp, parms, data$theta1, data$theta2, SE = "exp", starts = w)
-plot(ml$w, ml$se)
-
-pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta_se[odd], theta_se[odd+1], weights = w)
-ml_pv <- mle_WA(pv_data[item_names], parms, pv_data$theta1, pv_data$theta2, starts = pv_data$w, parallel = T)
-
-pv <- cbind(pv_data, ml_pv)
-head(pv)
-
-# ------------------------------------------------------------
-# Parameter recovery
-# ------------------------------------------------------------
-pv_w <- tapply(pv$w, pv$pairs, mean)
-plot(ml$w, pv_w)
-var_w <- tapply(pv$se^2, pv$pairs, mean)
-var_b <- tapply(pv$w, pv$pairs, var)
-pv_se <- sqrt(var_w + (1 + 1/n_reps) * var_b)
-
-ind <- var_w!= 0 & var_b!= 0
-var_increase <- (1 + 1/n_reps) * var_b/var_w
-var_prop <- (1 + 1/n_reps) * var_b/pv_se^2
-
-summary(var_prop)
-summary(var_increase)
-
-
-
-# ------------------------------------------------------------
-# Goodness of fit
-# ------------------------------------------------------------
-
-logL <- ml$logL
-temp1 <- data_gen(n_reps, pv_w, parms, data$theta1, data$theta2)
-temp2 <- mle_WA(temp1[item_names], parms, temp1$theta1, temp1$theta2, SE = "exp", starts = temp1$w)
-sim <- cbind(temp1, temp2)
-head(sim)
-
-quant <- tapply(sim$logL, sim$pairs, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
-
-# Visual key for misfit
-fit <- rep("<.95", times = length(theta1))
-fit[logL < quant[,2]] <- ">.95"
-fit <- ordered(fit, c(">.95", "<.95"))
-
-# Set up and plot
-gg <- data.frame(-2*sim$logL, -2*rep(logL, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
-
-names(gg) <- c("l_dist", "l_obs", "fit", "median")
-gg <- gg[order(gg$median), ]
-gg$pair <- rep(1:length(theta1), each = n_reps)
-
-ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
-  geom_boxplot(outlier.size = 0, outlier.color = "grey90", aes(fill = fit)) +
-  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
-  scale_shape_manual(values = c(4, 20)) +
-  scale_fill_grey(start = 0.1, end = 0.8) +
-  xlab("Groups") +
-  ylab("-2 * loglikelihood") +
-  scale_size_manual(values = c(4, 1)) +
-  theme(legend.title=element_blank())
-
-
-
+pv_c <- pv_gen(n_reps, C[item_names], parms, theta[c1], theta[c2], theta_se[c1], theta_se[c2], model = C$model)
+em_pv_c <- parallel::mclapply(1:n_reps, em_parallel, sim_data = pv_c, parms = parms)
 
 # ------------------------------------------------------------
 # Parameter recovery

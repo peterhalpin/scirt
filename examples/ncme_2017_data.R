@@ -1,0 +1,270 @@
+# devtools::install_github("peterhalpin/cirt")
+# library("cirt")
+rm(list = ls())
+library("ggplot2")
+library("dplyr")
+source("~/github/cirt/R/cIRF_functions.R")
+source("~/github/cirt/R/IRF_functions.R")
+NYU <- rgb(87, 6, 140, maxColorValue = 255)
+
+
+# ------------------------------------------------------------
+# Load data and estimate individual thetas
+# ------------------------------------------------------------
+
+# Load calibrated item parms
+setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
+parms <- read.csv("calibration_parms.csv", row.names = 1)
+summary(parms)
+
+# Drop DIF items
+dif_items <- "045|065"
+parms <- parms[!grepl(dif_items, row.names(parms)),]
+items <- paste(row.names(parms), collapse = "|")
+
+# Load collaboration data and split into forms
+collab <- read.csv("collaboration_2016.csv", check.names = F)
+col_form <- format_resp(collab, row.names(parms), "COL")
+ind_form <- format_resp(collab, row.names(parms), "IND")
+
+ # Apply conjunctive scoring rule
+odd <- seq(1, nrow(col_form), by = 2)
+col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
+
+# Drop 13 unsuable response patterns (all 1 or all 0)
+drop_groups <- c(
+  collab$group_id[apply(col_form, 1, mean, na.rm = T) %in% c(1,0)],
+  collab$group_id[apply(ind_form, 1, mean, na.rm = T) %in% c(1,0)])
+
+col_form <-col_form[!collab$group_id%in%drop_groups,]
+ind_form <-ind_form[!collab$group_id%in%drop_groups,]
+
+# Reset odd for dropped items
+odd <- seq(1, nrow(col_form), by = 2)
+
+# Estimate theta for ind forms
+ind <- MLE(ind_form, parms, WMLE = T)
+plot(ind$theta, ind$se)
+
+theta1 <- ind$theta[odd]
+theta2 <- ind$theta[odd+1]
+theta1_se <- ind$se[odd]
+theta2_se <- ind$se[odd+1]
+
+resp <- col_form[odd, ]
+
+# ------------------------------------------------------------
+#  WA parameter estimation
+# ------------------------------------------------------------
+set.seed(101)
+n_reps <- 250
+n_obs <- length(theta1)
+
+# Estimate weights for empirical data
+ml <- mle_WA(resp, parms, theta1, theta2, SE = "exp")
+
+# Generate plausible values for theta estimates
+pv <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, weights = ml$w)
+
+# Estimate weights for generated data
+ml_pv <- mle_WA(pv[grep(items, names(pv))], parms, pv$theta1, pv$theta2, SE = "exp", starts = pv$w, parallel = T)
+pv <- cbind(pv, ml_pv)
+
+pv_w <- tapply(pv$w, pv$pairs, mean)
+var_w <- tapply(pv$se^2, pv$pairs, mean)
+var_b <- tapply(pv$w, pv$pairs, var)
+pv_se <- sqrt(var_w + (1 + 1/n_reps) * var_b)
+
+var_increase <- (1 + 1/n_reps) * var_b/var_w
+var_prop <- (1 + 1/n_reps) * var_b/pv_se^2
+summary(var_prop)
+summary(var_increase)
+
+
+# SEs Figure ---------------------
+
+gg_v <- data.frame(c(ml$se, pv_se), rep(pv_w, times = n_obs*2), rep(c("ML", "PV"), each = n_obs))
+names(gg_v) <- c("SE", "PV_W", "Type")
+
+ggplot(gg_v, aes(x = PV_W, y = SE, group = Type)) + geom_point(size = 3, aes(shape = Type, color = Type)) + ylim(c(0,.8)) +
+    scale_color_manual(values = c("grey50", "black")) +
+    scale_shape_discrete(solid=F) +
+    theme_set(theme_grey(base_size = 15))
+
+# ------------------------------------------------------------
+# Goodness of fit
+# ------------------------------------------------------------
+
+logL <- ml$logL
+sim <- data_gen(n_reps, pv_w, parms, theta1, theta2, NA_pattern = resp)
+temp <- mle_WA(sim[grep(items, names(sim))], parms, sim$theta1, sim$theta2, SE = "exp", starts = sim$w, parallel = T)
+sim <- cbind(sim, temp)
+head(sim)
+
+quant <- tapply(sim$logL, sim$pairs, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+
+# Visual key for misfit
+fit <- rep("<.95", times = length(theta1))
+fit[logL < quant[,2]] <- ">.95"
+fit <- ordered(fit, c(">.95", "<.95"))
+
+# Set up and plot
+gg <- data.frame(-2*sim$logL, -2*rep(logL, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
+
+names(gg) <- c("l_dist", "l_obs", "fit", "median")
+gg <- gg[order(gg$median), ]
+gg$pair <- rep(1:length(theta1), each = n_reps)
+
+ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
+  geom_boxplot(outlier.size = 0, outlier.color = "grey90", aes(fill = fit)) +
+  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
+  scale_shape_manual(values = c(4, 20)) +
+  scale_fill_grey(start = 0.1, end = 0.8) +
+  xlab("Groups") +
+  ylab("-2 * loglikelihood") +
+  scale_size_manual(values = c(4, 1)) +
+  theme(legend.title=element_blank()) +
+  theme_set(theme_grey(base_size = 15))
+
+
+# ------------------------------------------------------------
+# Process loss
+# ------------------------------------------------------------
+dim(pv)
+dim(resp)
+dim(parms)
+# Expected log likelihoods
+p_add <- format_NA(cIRF("Add", parms, pv$theta1, pv$theta2), NA_pattern = resp)
+e_max <- likelihood("Max", p_add, parms, pv$theta1, pv$theta2)
+e_ai <- likelihood("Add", p_add, parms, pv$theta1, pv$theta2)
+e_ind <- likelihood("Ind", p_add, parms, pv$theta1, pv$theta2)
+e_wa <- l_WA(p_add, rep(pv_w, each = n_reps), parms, pv$theta1, pv$theta2)
+e_wa2 <- l_WA(p_add, pv$w, parms, pv$theta1, pv$theta2)
+
+
+# Process loss
+pl_wa <- 1 - (e_ai - e_wa)/(e_ai - e_ind)
+pl_wa2 <- 1 - (e_ai - e_wa2)/(e_ai - e_ind)
+plot(pl_wa, pl_wa2)
+pl_max <- 1 - (e_ai - e_max)/(e_ai - e_ind)
+
+# quantiles for wa model
+quant_wa <- tapply(pl_wa2, pv$pairs, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+
+# quantiles for max model
+quant_max <- tapply(pl_max, pv$pairs, function(x) quantile(x, p = c(.5, .975))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+
+# order groups my wa medians
+ind <- order(rep(quant_wa[,1], each = n_reps))
+
+sum(quant_wa[,2] > quant_max[2])/151
+
+# overlapping 95% confidence intervals for wa and max?
+overlap <- rep(as.factor(quant_wa[,2] > quant_max[2]), each = n_reps)
+levels(overlap) <- c("< Max", "> Max")
+
+gg <- data.frame(pl_max[ind], pl_wa[ind], overlap[ind], rep(1:n_obs, each = n_reps))
+names(gg) <- c("max", "obs", "overlap", "pair")
+head(gg)
+
+ggplot(gg, aes(x = pair, y = obs, fill = overlap)) +
+  geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .2) +
+  scale_fill_manual(values = c("grey50", 5)) +
+  ylab("1 - process loss") +
+  xlab("Pair") +
+  theme(legend.title=element_blank()) +
+  theme_set(theme_grey(base_size = 15))
+
+
+ggplot(gg, aes(x = pair, y = obs, fill = overlap)) +
+  geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .2) +
+  scale_fill_manual(values = c("grey50", 5)) +
+  ylab("1 - process loss") +
+  xlab("Pair") +
+  theme(legend.title=element_blank()) +
+  geom_rect(aes(xmin = 70, xmax = 151, ymin = .8, ymax = 1.05),
+               fill = "transparent", color = 5, size = 1.5)
+
+
+ggplot(gg[gg$pair > 70, ], aes(x = pair, y = obs, fill = overlap)) +
+  geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .3) +
+  scale_fill_manual(values = c("grey50", 5)) +
+  ylab("1 - process loss") +
+  xlab("Pair") +
+  theme(legend.title=element_blank()) +
+  theme(panel.border = element_rect(colour = 5, fill = NA, size = 1.5))
+
+
+
+24/151
+
+
+
+
+
+
+
+# ------------------------------------------------------------
+# Sample Demographics
+#------------------------------------------------------------
+
+setwd("~/Dropbox/Academic/Projects/CA/Data")
+demo <- read.csv("Long_AMT_IDs_Match(1.30.17).csv")
+names(demo)
+vars <- c("Age", "Gender", "Ethnicity", "English", "leveledu", "liveusa")
+
+temp <- demo[vars]
+temp$Ethnicity[temp$Ethnicity != 10] <- 0
+temp$Ethnicity[temp$Ethnicity != 0] <- 1
+temp$Gender <- temp$Gender - 1
+temp$English <- abs(temp$English - 2)
+temp$leveledu[temp$leveledu < 3] <- 0
+temp$leveledu[temp$leveledu != 0] <- 1
+temp$liveusa <- abs(temp$liveusa - 2)
+
+head(temp)
+
+apply(temp, 2, mean)
+summary(temp$Age)
+
+
+#------------------------------------------------------------
+# DIF with Mplus: Items 45 and 65 identified as problematic in
+# scalar model. After dropping, scalar model fits OK
+
+# Metric            36.971        37       0.4704
+# Scalar           101.071        74       0.0200
+# Scalar (w/ drop)  84.358        70       0.1161
+# ------------------------------------------------------------
+
+ # Load calibrated item parms
+setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
+parms <- read.csv("calibration_parms.csv", row.names = 1)
+grep_items <- paste0(row.names(parms), collapse = "|")
+scalar.out <- "./DIF/collaboration_DIF_scalar.out"
+
+temp <- readLines(scalar.out)
+Begin <- grep("Item Difficulties", temp)
+End <- grep("Variances", temp)
+
+calib_temp <- temp[Begin[1]:End[End > Begin[1] & End < Begin[2]]]
+collab_temp <- temp[Begin[2]:End[End > Begin[2] & End < Begin[3]][1]]
+
+calib_beta <- substr(calib_temp[grepl(grep_items, calib_temp)], 23, 28) %>% as.numeric
+collab_beta <- substr(collab_temp[grepl(grep_items, collab_temp)], 23, 28) %>% as.numeric
+item_names <- substr(collab_temp[grepl(grep_items, collab_temp)], 6, 10)
+
+gg <- data.frame(item_names, collab_beta, calib_beta)
+gg$dif <- resid(lm(collab_beta ~ calib_beta, gg)) > 1
+dif_items <- paste0(gg$item_names[gg$dif == T], collapse = "|")
+
+# DIF Figure
+ggplot(gg, aes(x = calib_beta, y = collab_beta)) +
+  geom_point(aes(pch = dif, color = dif, size = dif)) +
+  stat_smooth(method = "lm", col = "black", se = F) +
+  xlab("Calibration sample") +
+  ylab("Collaborative testing condition") +
+  theme(legend.position = "none") +
+  scale_shape_manual(values = c(20, 4)) +
+  scale_color_manual(values = c("black", "red")) +
+  scale_size_manual(values = c(2, 4))

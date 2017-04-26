@@ -1,11 +1,9 @@
-# Last update: 02/14/2017
-# Functions for testing collaboration models. Depends on IRF_functions.R
+# Last update: 04/25/2017
+# Functions for group assessments. Depends on IRF_functions.R
 # User beware: functions do not check or handle input errors.
 
-source("~/github/cirt/R/IRF_functions.R")
 require(ggplot2)
 require(dplyr)
-
 
 
 #--------------------------------------------------------------------------
@@ -129,7 +127,7 @@ item_delta <- function(parms, theta1, theta2, sorted = F, NA_pattern = NULL) {
 #--------------------------------------------------------------------------
 #' Likelihood of a matrix of binary responses for one or more models of collaboration, conditional on theta.
 #'
-#' Mainly used to provide the component likelihoods for the finite mixture approach to model selection. Note that \code{logL} is faster for 2PL.
+#' Note that \code{logL} is faster for 2PL.
 #'
 #' @param resp the matrix of binary responses.
 #' @param models is one or more of \code{c("IRF", "Ind", "Min", "Max", "AI") }.
@@ -149,56 +147,6 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, L
   if (n_models == 1) {out <- c(out)} # un-matrix
   if (Log) {out} else {exp(out)}
 }
-
-e_mix <- function(posteriors, parms, theta1, theta2, sorted = F) {
-  # something is off when compared to incomplete_data
-  models <- c("Ind", "Min", "Max", "AI")
-  priors <- matrix(apply(posteriors, 2, mean), nrow = nrow(posteriors), ncol= ncol(posteriors), byrow = T)
-  p_ai <- cIRF("AI", parms, theta1, theta2)
-  components <- likelihood(models, p_ai, parms, theta1, theta2, sorted)
-  apply(components * posteriors, 1, sum) +
-    apply(log(priors) * posteriors, 1, sum, na.rm = T) -
-    apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
-}
-
-e_wa <- function(w, parms, theta1, theta2, sorted = F) {
-
-  p_ai <- cIRF("AI", parms, theta1, theta2)
-
-  apply(components * posteriors, 1, sum) +
-    apply(log(priors) * posteriors, 1, sum, na.rm = T) -
-    apply(log(posteriors) * posteriors, 1, sum, na.rm = T)
-}
-
-PL <- function(e_model, parms, theta1, theta2, normed = T){
-  p_ai <- cIRF("AI", parms, theta1, theta2)
-  e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
-  temp <- e_ai - e_model
-  if (normed) {
-    e_ind <- likelihood("Ind", p_ai, parms, theta1, theta2)
-    temp <- temp / (e_ai - e_ind)
-    temp[temp < 0] <- 0
-    temp[temp > 1] <- 1 # Kludge for e_mix
-  }
-  temp
-}
-
-redundancy <- function(parms, theta1, theta2, normed = F, NA_pattern = NULL){
-  p_ai <- cIRF("AI", parms, theta1, theta2)
-  if(!is.null(NA_pattern)) {p_ai <- p_ai * NA_pattern}
-  e_ai <- likelihood("AI", p_ai, parms, theta1, theta2)
-  e_max <- likelihood("Max", p_ai, parms, theta1, theta2)
-  temp <- e_ai - e_max
-  if (normed) {
-    e_ind <- likelihood("Ind", p_ai, parms, theta1, theta2)
-    temp <- temp / (e_ai - e_ind)
-    temp[temp < 0] <- 0
-    temp[temp > 1] <- 1 # Kludge for e_mix
-  }
-  temp
-}
-
-
 
 
 #--------------------------------------------------------------------------
@@ -420,14 +368,14 @@ class_probs <-function(mix_prop, known_model = NULL){
 #' @return A data.frame with \code{length(theta) \times n_reps} rows containing an id variable for each pair and for each sample, the plausible values of theta1, theta2, the observed data for each plausible value, and (optionally) the true_model for each value plausible value.
 #' @export
 
-pv_gen_mix <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, w = NULL) {
+pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, model = NULL) {
 
   # Expand data generating parms
   n_obs <- length(theta1)
   n_long <- n_obs * n_reps
   out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, times = n_obs))
   names(out) <- c("pairs", "samples")
-  if (!is.null(w)) {out$w <- rep(w, each = n_reps) }
+  if (!is.null(model)) {out$model <- rep(model, each = n_reps) }
 
   # Sort thetas
   temp_theta <- theta_sort(theta1, theta2, theta1_se, theta2_se)
@@ -458,10 +406,12 @@ pv_gen_mix <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se
 #' @return A data.frame with \code{length(theta)} rows containing an id variable for each pair and each sample, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
 #' @export
 
-data_gen_mix <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
+data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
 
   # Set up parms
-  models <- c("Ind", "Min", "Max", "AI")
+  #models <- c("Ind", "Min", "Max", "AI")
+  models <- c("Ind", "Max", "AI")
+
   n_obs <- length(theta1)
   if (is.null(dim(mix_prop))) {
    mix_prop <- kronecker(mix_prop, rep(1, n_obs))

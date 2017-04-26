@@ -1,0 +1,329 @@
+#devtools::install_github("peterhalpin/BearShare")#
+library("BearShare")#
+library("ltm")#
+library("ggplot2")#
+library("stats4")#
+calib_ltm <- ltm(calibration ~ z1)#
+beta <- coef(calib_ltm)[,1]#
+alpha <- coef(calib_ltm)[,2]#
+#
+ind_form <- col_form <- friends[,-1]#
+ind_form[, grep("C", names(ind_form))] <- NA#
+col_form[, grep("I", names(col_form))] <- NA#
+#
+odd <- seq(1, nrow(col_form), by = 2)#
+col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]#
+#
+ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1#
+col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1#
+barbell_plot(ind_theta, col_theta, legend = "left")#
+#
+parms <- coef(calib_ltm)#
+beta_C <- parms[grep("C", row.names(parms)), 1]#
+alpha_C <- parms[grep("C", row.names(parms)), 2]
+resp <- col_form[odd, grep("C", names(col_form))]#
+theta1 <- ind_theta[odd]#
+theta2 <- ind_theta[odd+1]#
+alpha <- alpha_C#
+beta <- beta_C#
+a <- c(.25, .25, .25, .25)
+WA <- function(w, alpha, beta, theta1, theta2){#
+  w * twoPL(alpha, beta, theta1) + w * twoPL(alpha, beta, theta2) + (1 - 2*w) * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)#
+}
+I_WA <- function(w, alpha, beta, theta1, theta2){#
+    W <- WA(w, alpha, beta, theta1, theta2)#
+    (twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) - 2 * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2))^2 / w / (1-w)#
+}
+w = seq(0, 1 .1)
+w = seq(0, 1, .01)
+w
+alpha = 1
+beta = 0
+theta1 = 0
+theta2 = 0
+plot(w, I_WA(w, alpha, beta, theta1, theta2))
+theta1 = -1
+plot(w, I_WA(w, alpha, beta, theta1, theta2))
+I_WA <- function(w, alpha, beta, theta1, theta2){#
+    W <- WA(w, alpha, beta, theta1, theta2)#
+    (twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) - 2 * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2))^2 / w / (1-w)#
+}
+plot(w, I_WA(w, alpha, beta, theta1, theta2))
+theta1 = 1
+plot(w, I_WA(w, alpha, beta, theta1, theta2))
+theta2 = 1
+plot(w, I_WA(w, alpha, beta, theta1, theta2))
+theta2 = 0
+plot(w, I_WA(w, alpha, beta, theta1, theta2))
+theta1 = 0
+plot(w, I_WA(w, alpha, beta, theta1, theta2))
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = l)
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+points(w, I_WA(w, alpha, beta, 1, theta2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 2, theta2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 3, theta2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 4, theta2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, 1), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, 2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, 3), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, 4), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, 5), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, -5), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, -4), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, -3), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, -2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 0, -1), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 1, -1), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 1, 0), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 1, -1), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 2, -1), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 3, -1), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 4, -1), type = "l", col = 2)
+w = seq(.1, .9, .01)
+alpha = 1#
+beta = 0#
+theta1 = 0#
+theta2 = 0#
+#
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+points(w, I_WA(w, alpha, beta, 0, 0), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, 1, -1), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, -1, -1), type = "l", col = 2)
+theta1 = -1#
+theta2 = -1
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+theta1 = -5#
+theta2 = -5
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+points(w, I_WA(w, alpha, beta, -1, -1), type = "l", col = 2)
+theta1 = 5
+theta2 = -5
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+theta1 = -5#
+theta2 = 5
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+points(w, I_WA(w, alpha, beta, -1, -1), type = "l", col = 2)
+I2 <- function(theta1, theta2){#
+  I_WA(w, alpha, beta, theta1, theta2){#
+}
+theta1 <- theta2 <- seq(-5, 5, by = .1)
+w = .5
+theta1 <- theta2 <- seq(-5, 5, by = .1)#
+w = .5
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+I2 <- function(theta1, theta2, w, alpha, beta){#
+  I_WA(w, alpha, beta, theta1, theta2)#
+}
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 45, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = -45, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+w = .1
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+theta1 <- theta2 <- seq(-5, 5, by = .5)
+w = .1
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+w = .9
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+w = .25
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+w = .5
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+theta1 <- theta2 <- seq(-5, 5, by = .5)
+I2 <- function(theta1, theta2, w, alpha, beta){#
+  I_WA(w, alpha, beta, theta1, theta2)#
+}
+theta1 <- theta2 <- seq(-5, 5, by = .5)
+w = .5
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+w = .2
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+w = .8
+l <- outer(theta1, theta2, I2, w, alpha, beta)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+l <- outer(theta1, theta2, I2, w, alpha, 3)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+l <- outer(theta1, theta2, I2, w, alpha, 2)
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+theta1 <- theta2 <- seq(-5, 5, by = .2)
+w = .5
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 75, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 20, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 50, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = -45, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 45, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 90, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 180, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 160, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+theta1 <- theta2 <- seq(-10, 10, by = .2)
+w = .5
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+theta1 <- theta2 <- seq(-20, 20, by = .2)
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+theta1 <- theta2 <- seq(-20, 20, by = 1)
+w = .5
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+w = .1
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+w = ..9
+w = .9
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+w = .8
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+w = .5
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+w = .4
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+w = seq(.1, .9, .01)#
+alpha = 1#
+beta = 0#
+theta1 = -5#
+theta2 = 5#
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+theta1 = 1#
+theta2 = 0#
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+theta2 = 1
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+theta1 = 0
+theta2 = 0
+plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
+plot(w, I_WA(w, alpha, 3, theta1, theta2), type = "l")
+plot(w, I_WA(w, alpha, -3, theta1, theta2), type = "l")
+plot(w, I_WA(w, alpha, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 2, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 3, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 4, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 2, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 1, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 0, 1, theta1, theta2), type = "l")
+plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
+theta1 = 1
+theta2 = 0
+plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
+theta2 = -1
+plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 1, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 2, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 1, 0, theta1, theta2), type = "l")
+points(w, I_WA(w, alpha, beta, -1, -1), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, -1, 1), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, -1, 2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, -2, 2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, -3, 2), type = "l", col = 2)
+points(w, I_WA(w, alpha, beta, -3, 3), type = "l", col = 2)
+I2 <- function(delta, w, alpha, beta){
+I2 <- function(delta, w, alpha, beta){#
+  theta1 <- beta + delta/2#
+  theta2 <- beta - delta/2#
+  I_WA(w, alpha, beta, theta1, theta2)#
+}
+delta <- seq(-5, 5, by = .25)
+plot(delta, I2(delta, .5, 1, 0), type = "l")
+delta <- seq(-5, 5, by = .25)
+plot(delta, I2(delta, .5, 1, 0), type = "l")
+I2 <- function(delta, w, alpha, beta){#
+  theta1 <- beta + delta/2#
+  theta2 <- beta - delta/2#
+  I_WA(w, alpha, beta, theta1, theta2)#
+}
+plot(delta, I2(delta, .5, 1, 0), type = "l")
+I2 <- function(delta, w, alpha, beta){#
+  theta1 <- beta + delta/2#
+  theta2 <- beta - delta/2#
+  I_WA(w, alpha, beta, theta1, theta2)#
+}
+delta <- seq(-5, 5, by = .25)
+plot(delta, I2(delta, .5, 1, 0), type = "l")
+plot(delta, I2(delta, 1, 1, 0), type = "l")
+plot(delta, I2(delta, .9, 1, 0), type = "l")
+plot(delta, I2(delta, .1, 1, 0), type = "l")
+plot(delta, I2(delta, .2, 1, 0), type = "l")
+plot(delta, I2(delta, .2, 0, 0), type = "l")
+plot(delta, I2(delta, 1, , 0), type = "l")
+plot(delta, I2(delta, 1, 0, 0), type = "l")
+plot(delta, I2(delta, .9, 0, 0), type = "l")
+plot(delta, I2(delta, .1, 0, 0), type = "l")
+plot(delta, I2(delta, .1, .1, 0), type = "l")
+plot(delta, I2(delta, .5, .1, 0), type = "l")
+plot(delta, I2(delta, .5, .1, 1), type = "l")
+plot(delta, I2(delta, .5, 1, 1), type = "l")
+plot(delta, I2(delta, .5, 2, 1), type = "l")
+plot(delta, I2(delta, .5, 3, 1), type = "l")
+plot(delta, I2(delta, .5, 4, 1), type = "l")
+plot(delta, I2(delta, .1, 4, 1), type = "l")
+plot(delta, I2(delta, .2, 4, 1), type = "l")
+plot(delta, I2(delta, .3, 4, 1), type = "l")
+plot(delta, I2(delta, .4, 4, 1), type = "l")
+I_WA <- function(w, alpha, beta, theta1, theta2){#
+    W <- WA(w, alpha, beta, theta1, theta2)#
+    (twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) - 2 * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2))^2 / W / (1-W)#
+}
+w = seq(.1, .9, .01)#
+alpha = 1#
+beta = 0#
+theta1 = 1#
+theta2 = -1#
+plot(w, I_WA(w, 1, 0, theta1, theta2), type = "l")
+plot(w, I_WA(w, 1, 1, theta1, theta2), type = "l")
+plot(w, I_WA(w, 1, -1, theta1, theta2), type = "l")
+plot(w, I_WA(w, 1, 1, theta1, theta2), type = "l")
+theta1 = 2
+plot(w, I_WA(w, 1, 1, theta1, theta2), type = "l")
+I2 <- function(delta, w, alpha, beta){#
+  theta1 <- beta + delta/2#
+  theta2 <- beta - delta/2#
+  I_WA(w, alpha, beta, theta1, theta2)#
+}
+delta <- seq(-5, 5, by = .25)
+plot(delta, I2(delta, .4, 4, 1), type = "l")
+delta <- seq(-5, 5, by = .25)
+plot(delta, I2(delta, 1, 1, 0), type = "l")
+plot(delta, I2(delta, 0, 1, 0), type = "l")
+plot(delta, I2(delta, .5, 1, 0), type = "l")
+plot(delta, I2(delta, .5, 1, 2), type = "l")
+plot(delta, I2(delta, .5, 1, 4), type = "l")
+plot(delta, I2(delta, .5, 1, 1), type = "l")
+I2 <- function(theta1, theta2, w, alpha, beta){#
+  I_WA(w, alpha, beta, theta1, theta2)#
+}#
+#
+theta1 <- theta2 <- seq(-20, 20, by = 1)
+w = .5
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+w = .1
+l <- outer(theta1, theta2, I2, w, 2, 2)
+persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
+persp(theta1, theta2, l, theta = 0, phi = 20)
+I_WA <- function(w, alpha, beta, theta1, theta2){#
+    W <- WA(w, alpha, beta, theta1, theta2)#
+    (twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) - 2 * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2))^2 / W / (1-W)#
+}
