@@ -63,7 +63,7 @@ resp <- col_form[odd, ]
 n_reps <- 250
 n_obs <- length(theta1)
 rep_order <- order(rep(1:length(theta1), times = n_reps))
-models <- c("Ind", "Max", "AI")
+models <- c("Ind", "Min", "Max", "AI")
 Models <- ordered(models, models)
 n_models <- 3
 
@@ -202,7 +202,6 @@ overlap <- rep(as.factor(quant_mod[,2] > quant_max[,1]), each = n_reps)
 levels(overlap) <- c("< Max", "> Max")
 
 
-
 gg <- data.frame(pl_max[ind], pl_mod[ind], overlap[ind], rep(1:n_obs, each = n_reps))
 names(gg) <- c("max", "obs", "overlap", "pair")
 head(gg)
@@ -224,7 +223,7 @@ ggplot(gg, aes(x = pair, y = obs, fill = overlap)) +
   ylab("1 - process loss") +
   xlab("Pair") +
   theme(legend.title=element_blank()) +
-  geom_rect(aes(xmin = 75, xmax = 162, ymin = .9, ymax = 1.02),
+  geom_rect(aes(xmin = 80, xmax = 162, ymin = .8, ymax = 1.02),
                fill = "transparent", color = 5, size = 1.5)
 
 
@@ -585,7 +584,7 @@ ggplot(gg, aes(x = calib_beta, y = collab_beta)) +
   theme(legend.position = "none") +
   scale_shape_manual(values = c(20, 4)) +
   scale_color_manual(values = c("black", "red")) +
-  scale_size_manual(values = c(2, 4))
+  scale_size_manual(values = c(3, 4))
 
 
 

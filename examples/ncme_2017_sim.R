@@ -17,13 +17,13 @@ set.seed(101) # Use to replicate NCME results
 
 # Data generating parameters
 n_obs <- 100
-n_items <- 100
+n_items <- 20
 n_reps <- 250
 alpha <- runif(n_items, .65, 2.5)
 beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))
 parms <- data.frame(alpha, beta)
 theta <- rnorm(n_obs*2)
-theta_se <- SE(parms[sample.int(n_items, 25), ], theta)
+theta_se <- SE(array(1, c(n_obs*2, 25)), parms[sample.int(n_items, 20), ], theta)
 a <- rnorm(n_obs)
 w <- exp(a)/(1+exp(a))
 
@@ -42,6 +42,10 @@ resp <- data[item_names]
 
 # Estimate weights for generated data
 ml <- mle_WA(resp, parms, theta1, theta2, SE = "exp", starts = w)
+ml
+plot(ml$w, w)
+plot(ml$w, ml$se)
+
 
 # Generate plausible values from simuluated data
 pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, weights = w)

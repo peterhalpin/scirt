@@ -3,10 +3,20 @@
 # User beware: functions not written to check or handle input errors.
 
 WA <- function(w, parms, theta1, theta2) {
+  p1 <- Min(parms, theta1, theta2)
+  p2 <- Max(parms, theta1, theta2)
+  W <- w %*% t(rep(1, nrow(parms)))
+  temp <- W * (2 * p2 - p2^2 ) +  p1^2
+  temp[temp >= .99999] <- .99999
+  temp
+}
+
+WA <- function(w, parms, theta1, theta2) {
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
   W <- w %*% t(rep(1, nrow(parms)))
   W * (p1 + p2) + (1 - 2 * W) * p1 * p2
+  W * (p1 + p2 - p1 * p2)
 }
 
 l_WA <- function(resp, w, parms, theta1, theta2, Log = T, Sum = F) {
@@ -16,12 +26,14 @@ l_WA <- function(resp, w, parms, theta1, theta2, Log = T, Sum = F) {
   if (Log) {temp} else {exp(temp)}
 }
 
+
 grad_WA <- function(resp, w, parms, theta1, theta2, Sum = T) {
   r <- WA(w, parms, theta1, theta2)
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
   n <- resp/r - (1 - resp)/(1 - r)
-  temp <- n * (p1*(1 - p2) + p2*(1 - p1))
+  #temp <- n * (p1*(1 - p2) + p2*(1 - p1))
+  temp <- n * (p1 + p2 - p1 * p2)
   if (Sum) {apply(temp, 1, sum, na.rm = T)} else {temp}
 }
 
@@ -34,9 +46,106 @@ info_WA <- function(resp, w, parms, theta1, theta2, type = "obs", Sum = T) {
   } else {
     n <- 1/r/(1 - r)*!is.na(resp)
   }
-  temp <- n * (p1*(1 - p2) + p2*(1 - p1))^2
+  #temp <- n * (p1*(1 - p2) + p2*(1 - p1))^2
+  temp <- n * (p1 + p2 - p1 * p2)
   if (Sum) {apply(temp, 1, sum, na.rm = T)} else {temp}
 }
+
+l_full <- function(resp, parms, theta1, theta2, w)
+{
+  ind <- grep("IND", names(resp))
+  col <- grep("COL", names(resp))
+  -1*(logL(resp[1, ind], parms, theta1) + logL(resp[2, ind], parms, theta2) + l_WA(resp[1, col], w, parms, theta1, theta2) )
+}
+
+WA2 <- function(w, parms, theta1, theta2, theta1_se, theta2_se) {
+  p1_lower <- IRF(parms, theta1 - 1.96*theta1_se)
+  p1_upper <- IRF(parms, theta1 + 1.96*theta1_se)
+  p2_lower <- IRF(parms, theta2 - 1.96*theta2_se)
+  p2_upper <- IRF(parms, theta2 + 1.96*theta2_se)
+  W <- w %*% t(rep(1, nrow(parms)))
+  temp <- p1_lower * p2_lower + W * (p1_upper + p2_upper - 2 * p1_upper * p2_upper)
+  #temp[temp >= .99999] <- .99999
+  #temp
+}
+
+
+l_WA2 <- function(resp, w, parms, theta1, theta2, theta1_se, theta2_se, Log = T, Sum = F) {
+  r <- WA2(w, parms, theta1, theta2, theta1_se, theta2_se)
+  temp <- apply(log(r) * (resp) + log(1-r) * (1-resp), 1, sum, na.rm = T)
+  if (Sum) {temp <- sum(temp)}
+  if (Log) {temp} else {exp(temp)}
+}
+
+grad_WA2 <- function(resp, w, parms, theta1, theta2, theta1_se, theta2_se, Sum = T) {
+  r <- WA2(w, parms, theta1, theta2, theta1_se, theta2_se)
+  p1_lower <- IRF(parms, theta1 - 1.96*theta1_se)
+  p1_upper <- IRF(parms, theta1 + 1.96*theta1_se)
+  p2_lower <- IRF(parms, theta2 - 1.96*theta2_se)
+  p2_upper <- IRF(parms, theta2 + 1.96*theta2_se)
+  n <- resp/r - (1 - resp)/(1 - r)
+  temp <- n * (p1_upper * (1 - p2_lower) + (1 - p1_lower) * p2_upper)
+  if (Sum) {apply(temp, 1, sum, na.rm = T)} else {temp}
+}
+
+info_WA2 <- function(resp, w, parms, theta1, theta2, theta1_se, theta2_se, type = "obs", Sum = T) {
+  r <- WA2(w, parms, theta1, theta2, theta1_se, theta2_se)
+  p1_lower <- IRF(parms, theta1 - 1.96*theta1_se)
+  p1_upper <- IRF(parms, theta1 + 1.96*theta1_se)
+  p2_lower <- IRF(parms, theta2 - 1.96*theta2_se)
+  p2_upper <- IRF(parms, theta2 + 1.96*theta2_se)
+  if (type == "obs") {
+    n <- resp/r^2 + (1 - resp)/(1 - r)^2
+  } else {
+    n <- 1/r/(1 - r)*!is.na(resp)
+  }
+  temp <- n * (p1_upper * (1 - p2_lower) + (1 - p1_lower) * p2_upper)^2
+  if (Sum) {apply(temp, 1, sum, na.rm = T)} else {temp}
+}
+
+
+mle_WA2 <- function(resp, parms, theta1, theta2, theta1_se, theta2_se, SE = "obs", starts = NULL, parallel = F) {
+  n_obs <- nrow(resp)
+  out <- data.frame(matrix(0, nrow = n_obs, ncol = 3))
+  names(out) <- c("logL", "w", "se")
+  if(is.null(starts)) starts <- rep(.5, n_obs)
+
+  logl <- function(w, resp, theta1, theta2, theta1_se, theta2_se) {
+    -1*l_WA2(resp, w, parms, theta1, theta2, theta1_se, theta2_se, Sum = T)
+  }
+
+  dlogl <- function(w, resp, theta1, theta2, theta1_se, theta2_se) {
+    -1*grad_WA2(resp, w, parms, theta1, theta2, theta1_se, theta2_se)
+  }
+
+  fun <- function(i) {
+    blocksize <- floor(n_obs/n_cores)
+    m <- (i-1)*blocksize + 1
+    if (i < n_cores) {n <- i*blocksize} else {n <- n_obs}
+    optim(starts[m:n], logl,
+             gr = dlogl,
+             resp = resp[m:n,],
+             theta1 = theta1[m:n],
+             theta2 = theta2[m:n],
+             theta1_se = theta1_se[m:n],
+             theta2_se = theta2_se[m:n],
+             method = "L-BFGS-B",
+             lower = rep(0, n-m+1),
+             upper = rep(1, n-m+1)
+             )$par
+  }
+  if(parallel){
+    n_cores <- parallel::detectCores()
+    out$w<- parallel::mclapply(1:n_cores, fun) %>% unlist
+  } else {
+    n_cores <- 1
+    out$w <- fun(1)
+  }
+  out$se <- 1/sqrt(info_WA2(resp, out$w, parms, theta1, theta2, theta1_se, theta2_se, type = SE))
+  out$logL <- l_WA2(resp, out$w, parms, theta1, theta2, theta1_se, theta2_se)
+  out
+}
+
 
 mle_WA <- function(resp, parms, theta1, theta2, SE = "obs", starts = NULL, parallel = F) {
   n_obs <- nrow(resp)
@@ -62,8 +171,8 @@ mle_WA <- function(resp, parms, theta1, theta2, SE = "obs", starts = NULL, paral
              theta1 = theta1[m:n],
              theta2 = theta2[m:n],
              method = "L-BFGS-B",
-             lower = rep(0, n-m+1),
-             upper = rep(1, n-m+1)
+             lower = rep(.000001, n-m+1),
+             upper = rep(.999999, n-m+1)
              )$par
   }
   if(parallel){

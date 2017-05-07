@@ -23,7 +23,9 @@ parms <- parms[!grepl(dif_items, row.names(parms)),]
 items <- paste(row.names(parms), collapse = "|")
 
 # Load collaboration data and split into forms
-collab <- read.csv("collaboration_2016.csv", check.names = F)
+collab <- read.csv("collaboration_2016_0.csv", check.names = F)
+#collab <- collab[!collab$group_id%in%collab$group_id[drops], ]
+head(collab)
 col_form <- format_resp(collab, row.names(parms), "COL")
 ind_form <- format_resp(collab, row.names(parms), "IND")
 
@@ -38,7 +40,6 @@ drop_groups <- c(
 
 col_form <-col_form[!collab$group_id%in%drop_groups,]
 ind_form <-ind_form[!collab$group_id%in%drop_groups,]
-
 # Reset odd for dropped items
 odd <- seq(1, nrow(col_form), by = 2)
 
@@ -46,12 +47,15 @@ odd <- seq(1, nrow(col_form), by = 2)
 ind <- MLE(ind_form, parms, WMLE = T)
 plot(ind$theta, ind$se)
 
+
 theta1 <- ind$theta[odd]
 theta2 <- ind$theta[odd+1]
 theta1_se <- ind$se[odd]
 theta2_se <- ind$se[odd+1]
+resp <- col_form[odd,]
 
-resp <- col_form[odd, ]
+resp <- cbind(ind_form, col_form)
+head(resp)
 
 # ------------------------------------------------------------
 #  WA parameter estimation
@@ -59,12 +63,48 @@ resp <- col_form[odd, ]
 set.seed(101)
 n_reps <- 250
 n_obs <- length(theta1)
+w <- rep(.5, n_obs)
 
+ell <- function(i, w){
+  nw <- length(w)
+  t1 <- rep(theta1[i], nw)
+  t2 <- rep(theta2[i], nw)
+  s1 <- rep(theta1_se[i], nw)
+  s2 <- rep(theta2_se[i], nw)
+  R <- matrix(as.numeric(resp[i,]), nrow = nw, ncol = ncol(resp), byrow = T)
+  l_WA2(R, w, parms, t1, t2, s1, s2)
+}
+
+w <- seq(0, 1, by = .01)
+i = 1
+
+y <- ell(i, w)
+plot(w, y, type = "l", main = ml$w[i])
+sum(resp[i,], na.rm = T)
+sum(ind_form[odd[i],], na.rm = T)
+sum(ind_form[odd[i]+1,], na.rm = T)
+resp[i,]
+theta1[i]
+theta2[i]
+w[which.max(y)]
+i = i + 1
+
+#MLE(ind_form[odd[i + 1],], parms, WMLE = T)
 # Estimate weights for empirical data
 ml <- mle_WA(resp, parms, theta1, theta2, SE = "exp")
+plot(ml$w, ml$se)
+ml <- mle_WA2(resp, parms, theta1, theta2, theta1_se, theta2_se, SE = "exp")
+sum(ml$w == 1)
+plot(ml$w, ml$se)
+
+plot(abs(theta1-theta2), ml$w)
+q <- apply(item_delta(parms, theta1, theta2, NA_pattern = resp), 1, mean, na.rm = T)
+plot(q, ml$w)
+hist(ml$w)
+
 
 # Generate plausible values for theta estimates
-pv <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, weights = ml$w)
+pv <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, weights = NA)
 
 # Estimate weights for generated data
 ml_pv <- mle_WA(pv[grep(items, names(pv))], parms, pv$theta1, pv$theta2, SE = "exp", starts = pv$w, parallel = T)
@@ -133,6 +173,7 @@ ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
 dim(pv)
 dim(resp)
 dim(parms)
+head(pv)
 # Expected log likelihoods
 p_add <- format_NA(cIRF("Add", parms, pv$theta1, pv$theta2), NA_pattern = resp)
 e_max <- likelihood("Max", p_add, parms, pv$theta1, pv$theta2)
@@ -146,7 +187,9 @@ e_wa2 <- l_WA(p_add, pv$w, parms, pv$theta1, pv$theta2)
 pl_wa <- 1 - (e_ai - e_wa)/(e_ai - e_ind)
 pl_wa2 <- 1 - (e_ai - e_wa2)/(e_ai - e_ind)
 plot(pl_wa, pl_wa2)
-pl_max <- 1 - (e_ai - e_max)/(e_ai - e_ind)
+pl_max <- (e_ai - e_max)
+
+/(e_ai - e_ind)
 
 # quantiles for wa model
 quant_wa <- tapply(pl_wa2, pv$pairs, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()

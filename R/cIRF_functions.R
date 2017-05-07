@@ -79,7 +79,7 @@ Max <- function(parms, theta1, theta2, sorted = F) {
 #' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
-AI <- function(parms, theta1, theta2, sorted = F) {
+Add <- function(parms, theta1, theta2, sorted = F) {
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
   p1 + p2 - p1 * p2
@@ -90,7 +90,7 @@ AI <- function(parms, theta1, theta2, sorted = F) {
 #'
 #' Computes a matrix of probabilities for correct responses using the named \code{model} for collaboration, and the 2PL model for the items.
 #'
-#' @param model one of \code{c("Ind", "Min", "Max", "AI", "IRF")}
+#' @param model one of \code{c("Ind", "Min", "Max", "Add", "IRF")}
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait for member 1.
 #' @param theta2 the latent trait for member 2.
@@ -99,11 +99,11 @@ AI <- function(parms, theta1, theta2, sorted = F) {
 #' @export
 
 cIRF <- function(model, parms, theta1, theta2, sorted = F) {
-  if (model %in% c("Ind", "Min", "Max", "AI", "IRF")) {
+  if (model %in% c("Ind", "Min", "Max", "Add", "IRF")) {
     fun <- match.fun(model)
     fun(parms, theta1, theta2, sorted)
   } else {
-    cat("\'model\' must be one of c(\"Ind\", \"Min\", \"Max\", \"AI\", \"IRF\")")
+    cat("\'model\' must be one of c(\"Ind\", \"Min\", \"Max\", \"Add\", \"IRF\")")
   }
 }
 
@@ -130,7 +130,7 @@ item_delta <- function(parms, theta1, theta2, sorted = F, NA_pattern = NULL) {
 #' Note that \code{logL} is faster for 2PL.
 #'
 #' @param resp the matrix of binary responses.
-#' @param models is one or more of \code{c("IRF", "Ind", "Min", "Max", "AI") }.
+#' @param models is one or more of \code{c("IRF", "Ind", "Min", "Max", "Add") }.
 #' @param parms a named list or data.frame with parms$alpha and parms$beta corresponding. to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait for member 1.
 #' @param theta2 the latent trait for member 2.
@@ -224,7 +224,7 @@ prior_se <- function(components, mix_prop) {
 #'
 #' Only the mixing proportions are estimated.
 #'
-#' @param models one or more of \code{c("Ind", "Min", "Max", "AI") }
+#' @param models one or more of \code{c("Ind", "Min", "Max", "Add") }
 #' @param resp data.frame of binary, conjunctively scored \strong{collaborative responses}
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
 #' @param theta1 the latent trait for member 1
@@ -272,11 +272,9 @@ EM <- function(models, resp, parms, theta1, theta2, sorted = F, max_iter = 100, 
 #' @return a data.frame that results from padding and deleting \code{resp} as described.
 #' @export
 
-format_resp <- function(resp, items, version = NULL) {
-  if (!is.null(version)) {
-    resp <- resp[grep(version, names(resp))]
-  }
-  names(resp) <- substr(names(resp), 1, 5)
+format_resp <- function(resp, items, version) {
+  resp <- resp[grep(version, names(resp))]
+  items <- paste0(items, "_", version)
   resp <- resp[names(resp)%in%items]
   resp[items[!items%in%names(resp)]] <- NA
   resp <- resp[items]
@@ -287,7 +285,7 @@ format_resp <- function(resp, items, version = NULL) {
 #--------------------------------------------------------------------------
 #' Simulate item responses from the 2PL or a model of pairwise collaboration obtained from the 2PL. Called by \code{data_gen}.
 
-#' @param model is one of \code{c("IRF", "Ind", "Min", "Max", "AI") }.
+#' @param model is one of \code{c("IRF", "Ind", "Min", "Max", "Add") }.
 #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait for member 1.
 #' @param theta2 the latent trait for member 2.
@@ -409,8 +407,8 @@ pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, mo
 data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
 
   # Set up parms
-  #models <- c("Ind", "Min", "Max", "AI")
-  models <- c("Ind", "Max", "AI")
+  #models <- c("Ind", "Min", "Max", "Add")
+  models <- c("Ind", "Max", "Add")
 
   n_obs <- length(theta1)
   if (is.null(dim(mix_prop))) {
@@ -561,7 +559,7 @@ raster_plot <-function(mix_prop, sort = F, grey_scale = F) {
   }
 
   temp <- data.frame(cbind(1:nrow(mix_prop), mix_prop))
-  names(temp) <- c("pair", "Ind", "Min", "Max", "AI")
+  names(temp) <- c("pair", "Ind", "Min", "Max", "Add")
 
   gg <- reshape(temp,
     varying = names(temp)[-1],
@@ -570,7 +568,7 @@ raster_plot <-function(mix_prop, sort = F, grey_scale = F) {
     times = names(temp)[-1],
     direction = "long"
   )
-  gg$model <- ordered(gg$model, c("Ind", "Min", "Max", "AI"))
+  gg$model <- ordered(gg$model, c("Ind", "Min", "Max", "Add"))
 
   #NYU <- rgb(87, 6, 140, maxColorValue = 255)
   # scale_fill_gradient2( high=muted('NYU'))
@@ -603,7 +601,7 @@ raster_plot <-function(mix_prop, sort = F, grey_scale = F) {
 # #' Computes a likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
 # #'
 # #' @param resp the matrix binary data from the conjunctively scored \strong{collaborative responses}
-# #' @param model is one or more of \code{c("Ind", "Min", "Max", "AI") }
+# #' @param model is one or more of \code{c("Ind", "Min", "Max", "Add") }
 # #' @param alpha the item discriminations of (only) the resp items
 # #' @param beta the item difficulties of (only) the resp items
 # #' @param ind_theta the \code{nrow(resp)*2}-dimensional vector of latent traits for each member, as estimated from a non-collaborative form
@@ -703,7 +701,7 @@ raster_plot <-function(mix_prop, sort = F, grey_scale = F) {
 # sim_data_old <- function(n_obs, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
 #
 #   # Expand data generating parms
-#   models <- c("Ind", "Min", "Max", "AI")
+#   models <- c("Ind", "Min", "Max", "Add")
 #   n_long <- length(theta1)*n_obs
 #   pairs_long <- rep(1:length(theta1), each = n_obs)
 #   mix_prop_long <- kronecker(mix_prop, rep(1, n_obs))
@@ -758,7 +756,7 @@ raster_plot <-function(mix_prop, sort = F, grey_scale = F) {
 #
 # lr_test <- function(resp, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, n_boot = 0) {
 #
-#   models <- c("Ind", "Min", "Max", "AI")
+#   models <- c("Ind", "Min", "Max", "Add")
 #   items <- row.names(parms)
 #
 #   # Helper function for computing P(x > obs)

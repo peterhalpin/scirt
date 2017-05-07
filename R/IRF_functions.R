@@ -68,7 +68,7 @@ d2IRF <- function(parms, theta) {
 #' @export
 
 I <- function(resp, parms, theta) {
-  p <- IRF(parms, theta)
+  p <- IRF(parms, theta)*!is.na(resp)
   q <- 1 - p
   temp <-  t(parms$alpha^2 * t(p * q))  # faster with 2PL
   # temp <- dIRF(parms, theta)^2 / p / q  # too slow with 2PL
@@ -87,7 +87,7 @@ I <- function(resp, parms, theta) {
 #' @export
 
 J <- function(resp, parms, theta) {
-  p <- IRF(parms, theta)
+  p <- IRF(parms, theta)*!is.na(resp)
   q <- 1 - p
   temp <- t(parms$alpha^3 * t(p * q * (1 - 2 * p))) # faster with 2PL
   # temp <- dIRF(parms, theta) * d2IRF(parms, theta) / p / q # too slow with 2PL
@@ -106,7 +106,7 @@ J <- function(resp, parms, theta) {
 #' @export
 
 dJ <- function(resp, parms, theta) {
-  p <- IRF(parms, theta)
+  p <- IRF(parms, theta)*!is.na(resp)
   q <- 1 - p
   temp <- t(parms$alpha^4 * t(p * q * (1 - 6 * p * q) ))
   apply(temp, 1, sum, na.rm = T)
