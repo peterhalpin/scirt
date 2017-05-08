@@ -2,21 +2,20 @@
 # Functions for computing bootstrapped LRtests of collaboration models.
 # User beware: functions not written to check or handle input errors.
 
-WA <- function(w, parms, theta1, theta2) {
-  p1 <- Min(parms, theta1, theta2)
-  p2 <- Max(parms, theta1, theta2)
-  W <- w %*% t(rep(1, nrow(parms)))
-  temp <- W * (2 * p2 - p2^2 ) +  p1^2
-  temp[temp >= .99999] <- .99999
-  temp
-}
+# WA <- function(w, parms, theta1, theta2) {
+#   p1 <- Min(parms, theta1, theta2)
+#   p2 <- Max(parms, theta1, theta2)
+#   W <- w %*% t(rep(1, nrow(parms)))
+#   temp <- W * (2 * p2 - p2^2 ) +  p1^2
+#   temp[temp >= .99999] <- .99999
+#   temp
+# }
 
 WA <- function(w, parms, theta1, theta2) {
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
   W <- w %*% t(rep(1, nrow(parms)))
   W * (p1 + p2) + (1 - 2 * W) * p1 * p2
-  W * (p1 + p2 - p1 * p2)
 }
 
 l_WA <- function(resp, w, parms, theta1, theta2, Log = T, Sum = F) {
@@ -26,6 +25,14 @@ l_WA <- function(resp, w, parms, theta1, theta2, Log = T, Sum = F) {
   if (Log) {temp} else {exp(temp)}
 }
 
+map_WA <- function(resp, a, parms, theta1, theta2, Log = T, Sum = F) {
+  w <- exp(a) / (1 + exp(a))
+  p <- WA(w, parms, theta1, theta2)
+  temp <- apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
+  temp <- temp - .5 * a^2
+  if (Sum) {temp <- sum(temp)}
+  if (Log) {temp} else {exp(temp)}
+}
 
 grad_WA <- function(resp, w, parms, theta1, theta2, Sum = T) {
   r <- WA(w, parms, theta1, theta2)
