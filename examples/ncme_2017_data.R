@@ -8,6 +8,10 @@ source("~/github/cirt/R/IRF_functions.R")
 NYU <- rgb(87, 6, 140, maxColorValue = 255)
 
 
+
+a <- seq(0, 1, by = .01)
+plot(a, dbeta(a, 1.025, 1.025), type = "l")
+abline(a = 1, b = 0, col = 2)
 # ------------------------------------------------------------
 # Load data and estimate individual thetas
 # ------------------------------------------------------------
@@ -54,7 +58,7 @@ theta1_se <- ind$se[odd]
 theta2_se <- ind$se[odd+1]
 resp <- col_form[odd,]
 
-#resp <- cbind(ind_form, col_form)
+resp <- cbind(ind_form, col_form)
 head(resp)
 
 
@@ -64,8 +68,6 @@ head(resp)
 set.seed(101)
 n_reps <- 250
 n_obs <- length(theta1)
-w <- rep(.5, n_obs)
-a <- s(.5, n_obs)
 
 ell <- function(i, w){
   nw <- length(w)
@@ -73,21 +75,14 @@ ell <- function(i, w){
   t2 <- rep(theta2[i], nw)
   s1 <- rep(theta1_se[i], nw)
   s2 <- rep(theta2_se[i], nw)
-  R <- matrix(as.numeric(resp[i,]), nrow = nw, ncol = ncol(resp), byrow = T)
+  R <- matrix(as.numeric(resp[i,col]), nrow = nw, ncol = nrow(parms), byrow = T)
   m_WA(R, w, parms, t1, t2)
 }
 
-e <- function(a){
-  exp(a) / (1 + exp(a))
-}
-
-w <- seq(0, 1, by = .01)
-a <- seq(-4, 4, by = .1)
-w <- e(a)
+w <- seq(0.0001, .99999, by = .01)
 i = 1
 
-
-y <- ell(i, a)
+y <- ell(i, w)
 plot(w, y, type = "l", main = round(c(w[which.max(y)], ml$w[i]), 3))
 sum(resp[i,], na.rm = T)
 sum(ind_form[odd[i],], na.rm = T)
@@ -97,19 +92,55 @@ theta1[i]
 theta2[i]
 w[which.max(y)]
 i = i + 1
+col <- grep("COL", names(resp))
 
-map <- map_WA(resp[1:20,], parms, theta1[1:20], theta2[1:20], SE = "obs")
-sqrt(1/(diag(map$hessian)) * e(map$par)^2 * (1-e(map$par))^2)
-ml$se[1:20]
-plot(e(map$par), ml$w[1:20])
+map <- map_WA(resp[odd,col], parms, theta1, theta2, SE = "exp")
+map
+ml <- mle_WA(resp, parms, theta1, theta2, SE = "exp")
+plot(map$w, ml$w)
 abline(a = 0, b = 1)
+plot(map$w, map$psd)
+plot(map$psd, ml$se)
+abline(a = 0, b = 1)
+
+
+m <- function(par, resp) {
+  -1*m_full(resp, par[1], parms, par[2], par[3])
+}
+m(c(.999, -5, -5), resp[c(odd[i], odd[i]+ 1),])
+
+i = 7
+  q <- optim(c(.5,0,0),
+         m,
+         resp = resp[c(odd[i], odd[i]+ 1),],
+         #method = "Nelder-Mead",
+         method = "L-BFGS-B",
+         lower = c(.00001, -4, -4),
+         upper = c(.99999, 4, 4),
+         hessian = T
+         )
+
+q$par
+sqrt(diag(solve(q$hessian)))
+theta1[i]
+theta2[i]
+theta1_se[i]
+theta2_se[i]
+map[i,]
+
+
+points(ml$w, ml$se, col = 2)
+
+
+hist(map$w)
+
 sqrt(1/diag(map$hessian))/10
 #MLE(ind_form[odd[i + 1],], parms, WMLE = T)
 # Estimate weights for empirical data
-ml <- mle_WA(resp, parms, theta1, theta2, SE = "obs")
+ml <- mle_WA(resp, parms, theta1, theta2, SE = "exp")
 plot(ml$w, ml$se)
 
-ml <- mle_WA2(resp, parms, theta1, theta2, theta1_se, theta2_se, SE = "exp")
+ml <- mle_WA2(resp, parms, theta1, theta2, theta1_se, theta2_se, SE = "obs")
 sum(ml$w == 1)
 plot(ml$w, ml$se)
 
