@@ -29,7 +29,7 @@ IRF <-function(parms, theta1, theta2 = NULL, sorted = F) {
 }
 
 #--------------------------------------------------------------------------
-#' First deriviate of 2PL in theta
+#' First deriviate of 2PL IRF in theta
 #'
 #' Used for obtaining SEs of theta and computing WMLE.
 #'
@@ -43,7 +43,7 @@ dIRF <-function(parms, theta) {
 }
 
 #--------------------------------------------------------------------------
-#' Second derivative of 2PL in theta
+#' Second derivative of 2PL IRF in theta
 #'
 #' Used for obtaining SEs of theta and computing WMLE.
 #'
@@ -53,7 +53,7 @@ dIRF <-function(parms, theta) {
 #' @export
 
 d2IRF <- function(parms, theta) {
-  t(parms$alpha^2 * t(dIRF(parms, theta) * (1 - 2 * IRF(parms, theta))))
+  t(parms$alpha * t(dIRF(parms, theta) * (1 - 2 * IRF(parms, theta))))
 }
 
 #--------------------------------------------------------------------------
@@ -201,3 +201,11 @@ MLE <-function(resp, parms, WMLE = T, parallel = T) {
   out$logL <- logL(resp, parms, out$theta)
   out
 }
+
+
+  fun <- function(par, resp){
+    logL(resp, parms, theta)
+  }
+
+optim
+MLE

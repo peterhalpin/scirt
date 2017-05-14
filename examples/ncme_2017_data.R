@@ -22,7 +22,7 @@ parms <- read.csv("calibration_parms.csv", row.names = 1)
 summary(parms)
 
 # Drop DIF items
-dif_items <- "045|065"
+#dif_items <- "045|065"
 parms <- parms[!grepl(dif_items, row.names(parms)),]
 items <- paste(row.names(parms), collapse = "|")
 
@@ -61,6 +61,15 @@ resp <- col_form[odd,]
 resp <- cbind(ind_form, col_form)
 head(resp)
 
+q <- est_WA(resp, parms, SE = "exp", method = "map", parallel = F)
+hist(q$w)
+plot(q$w, q$w_se)
+plot(q$theta1, q$theta1_se)
+plot(q$theta2, q$theta2_se)
+
+
+
+
 
 # ------------------------------------------------------------
 #  WA parameter estimation
@@ -68,6 +77,7 @@ head(resp)
 set.seed(101)
 n_reps <- 250
 n_obs <- length(theta1)
+w <- runif(n_obs, 0, 1)
 
 ell <- function(i, w){
   nw <- length(w)
@@ -79,7 +89,7 @@ ell <- function(i, w){
   m_WA(R, w, parms, t1, t2)
 }
 
-w <- seq(0.0001, .99999, by = .01)
+w <- seq(0.0001, .99999, by = .1)
 i = 1
 
 y <- ell(i, w)
