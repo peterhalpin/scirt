@@ -201,11 +201,3 @@ MLE <-function(resp, parms, WMLE = T, parallel = T) {
   out$logL <- logL(resp, parms, out$theta)
   out
 }
-
-
-  fun <- function(par, resp){
-    logL(resp, parms, theta)
-  }
-
-optim
-MLE
