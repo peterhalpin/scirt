@@ -1,6 +1,6 @@
 # devtools::install_github("peterhalpin/cirt")
 # library("cirt")
-
+rm(list = ls())
 library("ggplot2")
 library("dplyr")
 source("~/github/cirt/R/cIRF_functions.R")
@@ -22,7 +22,7 @@ parms <- parms[!grepl(dif_items, row.names(parms)),]
 items <- paste(row.names(parms), collapse = "|")
 
 # Load collaboration data and split into forms
-collab <- read.csv("collaboration_2016.csv", check.names = F)
+collab <- read.csv("collaboration_2016_0.csv", check.names = F)
 col_form <- format_resp(collab, row.names(parms), "COL")
 ind_form <- format_resp(collab, row.names(parms), "IND")
 
@@ -30,20 +30,21 @@ ind_form <- format_resp(collab, row.names(parms), "IND")
 odd <- seq(1, nrow(col_form), by = 2)
 col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
 
-# Drop 13 unsuable response patterns (all 1 or all 0)
-drop_groups <- c(
-  collab$group_id[apply(col_form, 1, mean, na.rm = T) %in% c(1,0)],
-  collab$group_id[apply(ind_form, 1, mean, na.rm = T) %in% c(1,0)])
+# Drop 12 unsuable response patterns (all 1 or all 0)?
+drop_group <- c(
+  collab$group_id[apply(col_form, 1, mean, na.rm = T) %in% c(0,1)],
+  collab$group_id[apply(ind_form, 1, mean, na.rm = T) %in% c(0,1)]) %>% unique
 
-col_form <-col_form[!collab$group_id%in%drop_groups,]
-ind_form <-ind_form[!collab$group_id%in%drop_groups,]
+col_form <-col_form[!collab$group_id%in%drop_group,]
+ind_form <-ind_form[!collab$group_id%in%drop_group,]
 
-# Reset odd for dropped items
-odd <- seq(1, nrow(col_form), by = 2)
 
 # Estimate theta for ind forms
 ind <- MLE(ind_form, parms, WMLE = T)
 plot(ind$theta, ind$se)
+
+# Reset odd for dropped items
+odd <- seq(1, nrow(col_form), by = 2)
 
 theta1 <- ind$theta[odd]
 theta2 <- ind$theta[odd+1]
@@ -51,66 +52,116 @@ theta1_se <- ind$se[odd]
 theta2_se <- ind$se[odd+1]
 
 resp <- col_form[odd, ]
-q <- apply(is.na(resp), 1, sum) - 25
+
+
 
 # ------------------------------------------------------------
-#  WA parameter recovery
+#  EM + PV
 # ------------------------------------------------------------
 
-ml <- mle_WA(resp, parms, theta1, theta2, SE = "exp")
-pv <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, weights = ml$w)
-dim(pv)
-ml_pv <- mle_WA(pv[grep(items, names(pv))], parms, pv$theta1, pv$theta2, SE = "exp", starts = pv$w, parallel = T)
-pv <- cbind(pv, ml_pv)
-head(pv)
+# Constants
+n_reps <- 250
+n_obs <- length(theta1)
+rep_order <- order(rep(1:length(theta1), times = n_reps))
+models <- c("Ind", "Min", "Max", "AI")
+Models <- ordered(models, models)
+n_models <- 3
 
-pv_w <- tapply(pv$w, pv$pairs, mean)
-var_w <- tapply(pv$se^2, pv$pairs, mean)
-var_b <- tapply(pv$w, pv$pairs, var)
+# Run EM on observed data
+em <- EM(models, resp, parms, theta1, theta2)
+em$prior
+# Generate PV
+set.seed(101)
+pv <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se)
+
+# Run EM on PV data
+fun <- function(i){
+  ind <- pv$samples == i
+  temp <- pv[ind, grep(items, names(pv))]
+  EM(models, temp, parms, pv$theta1[ind], pv$theta2[ind], sorted = T)
+}
+
+temp_em <- parallel::mclapply(1:n_reps, fun)
+
+# Save priors and se
+out <- lapply(temp_em, function(x) c(x$prior, x$se^2)) %>% unlist %>% matrix(nrow = n_reps, ncol = n_models*2, byrow = T) %>% data.frame
+names(out) <- paste0(rep(c("prior", "se"), each = n_models), 1:n_models)
+out <- out[!apply(is.na(out), 1, sum) > 0,]
+
+# Save posteriors
+temp <- lapply(temp_em, function(x) x$posterior) %>% {do.call(rbind, .)}
+pv[models] <- temp[rep_order,]
+
+# Compute PV on priors
+pv_prior <- apply(out[1:n_models], 2, mean)
+var_w <- apply(out[(n_models+1):(n_models*2)], 2, mean)
+var_b <- apply(out[1:n_models], 2, var)
 pv_se <- sqrt(var_w + (1 + 1/n_reps) * var_b)
-
+var_increase <- (1 + 1/n_reps) * var_b/var_w
+var_prop <- (1 + 1/n_reps) * var_b/pv_se^2
 summary(var_prop)
 summary(var_increase)
 
-plot(ml$w, pv_w)
-plot(sqrt(var_w), pv_se)
-plot(ml$se, pv_se)
-abline(a=0,b=1)
+# Table of parameters
+temp <- rbind(em$prior, em$se, pv_prior, pv_se, var_increase)
+row.names(temp) <- c("em_prior", "em_se", "pv_prior", "pv_se", "var_increase")
+colnames(temp) <- models
+xtable::xtable(temp, digits = 3)
+round(temp, 4)
+
 
 
 # ------------------------------------------------------------
-# Goodness of fit
+# Person fit using contribution to likelihood
+# Using prior or posterior? Posterior is more consistent with person fit...
 # ------------------------------------------------------------
 
-logL <- ml$logL
-sim <- data_gen(n_reps, pv_w, parms, theta1, theta2, NA_pattern = resp)
-temp <- mle_WA(sim[grep(items, names(sim))], parms, sim$theta1, sim$theta2, SE = "exp", starts = sim$w, parallel = T)
-sim <- cbind(sim, temp)
-head(sim)
+# Get observed values
+components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
 
-quant <- tapply(sim$logL, sim$pairs, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+# Using PV posterior
+#logl <- incomplete_data(components, em$posterior, Sum = F)
+#mix_prop <- em$posterior
+
+# Using PV prior
+logl <- incomplete_data(components, pv_prior, Sum = F)
+mix_prop <- matrix(pv_prior, nrow = n_obs, ncol = n_models, byrow = T)
+
+# Simulate null distribution
+set.seed(101)
+temp <- data_gen(n_reps, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, NA_pattern = resp)
+
+temp_components <- likelihood(models, temp[,grep(items, names(temp))], parms, temp$theta1, temp$theta2, sorted = T, Log = F)
+
+temp_logl <- incomplete_data(temp_components, temp[models], Sum = F)
+
+# Get quantiles
+quant <- tapply(temp_logl, temp$pair, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
 
 # Visual key for misfit
-fit <- rep("<.95", times = length(theta1))
-fit[logL < quant[,2]] <- ">.95"
-fit <- ordered(fit, c(">.95", "<.95"))
+fit <- rep(1, times = length(theta1))
+fit[logl < quant[,2]] <- 0
+fit <- as.factor(fit)
 
-# Set up and plot
-gg <- data.frame(-2*sim$logL, -2*rep(logL, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
+# Plot
+gg <- data.frame(-2*temp_logl, -2*rep(logl, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
 
 names(gg) <- c("l_dist", "l_obs", "fit", "median")
 gg <- gg[order(gg$median), ]
 gg$pair <- rep(1:length(theta1), each = n_reps)
+e1 <- expression(phantom(0) %in% ".95 CI")
+e2 <- expression(phantom(0) %notin% ".95 CI")
 
 ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
-  geom_boxplot(outlier.size = 0, outlier.color = "grey90", aes(fill = fit)) +
+  geom_boxplot(outlier.size = 0, outlier.color = "grey90", size = .1, aes(fill = fit)) +
   geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
-  scale_shape_manual(values = c(4, 20)) +
-  scale_fill_grey(start = 0.1, end = 0.8) +
+  scale_shape_manual(values = c(4, 20), guide = F) +
   xlab("Groups") +
   ylab("-2 * loglikelihood") +
-  scale_size_manual(values = c(4, 1)) +
-  theme(legend.title=element_blank())
+  scale_size_manual(values = c(4, 1), guide = F) +
+  ylim(c(0, 45)) +
+  theme_set(theme_grey(base_size = 15)) +
+  scale_fill_grey(start = 0.1, end = 0.6, breaks=c(1, 0), name = "", labels=c(e1, e2))
 
 
 # ------------------------------------------------------------
@@ -118,64 +169,72 @@ ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
 # ------------------------------------------------------------
 
 # Expected log likelihoods
-n_obs = 151
-p_add <- format_NA(cIRF("AI", parms, pv$theta1, pv$theta2), NA_pattern = resp)
-e_max <- likelihood("Max", p_add, parms, pv$theta1, pv$theta2)
-e_ai <- likelihood("AI", p_add, parms, pv$theta1, pv$theta2)
-e_ind <- likelihood("Ind", p_add, parms, pv$theta1, pv$theta2)
-e_wa <- l_WA(p_add, rep(pv_w, each = n_reps) , parms, pv$theta1, pv$theta2)
+p_ai <- format_NA(cIRF("AI", parms, pv$theta1, pv$theta2), NA_pattern = resp)
+#p_ai <-  cIRF("AI", parms, pv$theta1, pv$theta2)
+e_max <- likelihood("Max", p_ai, parms, pv$theta1, pv$theta2, sorted = T)
+e_ai <- likelihood("AI", p_ai, parms, pv$theta1, pv$theta2)
+e_ind <- likelihood("Ind", p_ai, parms, pv$theta1, pv$theta2)
 
-pl_wa <- round(1 - (e_ai - e_wa)/(e_ai - e_ind), 3)
-pl_max <- round(1 - (e_ai - e_max)/(e_ai - e_ind), 3)
+out_prior <- lapply(pv_prior, function(x) rep(x, times = n_obs*n_reps)) %>% data.frame
+components <- likelihood(models, p_ai, parms, pv$theta1, pv$theta2, sorted = T)
 
-# Process loss
+e_mod <-  apply(components * pv[models], 1, sum)
+# + apply(log(out_prior) * pv[models], 1, sum, na.rm = T) -
+#    apply(log(pv[models])* pv[models], 1, sum, na.rm = T)
 
-quant_wa <- tapply(pl_wa, pv$pairs, function(x) quantile(x, p = c(.5, .05))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+pl_mod <- 1 - (e_ai - e_mod) / (e_ai - e_ind)
+pl_max <- 1 - (e_ai - e_max) / (e_ai - e_ind)
+min(pl_mod)
 
-quant_max <- tapply(pl_max, pv$pairs, function(x) quantile(x, p = c(.5, .95))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
+# quantiles for mix model
+quant_mod <- tapply(pl_mod, pv$pairs, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
 
-ind <- order(rep(quant_wa[,1], each = n_reps))
+# quantiles for max model
+quant_max <- tapply(pl_max, pv$pairs, function(x) quantile(x, p = c(.5, .975))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
 
-# fix this for mean difference or non-overlapping CI -------------------
+# order groups my wa medians
+ind <- order(rep(quant_mod[,1], each = n_reps))
+sum(quant_mod[,2] > quant_max[,1])/n_obs
 
-ref <- rep(as.factor(quant_wa[,2] > quant_max[2]), each = n_reps)
-levels(ref) <- c("", "> Max")
-ref2 <- rep(tapply(pl_max, pv$pair, mean), each = n_reps)
-length(pl_max)
 
-gg <- data.frame(pl_max[ind], pl_wa[ind], ref[ind], ref2[ind], rep(1:n_obs, each = n_reps))
-names(gg) <- c("max", "obs", "ref", "ref2", "pair")
+# overlapping 95% confidence intervals for wa and max?
+overlap <- rep(as.factor(quant_mod[,2] > quant_max[,1]), each = n_reps)
+levels(overlap) <- c("< Max", "> Max")
+
+
+gg <- data.frame(pl_max[ind], pl_mod[ind], overlap[ind], rep(1:n_obs, each = n_reps))
+names(gg) <- c("max", "obs", "overlap", "pair")
 head(gg)
 
-ggplot(gg, aes(x = pair, y = obs, fill = ref)) +
+ggplot(gg, aes(x = pair, y = obs, fill = overlap)) +
   geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .2) +
-  scale_fill_manual(values = c("grey50", "red")) +
-  ylab("1 - process loss") +
-  xlab("Pair") +
-  theme(legend.title=element_blank())
-
-
-ggplot(gg, aes(x = pair, y = obs, fill = ref)) +
-  geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .2) +
-  scale_fill_manual(values = c("grey50", "red")) +
+  scale_fill_manual(values = c("grey50", 5)) +
   ylab("1 - process loss") +
   xlab("Pair") +
   theme(legend.title=element_blank()) +
-  geom_rect(aes(xmin = 70 - .05, xmax = 151 + 0.5, ymin = .8 - 0.05, ymax = 1 + 0.05),
-               fill = "transparent", color = "red", size = 1.5)
+  theme_set(theme_grey(base_size = 15)) +
+  geom_rect(aes(xmin = 125, xmax = 162, ymin = .9, ymax = 1.02),
+                 fill = "transparent", color = "transparent", size = 1.5)
 
 
-ggplot(gg[gg$pair > 70, ], aes(x = pair, y = obs, fill = ref)) +
+ggplot(gg, aes(x = pair, y = obs, fill = overlap)) +
+  geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .2) +
+  scale_fill_manual(values = c("grey50", 5)) +
+  ylab("1 - process loss") +
+  xlab("Pair") +
+  theme(legend.title=element_blank()) +
+  geom_rect(aes(xmin = 80, xmax = 162, ymin = .8, ymax = 1.02),
+               fill = "transparent", color = 5, size = 1.5)
+
+
+ggplot(gg[gg$pair > 76, ], aes(x = pair, y = obs, fill = overlap)) +
   geom_boxplot(aes(group = pair), outlier.size = 0, outlier.color = "grey90", size = .3) +
-  scale_fill_manual(values = c("grey50", "red")) +
+  scale_fill_manual(values = c("grey50", 5)) +
   ylab("1 - process loss") +
   xlab("Pair") +
+  ylim(c(.75, 1)) +
   theme(legend.title=element_blank()) +
-  theme(panel.border = element_rect(colour = "red", fill = NA, size = 1.5))
-
-
-
-24/151
+  theme(panel.border = element_rect(colour = 5, fill = NA, size = 1.5))
 
 
 
@@ -189,67 +248,7 @@ ggplot(gg[gg$pair > 70, ], aes(x = pair, y = obs, fill = ref)) +
 
 
 
-# ------------------------------------------------------------
-#  EM
-# ------------------------------------------------------------
 
-# Constants
-n_reps <- 100
-n_obs <- length(theta1)
-rep_order <- order(rep(1:length(theta1), times = n_reps))
-models <- c("Ind", "Min", "Max", "AI")
-Models <- ordered(models, models)
-n_models <- 4
-
-em <- EM(models, resp, parms, theta1, theta2)
-
-# mixing proportions
-round(em$prior, 3)
-round(em$se, 3)
-
-# classification probabilities
-classify <- class_probs(em$posterior)
-round(classify, 3)
-
-# ------------------------------------------------------------
-# Plausible Values
-# ------------------------------------------------------------
-set.seed(101)
-pv_data <- pv_gen(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se)
-
-# Run EM on pv data
-fun <- function(i){
-  ind <- pv_data$samples == i
-  temp <- pv_data[ind, grep(items, names(pv_data))]
-  EM(models, temp, parms, pv_data$theta1[ind], pv_data$theta2[ind], sorted = T)
-}
-
-temp_em <- parallel::mclapply(1:n_reps, fun)
-
-# Save priors and se
-out <- lapply(temp_em, function(x) c(x$prior, x$se^2)) %>% unlist %>% matrix(nrow = n_reps, ncol = 8, byrow = T) %>% data.frame
-names(out) <- paste0(rep(c("prior", "se"), each = n_models), 1:n_models)
-
-# Save posteriors
-temp <- lapply(temp_em, function(x) x$posterior) %>% {do.call(rbind, .)}
-pv_data[models] <- temp[rep_order,]
-
-
-# ------------------------------------------------------------
-# PV priors
-# ------------------------------------------------------------
-
-mean_out <- apply(out, 2, mean, na.rm = T)
-var_out <- apply(out, 2, var, na.rm = T)
-pv_prior <- round(mean_out[1:4], 3)
-pv_se <- sqrt(mean_out[5:8] + (1 + 1/n_reps) * var_out[1:4])
-pvl <- (1 + 1/n_reps) * var_out[1:4]/mean_out[5:8]
-
-temp <- rbind(em$prior, em$se, pv_prior, pv_se, pvl)
-row.names(temp) <- c("em_prior", "em_se", "pv_prior", "pv_se", "pvl")
-colnames(temp) <- models
-xtable::xtable(temp, digits = 3)
-round(temp, 4)
 
 
 # ------------------------------------------------------------
@@ -545,52 +544,6 @@ summary(temp$Age)
 
 
 
-# ------------------------------------------------------------
-# Person fit using contribution to likelihood
-# ------------------------------------------------------------
-
-# Get observed values
-components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
-logL <- incomplete_data(components, em$posterior, Sum = F)
-
-logL <- incomplete_data(components, em$prior, Sum = F)
-
-# Simulate null distribution
-mix_prop <- em$posterior
-mix_prop <- matrix(em$prior, nrow = n_obs, ncol = n_models, byrow = T)
-
-set.seed(101)
-temp <- data_gen(n_reps, mix_prop, parms, theta1, theta2, theta1_se, theta2_se, NA_pattern = resp)
-
-temp_components <- likelihood(models, temp[,grep(items, names(temp))], parms, temp$theta1, temp$theta2, sorted = T, Log = F)
-
-temp_logL <- incomplete_data(temp_components, temp[models], Sum = F)
-
-# Get quantiles
-quant <- tapply(temp_logL, temp$pair, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = length(theta1)) %>% t()
-
-# Visual key for misfit
-fit <- rep("<.95", times = length(theta1))
-fit[logL < quant[,2]] <- ">.95"
-fit <- ordered(fit, c(">.95", "<.95"))
-
-# Set up and plot
-gg <- data.frame(-2*temp_logL, -2*rep(logL, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
-
-names(gg) <- c("l_dist", "l_obs", "fit", "median")
-gg <- gg[order(gg$median), ]
-gg$pair <- rep(1:length(theta1), each = n_reps)
-
-ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
-  geom_boxplot(outlier.size = 0, outlier.color = "grey90", aes(fill = fit)) +
-  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
-  scale_shape_manual(values = c(4, 20)) +
-  scale_fill_grey(start = 0.1, end = 0.8) +
-  xlab("Groups") +
-  ylab("-2 * loglikelihood") +
-  scale_size_manual(values = c(4, 1)) +
-  theme(legend.title=element_blank())
-
 
 #------------------------------------------------------------
 # DIF: Items 45 and 65 identified as problematic in scalar model
@@ -631,7 +584,7 @@ ggplot(gg, aes(x = calib_beta, y = collab_beta)) +
   theme(legend.position = "none") +
   scale_shape_manual(values = c(20, 4)) +
   scale_color_manual(values = c("black", "red")) +
-  scale_size_manual(values = c(2, 4))
+  scale_size_manual(values = c(3, 4))
 
 
 
