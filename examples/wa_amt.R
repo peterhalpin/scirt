@@ -31,7 +31,6 @@ parms <- rbind(col_parms, ind_parms)
 
 # Load collaboration data and split into forms
 collab <- read.csv("collaboration_2016_0.csv", check.names = F)
-head(collab)
 col_form <- format_resp(collab, row.names(temp_parms), "COL")
 ind_form <- format_resp(collab, row.names(temp_parms), "IND")
 
@@ -46,6 +45,7 @@ drop_groups <- c(
 
 col_form <-col_form[!collab$group_id%in%drop_groups,]
 ind_form <-ind_form[!collab$group_id%in%drop_groups,]
+
 # Reset odd for dropped items
 odd <- seq(1, nrow(col_form), by = 2)
 
@@ -55,21 +55,23 @@ head(resp)
 # Estimate RSC
 est <- est_WA(resp, parms, SE = "exp", method = "map", parallel = F)
 
-est$lower <- est$w - 1.96*est$w_se
-est$upper <- est$w + 1.96*est$w_se
-est$lower[est$lower < 0] <- 0
-est$upper[est$upper < 0] <- 0
-est$lower[est$lower > 1] <- 1
-est$upper[est$upper > 1] <- 1
-head(est)
-est <- est[order(est$w), ]
-est$group <- 1:nrow(est)
-est$Ability <- "Within 1 SD"
-est$Ability[abs(est$theta1 - est$theta2) > .5] <- "Not Within 1/2 SD"
-est$Ability <- ordered(est$Ability, c("Within 1/2 SD", "Not Within 1/2 SD"))
-table(est$Ability)
+# Plot confidence intervals
+gg <- est
+gg$lower <- gg$w - 1.96*gg$w_se
+gg$upper <- gg$w + 1.96*gg$w_se
+gg$lower[gg$lower < 0] <- 0
+gg$upper[gg$upper < 0] <- 0
+gg$lower[gg$lower > 1] <- 1
+gg$upper[gg$upper > 1] <- 1
 
-ggplot(est, aes(x = group, y = w, group = Ability)) +
+gg <- gg[order(gg$w), ]
+gg$group <- 1:nrow(gg)
+gg$Ability <- "Within 1/2 SD"
+gg$Ability[abs(gg$theta1 - gg$theta2) > .5] <- "Not Within 1/2 SD"
+gg$Ability <- ordered(gg$Ability, c("Within 1/2 SD", "Not Within 1/2 SD"))
+table(gg$Ability)
+
+ggplot(gg, aes(x = group, y = w, group = Ability)) +
     geom_errorbar(aes(ymin = lower, ymax = upper, color = Ability), width = .1) +
     geom_point(aes(size = Ability, shape = Ability, color = Ability)) +
     scale_color_manual(values = c("grey10", "grey70")) +
@@ -82,53 +84,49 @@ ggplot(est, aes(x = group, y = w, group = Ability)) +
     theme_bw(base_size = 15) +
     theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
 
-17/47
+(gg$lower[gg$Ability == "Within 1/2 SD"] > .5) %>% mean
+(gg$upper[gg$Ability == "Within 1/2 SD"] < .5) %>% mean
 
 # ------------------------------------------------------------
 # Goodness of fit
 # ------------------------------------------------------------
 
-n_reps <- 50
+n_reps <- 500
 n_obs <- length(est$w)
+sim <- data_gen(n_reps, est$w, col_parms, est$theta1, est$theta2, NA_pattern = col_form[odd,])
+sim_resp <- sim[grep(items, names(sim))]
+sim_est <- map_WA(sim_resp, col_parms, sim$theta1, sim$theta2, SE = "exp", parallel = T)
 
-sim <- data_gen(n_reps, est$w, col_parms, est$theta1, est$theta2, NA_pattern = col_form)
+sim$l <- l_WA(sim_resp, sim_est$w, col_parms, sim$theta1, sim$theta2)
+l <- l_WA(col_form[odd,], est$w, col_parms, est$theta1, est$theta2)
 
-sim_est <- est_WA(resp, parms, SE = "exp", method = "map", parallel = T)
-
-map_WA(sim[grep(items, names(sim))], col_parms, sim$theta1, sim$theta2, SE = "exp", starts = sim$w, parallel = T)
-
-sim$l <- l_WA(sim[grep(items, names(sim))], sim_est$w, col_parms, sim$theta1, sim$theta2)
-
-l <- l_WA(col_form, est$w, col_parms, est$theta1, est$theta2)
-hist(-2*l)
-hist(-2*sim$l)
-sim_est$w[1:500]
-head(sim)
-
-quant <- tapply(sim$logL, sim$pairs, function(x) quantile(x, p = c(.5, .025))) %>% unlist %>% matrix(, nrow = 2, ncol = n_obs) %>% t()
+quant <- tapply(sim$l, sim$pairs, function(x) quantile(x, p = c(.5, .05))) %>% unlist %>% matrix(, nrow = 2, ncol = n_obs) %>% t()
 
 # Visual key for misfit
 fit <- rep("<.95", times = n_obs)
-fit[logL < quant[,2]] <- ">.95"
+fit[l < quant[,2]] <- ">.95"
 fit <- ordered(fit, c(">.95", "<.95"))
 
 # Set up and plot
-gg <- data.frame(-2*sim$logL, -2*rep(logL, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
+gg <- data.frame(-2*sim$l, -2*rep(l, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
 
-names(gg) <- c("l_dist", "l_obs", "fit", "median")
+names(gg) <- c("l_dist", "l_obs", "Fit", "median")
 gg <- gg[order(gg$median), ]
 gg$pair <- rep(1:n_obs, each = n_reps)
 
 ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
-  geom_boxplot(outlier.size = 0, outlier.color = "white", aes(fill = fit)) +
-  geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
+  geom_boxplot(outlier.size = 0, outlier.color = "white", aes(color = Fit, fill = Fit)) +
+  geom_point(aes(x = pair, y = l_obs, pch = Fit, size = Fit)) +
   scale_shape_manual(values = c(4, 20)) +
-  scale_fill_grey(start = 0.3, end = 0.7) +
+  scale_fill_grey(start = .1, end = 0.7) +
+  scale_color_grey(start = .2, end = 0.6) +
   xlab("Groups") +
   ylab("-2 * loglikelihood") +
   scale_size_manual(values = c(4, 1)) +
   theme(legend.title=element_blank()) +
-  theme_bw(base_size = 15)
+  ylim(c(0, 37)) +
+  theme_bw(base_size = 15) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
 
 
 

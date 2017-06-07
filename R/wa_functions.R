@@ -269,7 +269,6 @@ lpost_full <- function(resp, w, parms, theta1, theta2, epsilon = .05)
   l_p <- epsilon * log(w - w^2) - theta1^2 / 2 - theta2^2 / 2
   (l_full(resp, w, parms, theta1, theta2) + l_p) %>% sum
 }
-d2lpost_full(resp, w, parms, theta1, theta2)
 
 dl_full <- function(resp, w, parms, theta1, theta2) {
   ind <- grep("IND", names(resp))
@@ -352,7 +351,7 @@ est_WA <- function(resp, parms, starts = NULL, SE = "obs", method = "map", epsil
     blocksize <- floor(n_obs/n_cores)
     m <- (i-1) * blocksize + 1
     if (i < n_cores) {n <- i * blocksize} else {n <- n_obs}
-    ind1 <- index[m] : (index[n] + 2)
+    ind1 <- parm_index[m] : (parm_index[n] + 2)
     ind2 <- odd[m] : (odd[n] + 1)
     q <- optim(starts[ind1], obj,
              gr = grad,
@@ -412,24 +411,22 @@ bdiag_m <- function(lmat) {
 #Esimation for just WA
 #-------------------------------------------------------------------
 
-m_WA <- function(resp, w, parms, theta1, theta2, Log = T, Sum = F) {
-  alpha <- 1.05
+m_WA <- function(resp, w, parms, theta1, theta2, epsilon = .05, Log = T, Sum = F) {
   p <- WA(w, parms, theta1, theta2)
   temp <- apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
-  temp <- temp + (alpha - 1) * log(w - w^2)
+  temp <- temp + epsilon * log(w - w^2)
   if (Sum) {temp <- sum(temp)}
   if (Log) {temp} else {exp(temp)}
 }
 
 
-pgrad_WA <- function(resp, w, parms, theta1, theta2, Sum = T) {
-  alpha <- 1.05
+pgrad_WA <- function(resp, w, parms, theta1, theta2, epsilon = .05, Sum = T) {
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
   dw <- p1 + p2 - 2 * p1 * p2
   m <- Mstar(resp, w, parms, theta1, theta2)
-  lp <- (alpha - 1) / (w - w^2) * (1 - 2 * w)
-  apply(m * dw, 1, sum, na.rm = T) + lp
+  dlp <- epsilon / (w - w^2) * (1 - 2 * w)
+  apply(m * dw, 1, sum, na.rm = T) + dlp
 }
 
 # pgrad_WA <- function(resp, w, parms, theta1, theta2, Sum = T) {
@@ -494,7 +491,7 @@ map_WA <- function(resp, parms, theta1, theta2, SE = "obs", starts = NULL, paral
     n_cores <- 1
     out$w <- fun(1)
   }
-  out$psd <- 1/sqrt(pinfo_WA(resp, out$w, parms, theta1, theta2, type = SE))
+  #out$psd <- 1/sqrt(pinfo_WA(resp, out$w, parms, theta1, theta2, type = SE))
   out$logp <- m_WA(resp, out$w, parms, theta1, theta2)
   out
 }
@@ -727,7 +724,7 @@ data_gen <- function(n_reps, w, parms, theta1, theta2, theta1_se = NULL, theta2_
   names(data) <- row.names(parms)
   data <- sim_WA(out$w, parms, out$theta1, out$theta2)
   data <- format_NA(data, NA_pattern)
-
+dim(NA_pattern)
   # Return
   cbind(out[], data[])
 }
