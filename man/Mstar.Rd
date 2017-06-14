@@ -2,7 +2,7 @@
 % Please edit documentation in R/cIRF_functions.R
 \name{Mstar}
 \alias{Mstar}
-\title{Computes mutiplier for first deriviative of log-likelihood of one-parameter RSC model.}
+\title{Mutiplier for first deriviative of log-likelihood of one-parameter RSC model.}
 \usage{
 Mstar(resp, w, parms, theta1, theta2)
 }

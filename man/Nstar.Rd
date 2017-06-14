@@ -2,7 +2,7 @@
 % Please edit documentation in R/cIRF_functions.R
 \name{Nstar}
 \alias{Nstar}
-\title{Computes mutiplier for second deriviative of log-likelihood of one-parameter RSC model.}
+\title{Multiplier for second deriviative of log-likelihood of one-parameter RSC model.}
 \usage{
 Nstar(resp, w, parms, theta1, theta2, obs = F)
 }

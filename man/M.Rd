@@ -2,7 +2,7 @@
 % Please edit documentation in R/IRF_functions.R
 \name{M}
 \alias{M}
-\title{Computes mutiplier for first deriviative of log-likelihood of 2PL.}
+\title{Multiplier for first deriviative of log-likelihood of 2PL.}
 \usage{
 M(resp, parms, theta)
 }

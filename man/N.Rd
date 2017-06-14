@@ -2,7 +2,7 @@
 % Please edit documentation in R/IRF_functions.R
 \name{N}
 \alias{N}
-\title{Computes mutiplier for second deriviative of log-likelihood of 2PL.}
+\title{Multiplier for second deriviative of log-likelihood of 2PL.}
 \usage{
 N(resp, parms, theta, obs = F)
 }

@@ -4,6 +4,7 @@
 # Functions for estimation of one-parameter Restricted Social Combination model. The following reference contains details:  Halpin & Bergner (2017) Pyschometric Models for Small Group Collaborations.
 
 require(Matrix)
+require(dplyr)
 
 #--------------------------------------------------------------------------
 #' The IRF of the one-parameter RSC model.

@@ -2,7 +2,7 @@
 % Please edit documentation in R/cIRF_functions.R
 \name{d2l_full}
 \alias{d2l_full}
-\title{Hessian of the log of the prior distribution for a combined assessment.}
+\title{Hessian of the log-likelihood for a combined assessment.}
 \usage{
 d2l_full(resp, w, parms, theta1, theta2, obs = T, parallel = F)
 }
