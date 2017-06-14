@@ -9,7 +9,6 @@ library("ggplot2")
 library("dplyr")
 source("~/github/cirt/R/cIRF_functions.R")
 source("~/github/cirt/R/IRF_functions.R")
-source("~/github/cirt/R/wa_functions.R")
 
 # ------------------------------------------------------------
 # Data simulation for weighted addtive model
@@ -62,27 +61,27 @@ data <- cbind(col_data[rep(1:K, each = 2),], ind_data[, -c(1:5)])
 # long col, long ind
 ll_items <- c(col_names, ind_names)
 ll_parms <- parms[ll_items, ]
-ml_ll <-  est_WA(data[ll_items], ll_parms, method = "ml",  SE = "exp", parallel = F)
-map_ll <- est_WA(data[ll_items], ll_parms, method = "map", SE = "exp", parallel = F)
+ml_ll <-  est_RSC(data[ll_items], ll_parms, method = "ml",  SE = "exp", parallel = F)
+map_ll <- est_RSC(data[ll_items], ll_parms, method = "map", SE = "exp", parallel = F)
 
 
 # long col, short ind
 ls_items <- c(col_names, ind_names_short)
 ls_parms <- parms[ls_items, ]
-ml_ls <-  est_WA(data[ls_items], ls_parms, method = "ml",  SE = "exp", parallel = F)
-map_ls <- est_WA(data[ls_items], ls_parms, method = "map", SE = "exp", parallel =F)
+ml_ls <-  est_RSC(data[ls_items], ls_parms, method = "ml",  SE = "exp", parallel = F)
+map_ls <- est_RSC(data[ls_items], ls_parms, method = "map", SE = "exp", parallel =F)
 
 # short col, long ind
 sl_items <- c(col_names_short, ind_names)
 sl_parms <- parms[sl_items, ]
-ml_sl <-  est_WA(data[sl_items], sl_parms, method = "ml",  SE = "exp", parallel = F)
-map_sl <- est_WA(data[sl_items], sl_parms, method = "map", SE = "exp", parallel = F)
+ml_sl <-  est_RSC(data[sl_items], sl_parms, method = "ml",  SE = "exp", parallel = F)
+map_sl <- est_RSC(data[sl_items], sl_parms, method = "map", SE = "exp", parallel = F)
 
 # short col, short ind
 ss_items <- c(col_names_short, ind_names_short)
 ss_parms <- parms[ss_items, ]
-ml_ss <-  est_WA(data[ss_items], ss_parms, method = "ml",  SE = "exp", parallel = F)
-map_ss <- est_WA(data[ss_items], ss_parms, method = "map", SE = "exp", parallel = F)
+ml_ss <-  est_RSC(data[ss_items], ss_parms, method = "ml",  SE = "exp", parallel = F)
+map_ss <- est_RSC(data[ss_items], ss_parms, method = "map", SE = "exp", parallel = F)
 
 
 # ------------------------------------------------------------

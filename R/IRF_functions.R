@@ -28,7 +28,7 @@ IRF <-function(parms, theta) {
 }
 
 #--------------------------------------------------------------------------
-#' First deriviate of 2PL IRF in theta.
+#' First derivative of 2PL IRF in theta.
 #'
 #' Used for obtaining SEs of theta and computing WML.
 #'
@@ -164,7 +164,7 @@ M <- function(resp, parms, theta) {
 #--------------------------------------------------------------------------
 #' First derviative of loglikelihood of 2PL, in theta.
 #'
-#' Used to estimate theta in \code{MLE}.
+#' Used to estimate theta in \code{est_2PL}.
 #'
 #' @param resp a matrix or data.frame containing the binary item responses.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
@@ -186,11 +186,11 @@ dlogL <- function(resp, parms, theta) {
 #' @param resp a matrix or data.frame containing the binary item responses.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta the latent trait.
-#' @param exp logical: should the expected value be returned? If not, the observed value is return.
+#' @param obs logical: should the observed value be returned? If not, the expected value is returned.
 #' @return \code{dim(resp)}-matrix of multipliers.
 #' @export
 
-N <- function(resp, parms, theta, obs = T) {
+N <- function(resp, parms, theta, obs = F) {
   p <- IRF(parms, theta)
   if (obs) {
     resp / p^2 + (1 - resp) / (1 - p)^2
