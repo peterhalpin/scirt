@@ -1,5 +1,7 @@
 # cirt (formerly BearShare)
 
+This package is under construction. For a working example, see http://htmlpreview.github.io/?https://github.com/peterhalpin/cirt/blob/master/cirt_demo.html. 
+
 Version 0.3.0: simultaneous estimation via ML and MAP (June 2017)
 
 Version 0.2.0: Additional functions for item selection (Oct 2016)
