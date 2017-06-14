@@ -258,9 +258,6 @@ EM <- function(models, resp, parms, theta1, theta2, sorted = F, max_iter = 100, 
 
 
 
-
-
-
 #--------------------------------------------------------------------------
 #' Formats a data.frame to have the same variables (columns) as that of another data.frame.
 #'
