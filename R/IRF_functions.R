@@ -137,7 +137,7 @@ WML_SE <- function(resp, parms, theta) {
 #' @param resp a matrix or data.frame containing the binary item responses.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta the latent trait.
-#' @return \code{length(theta)}-vector of loglikelihoods.
+#' @return \code{length(theta)}-vector of log-likelihoods.
 #' @export
 
 logL <- function(resp, parms, theta) {
@@ -146,7 +146,7 @@ logL <- function(resp, parms, theta) {
 }
 
 #--------------------------------------------------------------------------
-#' Computes mutiplier for first deriviative of log-likelihood of 2PL.
+#' Multiplier for first deriviative of log-likelihood of 2PL.
 #'
 #' Writing the derivative of the log-likelihood of the 2PL in theta for a single item as M * dIRF, this function computes (a matrix of values of) M, with dIRF being the first deriviative of the 2PL IRF. Called by functions that compute derivative of the log-likelihood.
 
@@ -162,14 +162,14 @@ M <- function(resp, parms, theta) {
 }
 
 #--------------------------------------------------------------------------
-#' First derviative of loglikelihood of 2PL, in theta.
+#' First derviative of log-likelihood of 2PL, in theta.
 #'
 #' Used to estimate theta in \code{est_2PL}.
 #'
 #' @param resp a matrix or data.frame containing the binary item responses.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta the latent trait.
-#' @return \code{length(theta)}- vector of first derivatives of loglikelihood of 2PL, in theta.
+#' @return \code{length(theta)}- vector of first derivatives of log-likelihood of 2PL, in theta.
 #' @export
 
 dlogL <- function(resp, parms, theta) {
@@ -179,7 +179,7 @@ dlogL <- function(resp, parms, theta) {
 }
 
 #--------------------------------------------------------------------------
-#' Computes mutiplier for second deriviative of log-likelihood of 2PL.
+#' Multiplier for second deriviative of log-likelihood of 2PL.
 #'
 #' Similar to \code{M}, but for the second derivatives. Called by functions that compute second derivative of the log-likelihood.
 
@@ -200,13 +200,13 @@ N <- function(resp, parms, theta, obs = F) {
 }
 
 #--------------------------------------------------------------------------
-#' Second derviative of loglikelihood of 2PL, in theta.
+#' Second derviative of log-likelihood of 2PL, in theta.
 #'
 #' Used to compute standard errors simultaneously estimating individual and group assessments.
 #' @param resp a matrix or data.frame containing the binary item responses.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta the latent trait.
-#' @return \code{length(theta)}-vecor of (possibly weigthed) loglikelihoods.
+#' @return \code{length(theta)}-vecor of (possibly weigthed) log-likelihoods.
 #' @export
 
 d2logL <- function(resp, parms, theta, obs = T) {

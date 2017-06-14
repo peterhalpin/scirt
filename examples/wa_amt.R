@@ -120,7 +120,7 @@ ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
   scale_fill_grey(start = .1, end = 0.7) +
   scale_color_grey(start = .2, end = 0.6) +
   xlab("Groups") +
-  ylab("-2 * loglikelihood") +
+  ylab("-2 * log-likelihood") +
   scale_size_manual(values = c(4, 1)) +
   theme(legend.title=element_blank()) +
   ylim(c(0, 37)) +

@@ -157,7 +157,7 @@ ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
   geom_point(aes(x = pair, y = l_obs, pch = fit, size = fit)) +
   scale_shape_manual(values = c(4, 20), guide = F) +
   xlab("Groups") +
-  ylab("-2 * loglikelihood") +
+  ylab("-2 * log-likelihood") +
   scale_size_manual(values = c(4, 1), guide = F) +
   ylim(c(0, 45)) +
   theme_set(theme_grey(base_size = 15)) +

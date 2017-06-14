@@ -377,7 +377,7 @@ ggplot(gg, aes(x = pair, y = l_dist, group = pair)) +
   scale_shape_manual(values = c(4, 20)) +
   scale_fill_grey(start = 0.1, end = 0.8) +
   xlab("Groups") +
-  ylab("-2 * loglikelihood") +
+  ylab("-2 * log-likelihood") +
   scale_size_manual(values = c(4, 1)) +
   theme(legend.title=element_blank())
 

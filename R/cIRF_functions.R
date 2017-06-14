@@ -1,6 +1,6 @@
 # Last update: 14/06/2017
 # User beware: functions not written to check or handle input errors.
-
+# devtools::document("R")
 # Functions for estimation of one-parameter Restricted Social Combination model. The following reference contains details:  Halpin & Bergner (2017) Pyschometric Models for Small Group Collaborations.
 
 require(Matrix)
@@ -14,7 +14,7 @@ require(Matrix)
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta1 the latent trait of member 2.
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
+#' @return  \code{length(w)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
 RSC <- function(w, parms, theta1, theta2) {
@@ -91,7 +91,7 @@ d2_RSC <- function(w, parms, theta1, theta2) {
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta1 the latent trait of member 2.
-#' @return \code{length(theta)}-vector of loglikelihoods.
+#' @return  \code{length(w)}-vector of log-likelihood.
 #' @export
 
 l_RSC <- function(resp, w, parms, theta1, theta2) {
@@ -100,7 +100,7 @@ l_RSC <- function(resp, w, parms, theta1, theta2) {
 }
 
 #--------------------------------------------------------------------------
-#' Computes mutiplier for first deriviative of log-likelihood of one-parameter RSC model.
+#' Mutiplier for first deriviative of log-likelihood of one-parameter RSC model.
 #'
 #' Writing the derivative of the log-likelihood of the RSC model a single item as M * grad_IRF, this function computes (a matrix of values of) M, with grad_IRF being the gradient of the RSC IRF. Called by functions that compute derivative of the log-likelihood.
 
@@ -118,7 +118,7 @@ Mstar <- function(resp, w, parms, theta1, theta2) {
 }
 
 #--------------------------------------------------------------------------
-#' Gradient of loglikelihood of one-parameter RSC model.
+#' Gradient of log-likelihood of one-parameter RSC model.
 #'
 #' Computes the first derivatives of the log-likelihood, in \code{c{w, theta1, theta2)}. Called by \code{est_RSC}.
 
@@ -140,7 +140,7 @@ dl_RSC <- function(resp, w, parms, theta1, theta2) {
 }
 
 #--------------------------------------------------------------------------
-#' Computes mutiplier for second deriviative of log-likelihood of one-parameter RSC model.
+#' Multiplier for second deriviative of log-likelihood of one-parameter RSC model.
 #'
 #' #' Similar to \code{Mstar}, but for the second derivatives. Called by functions that compute second derivative of the log-likelihood.
 
@@ -163,7 +163,7 @@ Nstar <- function(resp, w, parms, theta1, theta2, obs = F) {
 }
 
 #--------------------------------------------------------------------------
-#' Hessian of loglikelihood of one-parameter RSC model.
+#' Hessian of log-likelihood of one-parameter RSC model.
 #'
 #' Computes the second derivatives of the log-likelihood, in \code{c{w, theta1, theta2)}. Called by \code{est_RSC}. Calls the function \code{bdiag_m} written by Martin Maechler, ETH Zurich.
 #'
@@ -332,7 +332,7 @@ dlp <- function(w, theta1, theta2, epsilon = .05)
 }
 
 #--------------------------------------------------------------------------
-#' Hessian of the log of the prior distribution for a combined assessment.
+#' Hessian of the log-likelihood for a combined assessment.
 #'
 #' This function computes second derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c{w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
 #'
@@ -494,7 +494,6 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta1 the latent trait of member 2.
-#' @return \code{length(theta)}-vector of loglikelihoods.
 #' @param method one of \code{c("ML", "MAP")}. The latter is strongly recommended.
 #' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\{FALSE}) Fisher information?
 #' @param epsilon a small positive number, see description for details.
@@ -674,7 +673,7 @@ format_NA <- function(data, NA_pattern = NULL){
 
 
 #--------------------------------------------------------------------------
-#' Generates or replicates values of latent variable
+#' Generates or replicates values of latent variable.
 #'
 #' If \code{theta_se}' is not null, values are generated using \code{rnorm}. Otherwise, each value is replicated.
 
@@ -682,7 +681,7 @@ format_NA <- function(data, NA_pattern = NULL){
 #' @param theta the latent trait.
 #' @param theta_se the standard error of the latent trait.
 
-#' @return An \code{n \times length(theta)} vector in which each value \code{theta} is generated / replicated \code{n} times.
+#' @return An \code{n * length(theta)} vector in which each value \code{theta} is generated / replicated \code{n} times.
 #' @export
 
 theta_gen <- function(n, theta, theta_se = NULL){

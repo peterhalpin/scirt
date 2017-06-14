@@ -152,10 +152,10 @@ likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, L
 #--------------------------------------------------------------------------
 #' Incomplete data logliklihood for a mixture of collaboration models
 #'
-#' @param likelihood n_resp by n_models matrix of likelihoods (\strong{not loglikelihoods}) for each response pattern and each model (e.g., the output of \code{likelihood} with \code{Log = F}).
-#' @param mix_prop the mixing proporitions for the models. Can be either an n_resp by n_models matrix (useful for computing the "posterior predicted" loglikelihood for each response pattern); or a n_models-vector, which is applied to each row of \code{likelihood} (useful for EM).
+#' @param likelihood n_resp by n_models matrix of likelihoods (\strong{not log-likelihoods}) for each response pattern and each model (e.g., the output of \code{likelihood} with \code{Log = F}).
+#' @param mix_prop the mixing proporitions for the models. Can be either an n_resp by n_models matrix (useful for computing the "posterior predicted" log-likelihood for each response pattern); or a n_models-vector, which is applied to each row of \code{likelihood} (useful for EM).
 #' @param Sum logical indicating whether the output be summer over rows of \code{likelihood}.
-#' @return A scalar (if \code{Sum = T}) or a n_resp-vector of incomplete data loglikelihoods.
+#' @return A scalar (if \code{Sum = T}) or a n_resp-vector of incomplete data log-likelihoods.
 #' @export
 
 incomplete_data <- function(components, mix_prop, Sum = T) {
@@ -202,7 +202,7 @@ prior <- function(post) {
 #' Computes standard errors of mixing proportions via observed Hessian.
 #'
 # Checked for accuracy again numDeriv::hessian.
-#' @param components n_resp by n_models matrix of likehooods (\strong{not loglikelihoods}) for each response pattern and each model (e.g., the output of \code{likelihood} with \code{Log = F}).
+#' @param components n_resp by n_models matrix of likehooods (\strong{not log-likelihoods}) for each response pattern and each model (e.g., the output of \code{likelihood} with \code{Log = F}).
 #' @param mix_prop a n_models-vector of mixing proporitions for the models.
 
 #' @return An n_models-vector standard errors for the mixing proportions in a mixture model.
@@ -231,7 +231,7 @@ prior_se <- function(components, mix_prop) {
 #' @param theta2 the latent trait for member 2
 #' @param sorted logical indicating whether to compute Min with theta1  and / or Max with theta2, regardless of the value of the theta1 and theta2. Useful for data simulation, where variability in the simulated values of theta may not reflect the ordering of the data generating values.
 #' @param max_iter maximum number of iterations for EM
-#' @param conv convegence criterional applied to difference of incomplete data loglikelihood
+#' @param conv convegence criterional applied to difference of incomplete data log-likelihood
 #' @return A list of length 3 containing the optimization trace, priors, and posteriors
 #' @export
 
