@@ -5,10 +5,10 @@
 # devtools::install_github("peterhalpin/cirt")
 # library("cirt")
 rm(list = ls())
-library("ggplot2")
-library("dplyr")
-source("~/github/cirt/R/IRF_functions.R")
-source("~/github/cirt/R/cIRF_functions.R")
+#library("ggplot2")
+#library("dplyr")
+#source("~/github/cirt/R/IRF_functions.R")
+#source("~/github/cirt/R/cIRF_functions.R")
 
 # ------------------------------------------------------------
 # Parameter recovery with est_2PL
@@ -54,7 +54,7 @@ system.time(est_2PL(resp, parms, method = "MAP", parallel = T))
 # Data generating parameters
 n_obs <- 100 # n respondents
 K <- n_obs/2 # n groups
-n_items <- 20 # n items on each assessment
+n_items <- 200 # n items on each assessment
 e <- .05 # beta prior parm
 set.seed(101)
 
@@ -88,7 +88,7 @@ w <- rbeta(K, 1 + e, 1 + e)
 col_data <- data_gen(1, w, col_parms, theta1, theta2)
 ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)
 data <- cbind(col_data[rep(1:K, each = 2),], ind_data[, -c(1:5)])
-head(data)
+head(data[, 1:10])
 
 # Estimate
 ml <- est_RSC(data, parms, method = "ML", parallel = F)

@@ -7,6 +7,7 @@
 
 library("ggplot2")
 library("dplyr")
+install.packages("dplyr")
 source("~/github/cirt/R/cIRF_functions.R")
 source("~/github/cirt/R/IRF_functions.R")
 
