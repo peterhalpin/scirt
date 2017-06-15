@@ -1,6 +1,6 @@
 # cirt (formerly BearShare)
 
-This package is under construction. For a working example, see http://htmlpreview.github.io/?https://github.com/peterhalpin/cirt/blob/master/cirt_demo.html. 
+This package contains code for running the analyses described in paper *Psychometric models of small gorup collaborations*. The package under construction, but for a working example, see http://htmlpreview.github.io/?https://github.com/peterhalpin/cirt/blob/master/cirt_demo.html. 
 
 Version 0.3.0: Simultaneous estimation via ML and MAP (June 2017)
 
