@@ -8,8 +8,8 @@ Description: In progress
 License: GNU GENERAL PUBLIC LICENSE
 LazyData: TRUE
 RoxygenNote: 6.0.1
-Imports: stats4,
-         ggplot2,
-         dplyr
+Imports:
 Suggests: ltm
-Depends: R(>= 2.10)
+Depends: R(>= 2.10),
+         Matrix,
+         dplyr

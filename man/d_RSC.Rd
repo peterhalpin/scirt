@@ -13,7 +13,7 @@ d_RSC(w, parms, theta1, theta2)
 
 \item{theta1}{the latent trait of member 1.}
 
-\item{theta1}{the latent trait of member 2.}
+\item{theta2}{the latent trait of member 2.}
 }
 \value{
 a named list of derivatives, with elements \code{c("dw", "dtheta1", "dtheta2")}.

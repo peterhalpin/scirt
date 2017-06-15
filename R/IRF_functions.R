@@ -5,9 +5,9 @@
 # Results for WML are in Magis & Raiche, 2012, but here they are implemented only for special case of 2PL. In particular, the following equalities are used
   #   P'  = aPQ
   #   P'' = a^2 PQ(1-2P)
-  #   I   = \sum a P'
+  #   Info   = \sum a P'
   #   J   = \sum a P''
-  #   I'  = J
+  #   Info'  = J
   #   J'  = sum a^4 PQ(1-6P)
 
 #--------------------------------------------------------------------------
@@ -66,7 +66,7 @@ d2IRF <- function(parms, theta) {
 #' @return \code{length(theta)} vector of test information.
 #' @export
 
-I <- function(resp, parms, theta) {
+Info <- function(resp, parms, theta) {
   p <- IRF(parms, theta)*!is.na(resp)
   q <- 1 - p
   temp <-  t(parms$alpha^2 * t(p * q))  # faster with 2PL
@@ -123,7 +123,7 @@ dJ <- function(resp, parms, theta) {
 #' @export
 
 WML_SE <- function(resp, parms, theta) {
-    i <- I(resp, parms, theta)
+    i <- Info(resp, parms, theta)
     temp <- J(resp, parms, theta)^2 + i * dJ(resp, parms, theta)
     temp <- temp / 2 / i^2 + i
     1/sqrt(temp)
@@ -243,19 +243,19 @@ est_2PL <-function(resp, parms, method = "ML", parallel = T) {
 
   if (method == "ML") {
     obj <- function(theta, resp, parms) { dlogL(resp, parms, theta) }
-    se <- function(resp, parms, theta) { 1/sqrt(I(resp, parms, theta)) }
+    se <- function(resp, parms, theta) { 1 / sqrt(Info(resp, parms, theta)) }
   }
 
   if (method == "WML") {
     obj <- function(theta, resp, parms) {
-      dlogL(resp, parms, theta) + J(resp, parms, theta) / 2 / I(resp, parms, theta)
+      dlogL(resp, parms, theta) + J(resp, parms, theta) / 2 / Info(resp, parms, theta)
     }
     se <- function(resp, parms, theta) { WML_SE(resp, parms, theta) }
   }
 
   if (method == "MAP") {
     obj <- function(theta, resp, parms){ dlogL(resp, parms, theta) - theta }
-    se <- function(resp, parms, theta) { 1/sqrt(I(resp, parms, theta) + 1) }
+    se <- function(resp, parms, theta) { 1 / sqrt(Info(resp, parms, theta) + 1) }
   }
 
   fun <- function(resp) {

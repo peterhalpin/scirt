@@ -15,7 +15,7 @@ dl_full(resp, w, parms, theta1, theta2)
 
 \item{theta1}{the latent trait of member 1.}
 
-\item{theta1}{the latent trait of member 2.}
+\item{theta2}{the latent trait of member 2.}
 }
 \value{
 \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.

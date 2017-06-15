@@ -15,9 +15,9 @@ d2l_full(resp, w, parms, theta1, theta2, obs = T, parallel = F)
 
 \item{theta1}{the latent trait of member 1.}
 
-\item{obs}{logical: should the observed value be returned? If not, the expected value is returned.}
+\item{theta2}{the latent trait of member 2.}
 
-\item{theta1}{the latent trait of member 2.}
+\item{obs}{logical: should the observed value be returned? If not, the expected value is returned.}
 }
 \value{
 \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.

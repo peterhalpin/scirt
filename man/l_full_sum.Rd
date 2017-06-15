@@ -15,7 +15,7 @@ l_full_sum(resp, w, parms, theta1, theta2, Sum = F)
 
 \item{theta1}{the latent trait of member 1.}
 
-\item{theta1}{the latent trait of member 2.}
+\item{theta2}{the latent trait of member 2.}
 }
 \value{
 \code{length(w)}-vector of log-likelihoods.

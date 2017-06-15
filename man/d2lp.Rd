@@ -11,9 +11,9 @@ d2lp(w, theta1, theta2, epsilon = 0.05)
 
 \item{theta1}{the latent trait of member 1.}
 
-\item{epsilon}{a small positive number, see description for details.}
+\item{theta2}{the latent trait of member 2.}
 
-\item{theta1}{the latent trait of member 2.}
+\item{epsilon}{a small positive number, see description for details.}
 }
 \value{
 \code{3 * K} by \code{3 * K} diagonal matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.

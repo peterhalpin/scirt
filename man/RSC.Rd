@@ -13,7 +13,7 @@ RSC(w, parms, theta1, theta2)
 
 \item{theta1}{the latent trait of member 1.}
 
-\item{theta1}{the latent trait of member 2.}
+\item{theta2}{the latent trait of member 2.}
 }
 \value{
 \code{length(w)} by \code{nrow(parms)} matrix of response probabilities.

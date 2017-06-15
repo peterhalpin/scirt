@@ -10,86 +10,117 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This code illustrates how to use the functions in the `R` package `cirt`. For additional details, check out the package documentation and see Halpin P. F. and Bergner, Y. (2017) *Psychometric models for small group collaborations.* Please contact me at `peter.halpin@nyu.edu` with questions or feedback. 
+This code reprodouces the simulation study reported in Halpin P. F. and Bergner, Y. (2017) *Psychometric models for small group collaborations.* Please contact me at `peter.halpin@nyu.edu` with questions or feedback. 
+
+Note that the functions in this package currently do not check for or catch invalid arguments and will break (ungracefully) if the input is not formatted as described in this example. Future versions of the package will address these issues, but for now it's user beware.
 
 Set up sesssion.
 
 ```{r echo = T, message = F, warning = F}
-# devtools::install_github("peterhalpin/cirt")
+# devtools::install_github("peterhalpin/cirt") # install package
 library(cirt)
-require(Matrix)
-require(dplyr)
 ```
 
-Data generating parameters for individual and group tests.
+The data-generating item paramers for the simulation are loaded with the package as the data.frame `sim_parms`. The columns are the discrimination (`alpha`) and difficulty (`beta`) parameters of the 2PL model. These naming conventions are required for all `parms` arguments. There are 100 items on the groups test, each including the `"COL"` suffix in the row names. There are 100 items on the individual test, each including  the `"IND"` suffix in the row names. The use of the `"IND"` and `"COL"` tags for items is required for all functions that expect a combined assessment (they are not necessary for functions that use either the individual test or collaborative test separately).
 
-```{r 1 }
-n_obs <- 50 # n respondents
-K <- n_obs/2 # n groups
-n_items <- 100 # n items on each assessment
-e <- .05 # beta prior parm
-set.seed(101)
+```{r 1}
+sim_parms[c(1:2, 100:102, 200), ]
 ```
 
-Item parms for individual test.
+The data.frame `sim_data` contains the generated item responses, along with information about the groups. The columns containing response data for each test form *need to be in the same order* as they appear in the rows of `sim_parms`. The first five colums indicate
+
+1. which dyad
+2. which sample from each dyad (in this case there is only one sample per dyad, although multiple can be generated)
+3. the data-generating value of the RSC weight of each dyad
+4. the data-generating values of the latent trait of member 1
+5. the data-generating values of the latent trait of member 1
+
+Each odd rows must contain the data for member 1 of a dyad, and the subsequent even row must contain the data for member 2 of that dyad.  Note that for all columns except the responses to the individual assessment, the odd and even rows are duplicated. For more information on data generation see `help(data_gen)` or inspect the source code.
+
 ```{r 2}
-ind_alpha <- runif(n_items, .65, 2.5)
-ind_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))
-ind_parms <- data.frame(ind_alpha, ind_beta)
-ind_names <- paste0("item", 1:n_items, "_IND")
-row.names(ind_parms) <- ind_names
-names(ind_parms) <- c("alpha", "beta")
+head(sim_data[c(1:7, 105:107)])
 ```
 
-Item parms for group test.
+
+Lastly, we have some data-generating parameters for the simulation.
+
 ```{r 3}
-col_alpha <- runif(n_items, .65, 2.5)
-col_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))
-col_parms <- data.frame(col_alpha, col_beta)
-col_names <- paste0("item", 1:n_items, "_COL")
-row.names(col_parms) <- col_names
-names(col_parms) <- c("alpha", "beta")
-parms <- rbind(col_parms, ind_parms)
+n_obs <- 1000 # n respondents
+K <- n_obs/2 # n groups
+
+n_items <- 100 # n items
+i <- 20 # n items for short form
+
+ind_names <- row.names(sim_parms)[grep("IND", row.names(sim_parms)) ] # individual test
+ind_names_short <- ind_names[sample(n_items, i)] # short form for individual test
+
+col_names <- row.names(sim_parms)[grep("COL", row.names(sim_parms)) ] # group test
+col_names_short <- col_names[sample(n_items, i)] # short form for group test
 ```
 
-Ability levels of respondents.
+The function `est_RSC` estimates the RSC model from a combined assessment. It also returns estimates of individual abiltiy based on the individual assessment. Standard errors are computed by numerically inverting either the expected (default) or observed Hessian at the solution. See `help(est_RSC)` for more details.
+
+The following chunk runs `est_RSC` in each of the four test length conditions obtained by crossing the long (100 items) and short (20 items) forms. Note that for the short forms, results will differ slightly from those reported in the paper due to random sampling of items.
+
+The runtime for the long-long condition (200 items with 1000 respondents) is about 85 seconds for each estimator with a 2.4 GHz Intel Xeon (single core). For this sample size, parallelization (via `parallel:mclapply`) is acutally slower than for a single core; however, the `parallel` option of `est_RCS`can lead to significant improvements in runtime for very large samples (e.g., when bootstrapping).
+
 ```{r 4}
-odd <- seq(1, n_obs, by = 2)
-theta <- rnorm(n_obs)
-theta1 <- theta[odd] # odds
-theta2 <- theta[odd + 1] # evens1
+# long group test, long individual test
+ll_items <- c(col_names, ind_names)
+ml_ll <-  est_RSC(sim_data[1:20, ll_items], sim_parms[ll_items, ], method = "ML")
+map_ll <- est_RSC(sim_data[1:20, ll_items], sim_parms[ll_items, ], method = "MAP")
+
+# long group test, short individual test
+ls_items <- c(col_names, ind_names_short)
+ml_ls <-  est_RSC(sim_data[1:20, ls_items], sim_parms[ls_items, ], method = "ML")
+map_ls <- est_RSC(sim_data[1:20, ls_items], sim_parms[ls_items, ], method = "MAP")
+
+# short group test, long individual test
+sl_items <- c(col_names_short, ind_names)
+ml_sl <-  est_RSC(sim_data[1:20, sl_items], sim_parms[sl_items, ], method = "ML")
+map_sl <- est_RSC(sim_data[1:20, sl_items], sim_parms[sl_items, ], method = "MAP")
+
+# short group test, short individual test
+ss_items <- c(col_names_short, ind_names_short)
+ml_ss <-  est_RSC(sim_data[1:20, ss_items], sim_parms[ss_items, ], method = "ML")
+map_ss <- est_RSC(sim_data[1:20, ss_items], sim_parms[ss_items, ], method = "MAP")
 ```
 
-The RSC weight parameter.
+The rest of this code sets up `ggplot2` to reproduce Figure 1 and Figure 2 from the paper. 
+
 ```{r 5}
-w <- rbeta(K, 1 + e, 1 + e)
+K = 20
+gg <- rbind(ml_ll, map_ll, ml_sl, map_sl, ml_ls, map_ls, ml_ss, map_ss)
+gg$ind_form <- rep(c("Individual long", "Indvidual short"), each = K*4)
+gg$col_form <- rep(c("Group long", "Group short"), each = K*2) %>% rep(times = 2)
+gg$Method <- rep(c("ML", "MAP"), each = K) %>% rep(times = 4)
+gg$dgp_w <- rep(sim_data$w[odd], times = 8)
+
+gg$sample <- 0
+gg$sample[sample(nrow(gg), nrow(gg)/10)] <- 1
+
+p <- ggplot(gg, aes(x = dgp_w, y = w, group = Method)) +
+    geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
+    geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
+    scale_color_manual(values = c("grey10", "grey10")) +
+    scale_shape_discrete(solid=F) +
+    xlab("Data generating values") +
+    ylab("Estimate")  +
+    geom_abline(slope = 1, intercept = 0, col = "grey50", size = 1.2) +
+    theme_bw(base_size = 15)
+
+p + facet_grid(ind_form ~ col_form)
 ```
 
-Generate data on both test forms. Note that `ind_data` is using `w = 1/2` with the each respondent's ability level repeated for `theta1` and `theta2`, which gives the individual performance of each respondent. 
 ```{r 6}
-col_data <- data_gen(1, w, col_parms, theta1, theta2)
-ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)
-data <- cbind(col_data[rep(1:K, each = 2),], ind_data[, -c(1:5)])
+q <- ggplot(gg, aes(x = w, y = w_se, group = Method)) +
+    geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
+    geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
+    scale_color_manual(values = c("grey10", "grey10")) +
+    scale_shape_discrete(solid=F) +
+    xlab("Estimate") +
+    ylab("Standard error")  +
+    theme_bw(base_size = 15)
+
+q + facet_grid(ind_form ~ col_form)
 ```
-
-Take a look at the formatting. Data-generating information is repeated on each line, but odd rows of the individual assessment are for `theta`1 and even rows are for ` theta2`. 
-
-```{r 7}
-head(data[ ,c(1:10, 110:115)])
-```
-
-Estimate individual ability and the RSC model simultaneously, using either ML or MAP. Use parallel for faster performance with larger datasets, see `help(est_RSC)` for details. 
-
-```{r 8}
-ml <- est_RSC(data, parms, method = "ML", parallel = F)
-map <- est_RSC(data, parms, method = "MAP", parallel = F)
-```
-
-```{r 9}
-plot(w, ml$w)
-points(w, map$w, col = 5)
-abline(a = 0, b = 1)
-```
-
-That's all for now. Check back soon for real data examples. 
-

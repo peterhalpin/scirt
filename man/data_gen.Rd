@@ -12,7 +12,7 @@ data_gen(n_reps, w, parms, theta1, theta2, theta1_se = NULL,
 
 \item{w}{the weight parameter of the RSC model.}
 
-\item{parms}{a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
+\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
 
 \item{theta1}{the latent trait for member 1.}
 
@@ -22,11 +22,14 @@ data_gen(n_reps, w, parms, theta1, theta2, theta1_se = NULL,
 
 \item{theta2_se}{the standard error of the latent trait for member 2 (Optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta2, theta2_se)}.}
 
-\item{NA_pattern}{an (optional) \code{length(theta1)} by \code{nrow(parms)} data.frame with \code{NA} entries for missing data. The missing values are preserved in the generated data.}
+\item{NA_pattern}{an (optional) \code{length(w)} by \code{nrow(parms)} data.frame with \code{NA} entries denoting missing data. The missing values are preserved in the generated data.}
 }
 \value{
-A data.frame with \code{length(theta1)} rows containing an id variable for each pair and each sample, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
+A data.frame with \code{length(w)} rows containing an id variable for each pair and each sample, the data generating values of \code{w}, \code{theta1}, and \code{theta2}, and the simulated response patterns.
 }
 \description{
-This is a wrapper for code{sim_RSC} that includes the data generating parms.
+This is a wrapper for \code{sim_RSC} that saves the data generating parms and allows for multple response patterns per group.
+}
+\details{
+To generate data from a 2PL model, set \code{theta1 = theta2} and \code{w = 1/2}. See Halpin and Bergner (2017) for discussion.
 }

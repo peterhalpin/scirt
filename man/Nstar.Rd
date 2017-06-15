@@ -15,13 +15,13 @@ Nstar(resp, w, parms, theta1, theta2, obs = F)
 
 \item{theta1}{the latent trait of member 1.}
 
-\item{obs}{logical: should the observed value be returned? If not, the expected value is returned.}
+\item{theta2}{the latent trait of member 2.}
 
-\item{theta1}{the latent trait of member 2.}
+\item{obs}{logical: should the observed value be returned? If not, the expected value is returned.}
 }
 \value{
 \code{dim(resp)}-matrix of multipliers.
 }
 \description{
-#' Similar to \code{Mstar}, but for the second derivatives. Called by functions that compute second derivative of the log-likelihood.
+Similar to \code{Mstar}, but for the second derivatives. Called by functions that compute second derivative of the log-likelihood.
 }

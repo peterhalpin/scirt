@@ -1,10 +1,8 @@
 # Last update: 14/06/2017
 # User beware: functions not written to check or handle input errors.
 # devtools::document("R")
+# devtools::use_data(sim_data)
 # Functions for estimation of one-parameter Restricted Social Combination model. The following reference contains details:  Halpin & Bergner (2017) Pyschometric Models for Small Group Collaborations.
-
-require(Matrix)
-require(dplyr)
 
 #--------------------------------------------------------------------------
 #' The IRF of the one-parameter RSC model.
@@ -14,7 +12,7 @@ require(dplyr)
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @return  \code{length(w)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
@@ -33,7 +31,7 @@ RSC <- function(w, parms, theta1, theta2) {
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @return a named list of derivatives, with elements \code{c("dw", "dtheta1", "dtheta2")}.
 #' @export
 
@@ -59,7 +57,7 @@ d_RSC <- function(w, parms, theta1, theta2) {
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @return a named list of second derivatives, with elements \code{c("dw_dtheta1", "dw_dtheta2", "d2theta1", "d2theta2", "dtheta1_dtheta2")}.
 #' @export
 
@@ -91,7 +89,7 @@ d2_RSC <- function(w, parms, theta1, theta2) {
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @return  \code{length(w)}-vector of log-likelihood.
 #' @export
 
@@ -109,7 +107,7 @@ l_RSC <- function(resp, w, parms, theta1, theta2) {
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @return \code{dim(resp)}-matrix of multipliers.
 #' @export
 
@@ -127,7 +125,7 @@ Mstar <- function(resp, w, parms, theta1, theta2) {
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
 
@@ -143,13 +141,13 @@ dl_RSC <- function(resp, w, parms, theta1, theta2) {
 #--------------------------------------------------------------------------
 #' Multiplier for second deriviative of log-likelihood of one-parameter RSC model.
 #'
-#' #' Similar to \code{Mstar}, but for the second derivatives. Called by functions that compute second derivative of the log-likelihood.
+#' Similar to \code{Mstar}, but for the second derivatives. Called by functions that compute second derivative of the log-likelihood.
 
 #' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @param obs logical: should the observed value be returned? If not, the expected value is returned.
 #' @return \code{dim(resp)}-matrix of multipliers.
 #' @export
@@ -172,7 +170,7 @@ Nstar <- function(resp, w, parms, theta1, theta2, obs = F) {
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @param obs logical: should the observed value be returned? If not, the expected value is returned.
 #' @return \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
@@ -227,7 +225,7 @@ d2l_RSC <- function(resp, w, parms, theta1, theta2, obs = T) {
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @return \code{length(w)}-vector of log-likelihoods.
 #' @export
 
@@ -252,7 +250,7 @@ l_full <- function(resp, w, parms, theta1, theta2)
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @return \code{length(w)}-vector of log-likelihoods.
 #' @export
 
@@ -277,7 +275,7 @@ l_full_sum <- function(resp, w, parms, theta1, theta2, Sum = F)
 
 #' @param w the weight parameter of the RSC model.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @param epsilon a small positive number, see description for details.
 #' @return \code{length(w)}-vector of log-priors (minus a constant).
 #' @export
@@ -296,7 +294,7 @@ lp <- function(w, theta1, theta2, epsilon = .05)
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
 
@@ -321,7 +319,7 @@ dl_full <- function(resp, w, parms, theta1, theta2) {
 #'
 #' @param w the weight parameter of the RSC model.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @param epsilon a small positive number, see description for details.
 #' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
@@ -341,7 +339,7 @@ dlp <- function(w, theta1, theta2, epsilon = .05)
 #' @param w the weight parameter of the RSC model.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @param obs logical: should the observed value be returned? If not, the expected value is returned.
 #' @return \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
@@ -366,7 +364,7 @@ d2l_full <- function(resp, w, parms, theta1, theta2, obs = T, parallel = F) {
 #'
 #' @param w the weight parameter of the RSC model.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @param epsilon a small positive number, see description for details.
 #' @return \code{3 * K} by \code{3 * K} diagonal matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
@@ -381,25 +379,26 @@ d2lp <- function(w, theta1, theta2, epsilon = .05)
 #--------------------------------------------------------------------------
 #' Simultaneous estimation of latent traits and the one-parameter RSC model for a combined assessment.
 #'
-#' This function calls \code{optim} to estimate the parameter vector \code{c(w, theta1, theta2)} from the repsonses to a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. Esimation is via either maximum likelihood (ML) or modal a'posteriori (MAP), with the latter being prefered. For MAP, a standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + \code{epsilon}. Standard errors (or posterior standard deviations) are computed by numerically inverting the analytically computed Hessian of the objective function, at the parameter estimates. The value of the objective function at the estimate is is also provided. If \code{parallel = T}, the call to \code{optim} is parallelized via \code{parallel::mclapply}}.
+#' This function calls \code{optim} to estimate the parameter vector \code{c(w, theta1, theta2)} from the repsonses to a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment.
+#'
+#' @details Esimation is via either maximum likelihood (ML) or modal a'posteriori (MAP), with the latter being prefered. For MAP, a standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + \code{epsilon}. Standard errors (or posterior standard deviations) are computed by numerically inverting the analytically computed Hessian of the objective function, at the parameter estimates. The value of the objective function at the estimate is is also provided. If \code{parallel = T}, the call to \code{optim} is parallelized via \code{parallel::mclapply}.
 #'
 #' The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The (column) names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment. Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
 #'
 #' The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment.
-#'
 #' Type \code{l_full} for an illustration of how the formatting calls are made.
-
+#'
 #' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
 #' @param starts starting values, ordered as triplets of \code{c(w, theta1, theta2)} for each row or \code{resp} (optional).
 #' @param method one of \code{c("ML", "MAP")}. The latter is strongly recommended.
-#' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\{FALSE}) Hessian?
+#' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\code{FALSE}) Hessian?
 #' @param epsilon a small positive number, see description for details.
 #' @param parallel logical: call \code{parallel:mclapply} instead of looping over \code{nrow(resp)}?
 #' @return An named \code{nrow(resp)} by 7 data.frame containing the estimates, their standard errors, and the value of the objective function at the solution.
 #' @export
 
-est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon = .05, parallel = T) {
+est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon = .05, parallel = F) {
   n_obs <- nrow(resp)/2
   odd <- seq(from = 1, to = n_obs*2, by = 2)
   parm_index <- seq(from = 1, to = n_obs*3, by = 3)
@@ -408,8 +407,8 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
 
   # Starting values
   if(is.null(starts)) {starts <- rep(c(.5, 0, 0), times = n_obs)}
-  lower <- rep(c(.00001, -10, -10), times = n_obs)
-  upper <- rep(c(.99999, 10, 10), times = n_obs)
+  lower <- rep(c(.00001, -8, -8), times = n_obs)
+  upper <- rep(c(.99999, 8, 8), times = n_obs)
 
   # Select objective function and gradient
   if (method == "ML"){
@@ -453,8 +452,8 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
   }
 
   # Estimation
-  if(parallel) {
-    n_cores <- parallel::detectCores()
+  n_cores <- parallel::detectCores()
+  if (parallel & n_cores < n_obs) {
     temp <- parallel::mclapply(1:n_cores, fun) %>% unlist
   } else {
     n_cores <- 1
@@ -487,16 +486,16 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
 #--------------------------------------------------------------------------
 #' Estimation of the one-parameter RSC model, with latent traits assumed to be known.
 #'
+#' This function calls \code{optim} to estimate the one-parameter RSC model from the (conjunctively-scored) repsonses of dyads to a group assessment.
 #'
-#' This function calls \code{optim} to estimate the one-parameter RSC model from the (conjunctively-scored) repsonses of dyads to a group assessment. Estimation is via either maximum likelihood (ML) or modal a'posteriori (MAP), with the latter being prefered. For MAP, a two-parameter Beta prior is used with the parameter of the RSC model, in which both parameters are equal to 1 + \code{epsilon}. Standard errors (or posterior standard deviations) are computed via the inverse of the analytically computed second derivatives of the objective function, at the parameter estimates. The value of the objective function at the estimate is is also provided. If \code{parallel = T}, the call to \code{optim} is parallelized via \code{parallel::mclapply}}.
-
+#' @details Estimation is via either maximum likelihood (ML) or modal a'posteriori (MAP), with the latter being prefered. For MAP, a two-parameter Beta prior is used with the parameter of the RSC model, in which both parameters are equal to \code{1 + epsilon}. Standard errors (or posterior standard deviations) are computed via the inverse of the analytically computed second derivatives of the objective function, at the parameter estimates. The value of the objective function at the estimate is is also provided. If \code{parallel = T}, the call to \code{optim} is parallelized via \code{parallel::mclapply}.
 #'
 #' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
-#' @param theta1 the latent trait of member 2.
+#' @param theta2 the latent trait of member 2.
 #' @param method one of \code{c("ML", "MAP")}. The latter is strongly recommended.
-#' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\{FALSE}) Fisher information?
+#' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\code{FALSE}) Fisher information?
 #' @param epsilon a small positive number, see description for details.
 #' @param parallel logical: call \code{parallel:mclapply} instead of looping over \code{nrow(resp)}?
 #' @return An named \code{nrow(resp)} by 3 data.frame containing the estimates, their standard errors, and the value of the log-likelihood of the RSC model at the solution (not log posterior with MAP).
@@ -595,17 +594,20 @@ sim_RSC <- function(w, parms, theta1 = 0, theta2 = 0) {
 #--------------------------------------------------------------------------
 #' Generate data from the one-parameter RSC model.
 #'
-#' This is a wrapper for code{sim_RSC} that includes the data generating parms.
+#' This is a wrapper for \code{sim_RSC} that saves the data generating parms and allows for multple response patterns per group.
+#'
+#' To generate data from a 2PL model, set \code{theta1 = theta2} and \code{w = 1/2}. See Halpin and Bergner (2017) for discussion.
+#'
 #' @param n_reps integer indicating how many datasets to generate.
 #' @param w the weight parameter of the RSC model.
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait for member 1.
 #' @param theta2 the latent trait for member 2.
 #' @param theta1_se the standard error of the latent trait for member 1 (Optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta1, theta1_se)}.
 #' @param theta2_se the standard error of the latent trait for member 2 (Optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta2, theta2_se)}.
-#' @param NA_pattern an (optional) \code{length(theta1)} by \code{nrow(parms)} data.frame with \code{NA} entries for missing data. The missing values are preserved in the generated data.
+#' @param NA_pattern an (optional) \code{length(w)} by \code{nrow(parms)} data.frame with \code{NA} entries denoting missing data. The missing values are preserved in the generated data.
 
-#' @return A data.frame with \code{length(theta1)} rows containing an id variable for each pair and each sample, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
+#' @return A data.frame with \code{length(w)} rows containing an id variable for each pair and each sample, the data generating values of \code{w}, \code{theta1}, and \code{theta2}, and the simulated response patterns.
 #' @export
 
 data_gen <- function(n_reps, w, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
