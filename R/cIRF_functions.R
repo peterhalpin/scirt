@@ -5,7 +5,6 @@
 require(ggplot2)
 require(dplyr)
 
-
 #--------------------------------------------------------------------------
 #' Item response function for ``the Independence model"
 #'
@@ -21,6 +20,7 @@ require(dplyr)
 Ind <- function(parms, theta1, theta2, sorted = F) {
   IRF(parms, theta1)*IRF(parms, theta2)
 }
+
 
 
 #--------------------------------------------------------------------------
@@ -106,6 +106,7 @@ cIRF <- function(model, parms, theta1, theta2, sorted = F) {
     cat("\'model\' must be one of c(\"Ind\", \"Min\", \"Max\", \"Add\", \"IRF\")")
   }
 }
+
 
 
 #--------------------------------------------------------------------------
