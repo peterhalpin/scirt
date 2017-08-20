@@ -118,7 +118,7 @@ cIRF <- function(model, parms, theta1, theta2, sorted = F) {
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
 #' @param sorted logical indicating whether to compute Min using \code{theta1}, regardless of the value of the \code{theta2} (useful for data simulation, where the simulated values of theta may not reflect the ordering of the data generating values)
-#' @param Log logical indicating whether to return loglikelihood or likelihood
+#' @param Log logical indicating whether to return log-likelihood or likelihood
 #' @return An \code{nrow(resp)} by \code{length(models)} matrix of (log-) likleihoods for each response pattern and each model
 #' @export
 
@@ -160,7 +160,7 @@ WA <- function(w, parms, theta1, theta2) {
 #' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
 #' @param theta1 the latent trait for member 1
 #' @param theta2 the latent trait for member 2
-#' @param Log logical: return the loglikelihood or the likelihood?
+#' @param Log logical: return the log-likelihood or the likelihood?
 #' @param Sum logical: return the sum over items, for each group, or a matrix for each group and each item?
 #'
 #' @return If \code{Sum = T), a \code{length(theta)} vector of (log-) likelihoods for each group. If \code{Sum = T), a \code{length(theta)} by \code{nrow(parms)} matrix of (log-) likelihoods for each group and each item
@@ -174,7 +174,7 @@ l_WA <- function(resp, w, parms, theta1, theta2, Log = T, Sum = F) {
 }
 
 #--------------------------------------------------------------------------
-#' First derivative (in w) of loglikelihood for ``the Weighted Additive model"
+#' First derivative (in w) of log-likelihood for ``the Weighted Additive model"
 #'
 #' @param resp a matrix or data.frame containing the binary item responses
 #' @param w a numeric vector containing the weights for each group
@@ -197,7 +197,7 @@ grad_WA <- function(resp, w, parms, theta1, theta2, Sum = T) {
 
 
 #--------------------------------------------------------------------------
-#' Second derivative (in w) of loglikelihood for ``the Weighted Additive model"
+#' Second derivative (in w) of log-likelihood for ``the Weighted Additive model"
 #'
 #' @param resp a matrix or data.frame containing the binary item responses
 #' @param w a numeric vector containing the weights for each group

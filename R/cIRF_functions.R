@@ -1,269 +1,656 @@
+<<<<<<< HEAD
 # Last update: 04/25/2017
 # Functions for group assessments. Depends on IRF_functions.R
 # User beware: functions do not check or handle input errors.
 
 require(ggplot2)
 require(dplyr)
+=======
+# Last update: 14/06/2017
+# User beware: functions not written to check or handle input errors.
+# devtools::document("R")
+# devtools::use_data(sim_data)
+# Functions for estimation of one-parameter Restricted Social Combination model. The following reference contains details:  Halpin & Bergner (2017) Pyschometric Models for Small Group Collaborations.
+>>>>>>> 03f57fee6205cc0bbcfff54c43c6a192415f16b3
 
 #--------------------------------------------------------------------------
-#' Item response function for ``the Independence model"
+#' The IRF of the one-parameter RSC model.
 #'
-#' Computes a matrix of probabilities for correct responses using the independence model of collaboration for the members and the 2PL model for the items.
+#' Computes a matrix of probabilities for correct responses under one parameter RSC model, using 2PL model for individual responses.
 #'
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @param theta1 the latent trait for member 1
-#' @param theta2 the latent trait for member 2
-#' @param sorted logical used for compatbility with \code{cIRF}
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return  \code{length(w)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
-Ind <- function(parms, theta1, theta2, sorted = F) {
-  IRF(parms, theta1)*IRF(parms, theta2)
-}
-
-
-
-#--------------------------------------------------------------------------
-#' Item response function for ``the Minimum model"
-#'
-#' Computes a matrix of probabilities for correct responses using the minimum model of collaboration for the members and the 2PL model for the items.
-#'
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @param theta1 the latent trait for member 1
-#' @param theta2 the latent trait for member 2
-#' @param sorted logical indicating whether to compute Min with theta1, regardless of the value of the theta2. Useful for data simulation, where variability in the simulated values of theta may not reflect the ordering of the data generating values.
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
-#' @export
-
-Min <- function(parms, theta1, theta2, sorted = F) {
-  if (sorted) {
-    IRF(parms, theta1)
-  } else {
-    theta <- apply(cbind(theta1, theta2), 1, min, na.rm = T)
-    IRF(parms, theta)
-  }
-}
-
-
-#--------------------------------------------------------------------------
-#' Item response function for ``the Maximum model"
-#'
-#' Computes a matrix of probabilities for correct responses using the maximum model of collaboration for the members and the 2PL model for the items.
-#'
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
-#' @param theta1 the latent trait for member 1.
-#' @param theta2 the latent trait for member 2.
-#' @param sorted logical indicating whether to compute Max with theta2, regardless of the value of the theta2. Useful for data simulation, where variability in the simulated values of theta may not reflect the ordering of the data generating values.
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
-#' @export
-
-Max <- function(parms, theta1, theta2, sorted = F) {
-  if (sorted) {
-    IRF(parms, theta2)
-  } else {
-    theta <- apply(cbind(theta1, theta2), 1, max, na.rm = T)
-    IRF(parms, theta)
-  }
-}
-
-
-#--------------------------------------------------------------------------
-#' Item response function for ``the Additive Independence model"
-#'
-#' Computes a matrix of probabilities for correct responses using the additive. independence model of collaboration for the members and the 2PL model for the items.
-#'
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
-#' @param theta1 the latent trait for member 1.
-#' @param theta2 the latent trait for member 2.
-#' @param sorted logical used for compatbility with \code{cIRF}.
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
-#' @export
-
-Add <- function(parms, theta1, theta2, sorted = F) {
+RSC <- function(w, parms, theta1, theta2) {
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
-  p1 + p2 - p1 * p2
+  W <- w %*% t(rep(1, nrow(parms)))
+  W * (p1 + p2) + (1 - 2 * W) * p1 * p2
+}
+
+<<<<<<< HEAD
+
+
+=======
+>>>>>>> 03f57fee6205cc0bbcfff54c43c6a192415f16b3
+#--------------------------------------------------------------------------
+#' First derivatives of the IRF of the one-parameter RSC model.
+#'
+#' Computes a named list of derivatives of the IRF of the one-parameter RSC model. Uses 2PL model for individual responses. See Appendix of Halpin & Bergner (2017) for details.
+#'
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return a named list of derivatives, with elements \code{c("dw", "dtheta1", "dtheta2")}.
+#' @export
+
+d_RSC <- function(w, parms, theta1, theta2) {
+  p1 <- IRF(parms, theta1)
+  p2 <- IRF(parms, theta2)
+  dp1 <- dIRF(parms, theta1)
+  dp2 <- dIRF(parms, theta2)
+  W <- w %*% t(rep(1, nrow(parms)))
+  dw <- p1 + p2 - 2 * p1 * p2
+  dt1 <- (W + (1 - 2 * W) * p2) * dp1
+  dt2 <- (W + (1 - 2 * W) * p1) * dp2
+  out <- list(dw, dt1, dt2)
+  names(out) <- c("dw", "dtheta1", "dtheta2")
+  out
 }
 
 #--------------------------------------------------------------------------
-#' Wrapper for collaborative item response functions.
+#' Second derivatives of the IRF of the one-parameter RSC model.
 #'
-#' Computes a matrix of probabilities for correct responses using the named \code{model} for collaboration, and the 2PL model for the items.
+#' Computes a named list of derivatives of the IRF of the one-parameter RSC model. Uses 2PL model for individual responses. See Appendix of Halpin & Bergner (2017) for details.
 #'
-#' @param model one of \code{c("Ind", "Min", "Max", "Add", "IRF")}
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
-#' @param theta1 the latent trait for member 1.
-#' @param theta2 the latent trait for member 2.
-#' @param sorted logical indicating whether to compute Min with theta1  and / or Max with theta2, regardless of the value of the theta1 and theta2. Useful for data simulation, where variability in the simulated values of theta may not reflect the ordering of the data generating values.
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return a named list of second derivatives, with elements \code{c("dw_dtheta1", "dw_dtheta2", "d2theta1", "d2theta2", "dtheta1_dtheta2")}.
 #' @export
 
-cIRF <- function(model, parms, theta1, theta2, sorted = F) {
-  if (model %in% c("Ind", "Min", "Max", "Add", "IRF")) {
-    fun <- match.fun(model)
-    fun(parms, theta1, theta2, sorted)
+d2_RSC <- function(w, parms, theta1, theta2) {
+  p1 <- IRF(parms, theta1)
+  p2 <- IRF(parms, theta2)
+  dp1 <- dIRF(parms, theta1)
+  dp2 <- dIRF(parms, theta2)
+  d2p1 <- d2IRF(parms, theta1)
+  d2p2 <- d2IRF(parms, theta2)
+  W <- w %*% t(rep(1, nrow(parms)))
+
+  dwdt1 <- dp1 * (1 - 2 * p2)
+  dwdt2 <- dp2 * (1 - 2 * p1)
+  d2t1 <- (W + (1 - 2 * W) * p2) * d2p1
+  d2t2 <- (W + (1 - 2 * W) * p1) * d2p2
+  dt1dt2 <- (1 - 2 * W) * dp1 * dp2
+  out <- list(dwdt1, dwdt2, d2t1, d2t2, dt1dt2)
+  names(out) <- c("dw_dtheta1", "dw_dtheta2", "d2theta1", "d2theta2", "dtheta1_dtheta2")
+  out
+}
+
+#--------------------------------------------------------------------------
+#' Log-likelihood of the one-parameter RSC model.
+#'
+#' Computes loglikeihood of a matrix of response patterns under the one-parameter RSC model.
+#'
+#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return  \code{length(w)}-vector of log-likelihood.
+#' @export
+
+l_RSC <- function(resp, w, parms, theta1, theta2) {
+  p <- RSC(w, parms, theta1, theta2)
+  apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
+}
+
+#--------------------------------------------------------------------------
+#' Mutiplier for first deriviative of log-likelihood of one-parameter RSC model.
+#'
+#' Writing the derivative of the log-likelihood of the RSC model a single item as M * grad_IRF, this function computes (a matrix of values of) M, with grad_IRF being the gradient of the RSC IRF. Called by functions that compute derivative of the log-likelihood.
+
+#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return \code{dim(resp)}-matrix of multipliers.
+#' @export
+
+Mstar <- function(resp, w, parms, theta1, theta2) {
+  p <- RSC(w, parms, theta1, theta2)
+  resp / p - (1 - resp) / (1 - p)
+}
+
+<<<<<<< HEAD
+
+
+=======
+>>>>>>> 03f57fee6205cc0bbcfff54c43c6a192415f16b3
+#--------------------------------------------------------------------------
+#' Gradient of log-likelihood of one-parameter RSC model.
+#'
+#' Computes the first derivatives of the log-likelihood, in \code{c{w, theta1, theta2)}. Called by \code{est_RSC}.
+
+#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @export
+
+dl_RSC <- function(resp, w, parms, theta1, theta2) {
+  m <- Mstar(resp, w, parms, theta1, theta2)
+  d <- d_RSC(w, parms, theta1, theta2)
+  dw <- apply(m * d$dw, 1, sum, na.rm = T)
+  dt1 <- apply(m * d$dtheta1, 1, sum, na.rm = T)
+  dt2 <- apply(m * d$dtheta2, 1, sum, na.rm = T)
+  rbind(dw, dt1, dt2) %>% c
+}
+
+#--------------------------------------------------------------------------
+#' Multiplier for second deriviative of log-likelihood of one-parameter RSC model.
+#'
+#' Similar to \code{Mstar}, but for the second derivatives. Called by functions that compute second derivative of the log-likelihood.
+
+#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @param obs logical: should the observed value be returned? If not, the expected value is returned.
+#' @return \code{dim(resp)}-matrix of multipliers.
+#' @export
+
+Nstar <- function(resp, w, parms, theta1, theta2, obs = F) {
+  p <- RSC(w, parms, theta1, theta2)
+  if (obs) {
+    resp / p^2 + (1 - resp) / (1 - p)^2
   } else {
-    cat("\'model\' must be one of c(\"Ind\", \"Min\", \"Max\", \"Add\", \"IRF\")")
+    1 / p / (1 - p) * !is.na(resp)
   }
 }
 
-
-
 #--------------------------------------------------------------------------
-#' Computes a martix of item deltas.
+#' Hessian of log-likelihood of one-parameter RSC model.
 #'
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
-#' @param theta1 the latent trait for member 1.
-#' @param theta2 the latent trait for member 2.
-#' @param sorted logical indicating whether to compute Min with theta1  and / or Max with theta2, regardless of the value of the theta1 and theta2. Useful for data simulation, where variability in the simulated values of theta may not reflect the ordering of the data generating values.
-#' @return \code{length(theta)} by \code{nrow(parms)} matrix of response probabilities.
+#' Computes the second derivatives of the log-likelihood, in \code{c{w, theta1, theta2)}. Called by \code{est_RSC}. Calls the function \code{bdiag_m} written by Martin Maechler, ETH Zurich.
+#'
+#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @param obs logical: should the observed value be returned? If not, the expected value is returned.
+#' @return \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
 
-item_delta <- function(parms, theta1, theta2, sorted = F, NA_pattern = NULL) {
-  temp <- Min(parms, theta1, theta2, sorted) * (1 - Max(parms, theta1, theta2, sorted))
-  format_NA(temp, NA_pattern)
-}
+d2l_RSC <- function(resp, w, parms, theta1, theta2, obs = T) {
+  n <- -1 * Nstar(resp, w, parms, theta1, theta2, obs)
+  d <- d_RSC(w, parms, theta1, theta2)
+  dwdw <-  apply(n * d$dw * d$dw, 1, sum, na.rm = T)
+  dwdt1 <- apply(n * d$dw * d$dtheta1, 1, sum, na.rm = T)
+  dwdt2 <- apply(n * d$dw * d$dtheta2, 1, sum, na.rm = T)
+  dt1dt1 <- apply(n * d$dtheta1 * d$dtheta1, 1, sum, na.rm = T)
+  dt1dt2 <- apply(n * d$dtheta1 * d$dtheta2, 1, sum, na.rm = T)
+  dt2dt2 <- apply(n * d$dtheta2 * d$dtheta2, 1, sum, na.rm = T)
 
-
-#--------------------------------------------------------------------------
-#' Likelihood of a matrix of binary responses for one or more models of collaboration, conditional on theta.
-#'
-#' Note that \code{logL} is faster for 2PL.
-#'
-#' @param resp the matrix of binary responses.
-#' @param models is one or more of \code{c("IRF", "Ind", "Min", "Max", "Add") }.
-#' @param parms a named list or data.frame with parms$alpha and parms$beta corresponding. to the discrimination and difficulty parameters of the 2PL model, respectively.
-#' @param theta1 the latent trait for member 1.
-#' @param theta2 the latent trait for member 2.
-#' @return An \code{nrow(resp)} by \code{length(models)} matrix of (log-) likleihoods for each response pattern and each model.
-#' @export
-
-likelihood <- function(models, resp, parms, theta1, theta2 = NULL, sorted = F, Log = T) {
-  n_models <- length(models)
-  out <- array(0, dim = c(nrow(resp), n_models))
-  for (i in 1:n_models) {
-    p <- cIRF(models[i], parms, theta1, theta2, sorted)
-    out[,i] <- apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
+  if (obs) {
+    m <- Mstar(resp, w, parms, theta1, theta2)
+    d2 <- d2_RSC(w, parms, theta1, theta2)
+    dwdt1 <- dwdt1 + apply(m * d2$dw_dtheta1, 1, sum, na.rm = T)
+    dwdt2 <- dwdt2 + apply(m * d2$dw_dtheta2, 1, sum, na.rm = T)
+    dt1dt1 <- dt1dt1 + apply(m * d2$d2theta1, 1, sum, na.rm = T)
+    dt1dt2 <- dt1dt2 + apply(m * d2$dtheta1_dtheta2, 1, sum, na.rm = T)
+    dt2dt2 <- dt2dt2 + apply(m * d2$d2theta2, 1, sum, na.rm = T)
   }
-  if (n_models == 1) {out <- c(out)} # un-matrix
-  if (Log) {out} else {exp(out)}
+
+  fun <- function(i) {
+      temp <- c(dwdw[i], dwdt1[i], dwdt2[i], dwdt1[i], dt1dt1[i], dt1dt2[i], dwdt2[i], dt1dt2[i], dt2dt2[i])
+      matrix(temp, nrow = 3, ncol = 3)
+  }
+
+  #if (parallel) { # This isnt speeding anything up
+  #  temp <- parallel::mclapply(1:length(w), fun)
+  #} else {
+    temp <- vector("list", length(theta1))
+    for (i in 1:length(theta1)) {temp[[i]] <- fun(i)}
+  #}
+  bdiag_m(temp)
 }
 
 
 #--------------------------------------------------------------------------
-#' Incomplete data logliklihood for a mixture of collaboration models
+#' Log-likelihood of a combined assessment.
 #'
-#' @param likelihood n_resp by n_models matrix of likelihoods (\strong{not loglikelihoods}) for each response pattern and each model (e.g., the output of \code{likelihood} with \code{Log = F}).
-#' @param mix_prop the mixing proporitions for the models. Can be either an n_resp by n_models matrix (useful for computing the "posterior predicted" loglikelihood for each response pattern); or a n_models-vector, which is applied to each row of \code{likelihood} (useful for EM).
-#' @param Sum logical indicating whether the output be summer over rows of \code{likelihood}.
-#' @return A scalar (if \code{Sum = T}) or a n_resp-vector of incomplete data loglikelihoods.
+#' This function computes the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c{w, theta1, theta2)}.
+#'
+#' The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The (column) names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment. Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
+
+#' The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment.
+#'
+#' This description is much longer than the source code -- type \code{l_full} for a shorter explanation.
+
+#' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return \code{length(w)}-vector of log-likelihoods.
 #' @export
 
-incomplete_data <- function(components, mix_prop, Sum = T) {
-  if (!is.null(dim(mix_prop))) {
-    temp <- components * mix_prop
+l_full <- function(resp, w, parms, theta1, theta2)
+{
+  ind <- grep("IND", names(resp))
+  col <- grep("COL", names(resp))
+  ind_parms <- parms[grep("IND", row.names(parms)),]
+  col_parms <- parms[grep("COL", row.names(parms)),]
+  odd <- seq(1, nrow(resp), by = 2)
+  (logL(resp[odd, ind], ind_parms, theta1) +
+    logL(resp[(odd + 1), ind], ind_parms, theta2) +
+    l_RSC(resp[odd, col], w, col_parms, theta1, theta2)) %>% sum
+}
+
+#--------------------------------------------------------------------------
+#' Log-likelihood of a combined assessment, with sum option.
+#'
+#' This function is identical to \code{l_full}, except that it has an option for whether or not to sum the log-liklihood over respondents. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+#'
+#' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return \code{length(w)}-vector of log-likelihoods.
+#' @export
+
+l_full_sum <- function(resp, w, parms, theta1, theta2, Sum = F)
+{
+  ind <- grep("IND", names(resp))
+  col <- grep("COL", names(resp))
+  ind_parms <- parms[grep("IND", row.names(parms)),]
+  col_parms <- parms[grep("COL", row.names(parms)),]
+  odd <- seq(1, nrow(resp), by = 2)
+  temp <- logL(resp[odd, ind], ind_parms, theta1) +
+    logL(resp[(odd + 1), ind], ind_parms, theta2) +
+    l_RSC(resp[odd, col], w, col_parms, theta1, theta2)
+  if (Sum) {sum(temp)} else {temp}
+}
+
+#--------------------------------------------------------------------------
+#' Log of prior distribution for a combined assessment.
+#'
+#' This function computes the log of the prior (minus a constant) for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + epsilon.
+#'
+
+#' @param w the weight parameter of the RSC model.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @param epsilon a small positive number, see description for details.
+#' @return \code{length(w)}-vector of log-priors (minus a constant).
+#' @export
+
+lp <- function(w, theta1, theta2, epsilon = .05)
+{
+  (epsilon * log(w - w^2) - theta1^2 / 2 - theta2^2 / 2)
+}
+
+#--------------------------------------------------------------------------
+#' Gradient of the log-likelihood of a combined assessment.
+#'
+#' This function computes first derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c{w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+#'
+#' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @export
+
+dl_full <- function(resp, w, parms, theta1, theta2) {
+  ind <- grep("IND", names(resp))
+  col <- grep("COL", names(resp))
+  ind_parms <- parms[grep("IND", row.names(parms)),]
+  col_parms <- parms[grep("COL", row.names(parms)),]
+  odd <- seq(1, nrow(resp), by = 2)
+
+  dl_t1 <- dlogL(resp[odd, ind], ind_parms, theta1)
+  dl_t2 <- dlogL(resp[(odd+1), ind], ind_parms, theta2)
+  temp <- rbind(0, dl_t1, dl_t2) %>% c
+  dl_RSC(resp[odd, col], w, col_parms, theta1, theta2) + temp
+}
+
+#--------------------------------------------------------------------------
+#' Graident of the log of the prior distribution for a combined assessment.
+#'
+#' This function computes the derivative of the log of the prior for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + epsilon.
+#'
+#'
+#' @param w the weight parameter of the RSC model.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @param epsilon a small positive number, see description for details.
+#' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @export
+
+dlp <- function(w, theta1, theta2, epsilon = .05)
+{
+  dlw <- epsilon * (1 - 2 * w) / (w - w^2)
+  rbind(dlw, -theta1, -theta2) %>% c
+}
+
+#--------------------------------------------------------------------------
+#' Hessian of the log-likelihood for a combined assessment.
+#'
+#' This function computes second derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c{w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+#'
+#' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @param obs logical: should the observed value be returned? If not, the expected value is returned.
+#' @return \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @export
+
+d2l_full <- function(resp, w, parms, theta1, theta2, obs = T, parallel = F) {
+  ind <- grep("IND", names(resp))
+  col <- grep("COL", names(resp))
+  ind_parms <- parms[grep("IND", row.names(parms)),]
+  col_parms <- parms[grep("COL", row.names(parms)),]
+  odd <- seq(1, nrow(resp), by = 2)
+
+  d2l_t1 <- d2logL(resp[odd, ind], ind_parms, theta1, obs)
+  d2l_t2 <- d2logL(resp[(odd+1), ind], ind_parms, theta2, obs)
+  temp <- rbind(0, d2l_t1, d2l_t2) %>% c %>% diag
+  d2l_RSC(resp[odd, col], w, col_parms, theta1, theta2, obs) + temp
+}
+
+#--------------------------------------------------------------------------
+#' Hessian of the log of the prior distribution for a combined assessment.
+#'
+#' This function computes the Hessian of the log of the prior for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + epsilon.
+#'
+#' @param w the weight parameter of the RSC model.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @param epsilon a small positive number, see description for details.
+#' @return \code{3 * K} by \code{3 * K} diagonal matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @export
+
+d2lp <- function(w, theta1, theta2, epsilon = .05)
+{
+  w2 <- w - w^2
+  d2lw <- -1 * epsilon * (2 / w2 + ((1 - 2 * w) / w2)^2 )
+  rbind(d2lw, -1, -1) %>% c %>% diag
+}
+
+#--------------------------------------------------------------------------
+#' Simultaneous estimation of latent traits and the one-parameter RSC model for a combined assessment.
+#'
+#' This function calls \code{optim} to estimate the parameter vector \code{c(w, theta1, theta2)} from the repsonses to a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment.
+#'
+#' @details Esimation is via either maximum likelihood (ML) or modal a'posteriori (MAP), with the latter being prefered. For MAP, a standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + \code{epsilon}. Standard errors (or posterior standard deviations) are computed by numerically inverting the analytically computed Hessian of the objective function, at the parameter estimates. The value of the objective function at the estimate is is also provided. If \code{parallel = T}, the call to \code{optim} is parallelized via \code{parallel::mclapply}.
+#'
+#' The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The (column) names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment. Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
+#'
+#' The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment.
+#' Type \code{l_full} for an illustration of how the formatting calls are made.
+#'
+#' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param starts starting values, ordered as triplets of \code{c(w, theta1, theta2)} for each row or \code{resp} (optional).
+#' @param method one of \code{c("ML", "MAP")}. The latter is strongly recommended.
+#' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\code{FALSE}) Hessian?
+#' @param epsilon a small positive number, see description for details.
+#' @param parallel logical: call \code{parallel:mclapply} instead of looping over \code{nrow(resp)}?
+#' @return An named \code{nrow(resp)} by 7 data.frame containing the estimates, their standard errors, and the value of the objective function at the solution.
+#' @export
+
+est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon = .05, parallel = F) {
+  n_obs <- nrow(resp)/2
+  odd <- seq(from = 1, to = n_obs*2, by = 2)
+  parm_index <- seq(from = 1, to = n_obs*3, by = 3)
+  out <- data.frame(matrix(0, nrow = n_obs, ncol = 7))
+  names(out) <- c("log", "w", "w_se", "theta1", "theta1_se", "theta2", "theta2_se")
+
+  # Starting values
+  if(is.null(starts)) {starts <- rep(c(.5, 0, 0), times = n_obs)}
+  lower <- rep(c(.00001, -8, -8), times = n_obs)
+  upper <- rep(c(.99999, 8, 8), times = n_obs)
+
+  # Select objective function and gradient
+  if (method == "ML"){
+    obj <- function(par, resp) {
+      ind <- parm_index[1:(length(par) / 3)]
+      -1 * l_full(resp, par[ind], parms, par[(ind+1)], par[(ind+2)])
+    }
+    grad <- function(par, resp) {
+      ind <- parm_index[1:(length(par) / 3)]
+      -1 * dl_full(resp, par[ind], parms, par[(ind+1)], par[(ind+2)])
+    }
+  }
+
+  if (method == "MAP"){
+    obj <- function(par, resp) {
+      ind <- parm_index[1:(length(par) / 3)]
+      -1 * l_full(resp, par[ind], parms, par[(ind+1)], par[(ind+2)]) -
+        sum(lp(par[ind], par[(ind+1)], par[(ind+2)], epsilon))
+    }
+    grad <- function(par, resp) {
+      ind <- parm_index[1:(length(par) / 3)]
+      -1 * dl_full(resp, par[ind], parms, par[(ind+1)], par[(ind+2)]) -
+        dlp(par[ind], par[(ind+1)], par[(ind+2)], epsilon)
+    }
+  }
+
+  # Set up parm_indexing for parallel
+  fun <- function(i) {
+    blocksize <- floor(n_obs/n_cores)
+    m <- (i-1) * blocksize + 1
+    if (i < n_cores) {n <- i * blocksize} else {n <- n_obs}
+    ind1 <- parm_index[m] : (parm_index[n] + 2)
+    ind2 <- odd[m] : (odd[n] + 1)
+    q <- optim(starts[ind1], obj,
+             gr = grad,
+             resp = resp[ind2,],
+             method = "L-BFGS-B",
+             lower = lower[ind1],
+             upper = upper[ind1]
+             )$par
+  }
+
+  # Estimation
+  n_cores <- parallel::detectCores()
+  if (parallel & n_cores < n_obs) {
+    temp <- parallel::mclapply(1:n_cores, fun) %>% unlist
   } else {
-    temp <- t(t(components) * mix_prop)
+    n_cores <- 1
+    temp <- fun(1)
   }
-  out <- log(apply(temp, 1, sum))
-  if(Sum) {sum(out)} else {out}
+  out$w <- temp[parm_index]
+  out$theta1 <- temp[parm_index+1]
+  out$theta2 <- temp[parm_index+2]
+
+  # Standard errors
+  temp_se <- d2l_full(resp, out$w, parms, out$theta1, out$theta2, obs)
+  if (method == "MAP") {
+    temp_se <- temp_se + d2lp(out$w, out$theta1, out$theta2, epsilon)
+  }
+  temp_se <- (-1 * temp_se) %>% solve %>% diag %>% sqrt
+
+  out$w_se <- temp_se[parm_index]
+  out$theta1_se <- temp_se[parm_index+1]
+  out$theta2_se <- temp_se[parm_index+2]
+
+  # Objective function
+  out$log <- l_full_sum(resp, out$w, parms, out$theta1, out$theta2)
+  if (method == "MAP") {
+    out$log <- out$log + lp(out$w, out$theta1, out$theta2, epsilon)
+  }
+
+  out
 }
 
-
 #--------------------------------------------------------------------------
-#' Posterior probabilities of components in a mixture of collaboration models.
+#' Estimation of the one-parameter RSC model, with latent traits assumed to be known.
 #'
-#' This is the E-step of the EM algorithm for estimating the mixing proportions.
+#' This function calls \code{optim} to estimate the one-parameter RSC model from the (conjunctively-scored) repsonses of dyads to a group assessment.
 #'
-#' @param components n_resp by n_models matrix of componentss (\strong{not log components}) for each response pattern and each model (e.g., the output of \code{components} with \code{Log = F}).
-#' @param mix_prop a \code{length(models)}-vector of mixing proporitions for the models.
-#' @return An n_resp by n_models matrix of posterior proabilities for each response pattern and each component.
+#' @details Estimation is via either maximum likelihood (ML) or modal a'posteriori (MAP), with the latter being prefered. For MAP, a two-parameter Beta prior is used with the parameter of the RSC model, in which both parameters are equal to \code{1 + epsilon}. Standard errors (or posterior standard deviations) are computed via the inverse of the analytically computed second derivatives of the objective function, at the parameter estimates. The value of the objective function at the estimate is is also provided. If \code{parallel = T}, the call to \code{optim} is parallelized via \code{parallel::mclapply}.
+#'
+#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @param method one of \code{c("ML", "MAP")}. The latter is strongly recommended.
+#' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\code{FALSE}) Fisher information?
+#' @param epsilon a small positive number, see description for details.
+#' @param parallel logical: call \code{parallel:mclapply} instead of looping over \code{nrow(resp)}?
+#' @return An named \code{nrow(resp)} by 3 data.frame containing the estimates, their standard errors, and the value of the log-likelihood of the RSC model at the solution (not log posterior with MAP).
 #' @export
 
-posterior <- function(components, mix_prop) {
-  temp <- t(t(components) * mix_prop)
-  temp / apply(temp, 1, sum)
-}
+est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, epsilon = .05, parallel = F) {
+  n_obs <- nrow(resp)
+  odd <- seq(from = 1, to = n_obs, by = 2)
+  parm_index <- seq(from = 1, to = n_obs*3, by = 3)
+  out <- data.frame(matrix(0, nrow = n_obs, ncol = 3))
+  names(out) <- c("log", "w", "se")
+  starts <- rep(.5, times = n_obs)
 
+  # Select objective function and gradient
+  fun1 <- function(par, resp, theta1, theta2) {
+    -1 * sum(l_RSC(resp, par, parms, theta1, theta2))
+  }
+  fun2 <- function(par, resp, theta1, theta2) {
+    -1 * dl_RSC(resp, par, parms, theta1, theta2)[parm_index]
+  }
 
-#--------------------------------------------------------------------------
-#' Computes updated mixing proportions based on posterior probabilities of components in a  mixture of collaboration models.
-#'
-#' This is the M-step of the EM algorithm for estimating the mixing proportions.
-#''
-#' @param post is output from \code{posterior}.
-#' @return An n_models- vector mixing proportions each component.
+  if (method == "ML") {
+    obj <- function(par, resp, theta1, theta2) {fun1(par, resp, theta1, theta2)}
+    grad <- function(par, resp, theta1, theta2) {fun2(par, resp, theta1, theta2)}
+  }
 
-prior <- function(post) {
-   apply(post, 2, sum) / nrow(post)
-}
+  if (method == "MAP") {
+    obj <- function(par, resp, theta1, theta2) {
+      fun1(par, resp, theta1, theta2) - sum(epsilon * log(par - par^2))
+    }
+    grad <- function(par, resp, theta1, theta2) {
+      fun2(par, resp, theta1, theta2) - epsilon * (1 - 2 * par) / (par - par^2)
+    }
+  }
 
+  # Set up parm_indexing for parallel
+  fun <- function(i) {
+    blocksize <- floor(n_obs/n_cores)
+    m <- (i-1) * blocksize + 1
+    if (i < n_cores) {n <- i * blocksize} else {n <- n_obs}
+    q <- optim(starts[m:n], obj,
+             gr = grad,
+             resp = resp[m:n, ],
+             theta1 = theta1[m:n],
+             theta2 = theta2[m:n],
+             method = "L-BFGS-B",
+             lower = .000001,
+             upper = .999999)$par
+  }
 
-#--------------------------------------------------------------------------
-#' Computes standard errors of mixing proportions via observed Hessian.
-#'
-# Checked for accuracy again numDeriv::hessian.
-#' @param components n_resp by n_models matrix of likehooods (\strong{not loglikelihoods}) for each response pattern and each model (e.g., the output of \code{likelihood} with \code{Log = F}).
-#' @param mix_prop a n_models-vector of mixing proporitions for the models.
-
-#' @return An n_models-vector standard errors for the mixing proportions in a mixture model.
-
-prior_se <- function(components, mix_prop) {
-  if (sum(mix_prop < .001) == 0) {
-    temp <- apply(t(t(components) * mix_prop), 1, sum)
-    temp <- components / temp
-    H <- t(temp) %*% temp
-    I <- solve(H)
-    sqrt(diag(I))
+  # Estimation
+  if(parallel) {
+    n_cores <- parallel::detectCores()
+    out$w <- parallel::mclapply(1:n_cores, fun) %>% unlist
   } else {
-    rep(NA, times = length(mix_prop))
+    n_cores <- 1
+    out$w <- fun(1)
   }
-}
 
-#--------------------------------------------------------------------------
-#' Runs EM algorithm for mixing proportions of a mixture of collaboration models
-#'
-#' Only the mixing proportions are estimated.
-#'
-#' @param models one or more of \code{c("Ind", "Min", "Max", "Add") }
-#' @param resp data.frame of binary, conjunctively scored \strong{collaborative responses}
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-#' @param theta1 the latent trait for member 1
-#' @param theta2 the latent trait for member 2
-#' @param sorted logical indicating whether to compute Min with theta1  and / or Max with theta2, regardless of the value of the theta1 and theta2. Useful for data simulation, where variability in the simulated values of theta may not reflect the ordering of the data generating values.
-#' @param max_iter maximum number of iterations for EM
-#' @param conv convegence criterional applied to difference of incomplete data loglikelihood
-#' @return A list of length 3 containing the optimization trace, priors, and posteriors
-#' @export
-
-EM <- function(models, resp, parms, theta1, theta2, sorted = F, max_iter = 100, conv = 1e-5) {
-  n_models <- length(models)
-  p <- rep(1/n_models, n_models)
-  l <- likelihood(models, resp, parms, theta1, theta2, sorted, Log = F)
-  trace <- incomplete_data(l, p)
-  i <- 1
-  delta <- 1
-
-  while(i <= max_iter & delta > conv) {
-    post <- posterior(l, p) # E
-    p <- prior(post) # M
-    trace <- c(trace, incomplete_data(l, p))
-    delta <- trace[i+1] - trace[i]
-    i <- i + 1
+  # Standard errors
+  out$se <- diag(d2l_RSC(resp, out$w, parms, theta1, theta2, obs))[parm_index]
+  if (method == "MAP") {
+    out$se <- out$se + diag(d2lp(out$w, theta1, theta2, epsilon))[parm_index]
   }
-  se <- prior_se(l, p)
-  out <- list(trace, p, se, post)
-  names(out) <- c("trace", "prior", "se", "posterior")
+  out$se <- sqrt(-1 / out$se)
+
+  # Objective function
+  out$log <- l_RSC(resp, out$w, parms, theta1, theta2)
+  #if (method == "MAP") {
+  #  out$log <- out$log + epsilon * log(out$w - out$w^2)
+  #}
   out
 }
 
 
+#--------------------------------------------------------------------------
+#' Simulate item responses from the one-parameter RSC model.
+#'
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param theta1 the latent trait of member 1.
+#' @param theta1 the latent trait of member 2.
+#' @return \code{length(theta1)} by \code{nrow(parms)} matrix of binary responses.
+#' @export
 
+sim_RSC <- function(w, parms, theta1 = 0, theta2 = 0) {
+  n_row <- length(theta1)
+  n_col <- nrow(parms)
+  r <- array(runif(n_row * n_col), dim = c(n_row, n_col))
+  p <- RSC(w, parms, theta1, theta2)
+  out <- ifelse(p > r, 1, 0)
+  colnames(out) <- row.names(parms)
+  out
+}
+
+#--------------------------------------------------------------------------
+#' Generate data from the one-parameter RSC model.
+#'
+#' This is a wrapper for \code{sim_RSC} that saves the data generating parms and allows for multple response patterns per group.
+#'
+#' To generate data from a 2PL model, set \code{theta1 = theta2} and \code{w = 1/2}. See Halpin and Bergner (2017) for discussion.
+#'
+#' @param n_reps integer indicating how many datasets to generate.
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait for member 1.
+#' @param theta2 the latent trait for member 2.
+#' @param theta1_se the standard error of the latent trait for member 1 (Optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta1, theta1_se)}.
+#' @param theta2_se the standard error of the latent trait for member 2 (Optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta2, theta2_se)}.
+#' @param NA_pattern an (optional) \code{length(w)} by \code{nrow(parms)} data.frame with \code{NA} entries denoting missing data. The missing values are preserved in the generated data.
+
+#' @return A data.frame with \code{length(w)} rows containing an id variable for each pair and each sample, the data generating values of \code{w}, \code{theta1}, and \code{theta2}, and the simulated response patterns.
+#' @export
+
+data_gen <- function(n_reps, w, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
+
+  # Storage
+  n_obs <- length(theta1)
+  out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, times = n_obs))
+  names(out) <- c("pairs", "samples")
+  out$w <- rep(w, each = n_reps)
+  out$theta1 <- theta_gen(n_reps, theta1, theta1_se)
+  out$theta2 <- theta_gen(n_reps, theta2, theta2_se)
+
+  # Simulate data
+  data <- data.frame(matrix(NA, nrow = n_reps*n_obs, ncol = nrow(parms)))
+  names(data) <- row.names(parms)
+  data <- sim_RSC(out$w, parms, out$theta1, out$theta2)
+  data <- format_NA(data, NA_pattern)
+  cbind(out[], data[])
+}
 
 
 
 #--------------------------------------------------------------------------
-#' Formats a data.frame to have the same variables (columns) as that of another data.frame.
+#' Formats a data.frame to have the same variables (column names) as that of another data.frame
 #'
 #' Drops columns in the target data.frame (resp) not in the variable name list (items). Adds columns (with NA entries) for entries in the items that are not alrady in resp. This is mainly to simplify using item parameters obtained from one sample (e.g., calibration sample) with a second sample that may not use all of the items.
 
@@ -273,9 +660,11 @@ EM <- function(models, resp, parms, theta1, theta2, sorted = F, max_iter = 100, 
 #' @return a data.frame that results from padding and deleting \code{resp} as described.
 #' @export
 
-format_resp <- function(resp, items, version) {
-  resp <- resp[grep(version, names(resp))]
-  items <- paste0(items, "_", version)
+format_resp <- function(resp, items, version = NULL) {
+  if (!is.null(version)) {
+    resp <- resp[grep(version, names(resp))]
+  }
+  names(resp) <- substr(names(resp), 1, 5)
   resp <- resp[names(resp)%in%items]
   resp[items[!items%in%names(resp)]] <- NA
   resp <- resp[items]
@@ -284,28 +673,7 @@ format_resp <- function(resp, items, version) {
 
 
 #--------------------------------------------------------------------------
-#' Simulate item responses from the 2PL or a model of pairwise collaboration obtained from the 2PL. Called by \code{data_gen}.
-
-#' @param model is one of \code{c("IRF", "Ind", "Min", "Max", "Add") }.
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
-#' @param theta1 the latent trait for member 1.
-#' @param theta2 the latent trait for member 2.
-#' @return \code{length(theta1)} by \code{nrow(parms)} matrix of binary responses.
-#' @export
-
-sim_model <- function(model, parms, theta1 = 0, theta2 = 0, sorted = F) {
-  n_row <- length(theta1)
-  n_col <- nrow(parms)
-  r <- array(runif(n_row * n_col), dim = c(n_row, n_col))
-  p <- cIRF(model, parms, theta1, theta2, sorted)
-  out <- ifelse(p > r, 1, 0)
-  colnames(out) <- row.names(parms)
-  out
-}
-
-
-#--------------------------------------------------------------------------
-#' Transforms one matrix/data.frame have the same NA entries as another matrix/data.frame.
+#' Transforms one matrix/data.frame have the same NA entries as another matrix/data.frame
 #'
 #' Useful for reproducing observed NA patterns in simulated data. If \code{q = (nrow(data) / nrow(NA_pattern)} is an integer greater than 1, will replicate NA_pattern as \code{kronecker(as.matrix(NA_pattern), rep(1, q)}.
 #'
@@ -327,137 +695,15 @@ format_NA <- function(data, NA_pattern = NULL){
 
 
 #--------------------------------------------------------------------------
-#' Computes average classification probabilities for posterior distribution of mixture model
+#' Generates or replicates values of latent variable.
 #'
-#' @param mix_prop an n_obs by n_model matrix of probabilities, (e.g., \code{em$posterior}).
-#' @param known_model an integer vector indicating the known class membership for each row of mix_prop. If omitted, it is internally replaced by \code{apply(em$posterior, 1, which.max)}
-
-#' @return An n_model by n_model matrix with each row giving the mean posterior probabilities conditional on known_class.
-
-#' @export
-class_probs <-function(mix_prop, known_model = NULL){
-  n_models <- ncol(mix_prop)
-  out <- matrix(0, nrow = n_models, ncol = n_models)
-
-  if (is.null(known_model)) {
-    known_model <- apply(mix_prop, 1, which.max)
-  }
-  for(i in 1:n_models) {
-    out[i, ] <-  apply(mix_prop[known_model == i, ], 2, mean)
-  }
-  row.names(out) <- paste0("model", 1:n_models)
-  colnames(out) <- paste0("prob", 1:n_models)
-  out
-}
-
-
-#--------------------------------------------------------------------------
-#' Generate plausible values.
-#'
-#  Replicates the input data and combines it with draws from the "approximate" (i.e., normal) distribution of theta1 and theta2
-#' @param n_reps integer indicating how many replications to use.
-#' @param resp data.frame of binary, conjuncitvely-scored responses patterns.
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
-#' @param theta1 the latent trait for member 1.
-#' @param theta2 the latent trait for member 2.
-#' @param theta1_se the standard error of the latent trait for member 1.
-#' @param theta2_se the standard error of the latent trait for member 2.
-#' @param true_model an (optional) \code{length(theta)} vector indicating which model is associated with each value of theta. Useful when working with simulated data.
-
-#' @return A data.frame with \code{length(theta) \times n_reps} rows containing an id variable for each pair and for each sample, the plausible values of theta1, theta2, the observed data for each plausible value, and (optionally) the true_model for each value plausible value.
-#' @export
-
-pv_gen <- function(n_reps, resp, parms, theta1, theta2, theta1_se, theta2_se, model = NULL) {
-
-  # Expand data generating parms
-  n_obs <- length(theta1)
-  n_long <- n_obs * n_reps
-  out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, times = n_obs))
-  names(out) <- c("pairs", "samples")
-  if (!is.null(model)) {out$model <- rep(model, each = n_reps) }
-
-  # Sort thetas
-  temp_theta <- theta_sort(theta1, theta2, theta1_se, theta2_se)
-
-  # Generate PVs for theta
-  out$theta1 <- theta_gen(n_reps, temp_theta$theta_min, temp_theta$se_min)
-  out$theta2 <- theta_gen(n_reps, temp_theta$theta_max, temp_theta$se_max)
-
-  # Expand data (replicate each row n_reps times)
-  data <- kronecker(as.matrix(resp), rep(1, n_reps))
-  colnames(data) <- row.names(parms)
-  cbind(out[], data[])
-}
-
-
-#--------------------------------------------------------------------------
-#' Simulate data from a mixture of models of collaboration.
-#'
-#' @param n_reps integer indicating how many datasets to generate.
-#' @param mix_prop a n_models-vector by \code{length(theta)} matrix of mixing proportions for the models.
-#' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
-#' @param theta1 the latent trait for member 1
-#' @param theta2 the latent trait for member 2
-#' @param theta1_se the standard error of the latent trait for member 1 (Optional). If included, data generation incorporates PV for theta1.
-#' @param theta2_se the standard error of the latent trait for member 2 (Optional). If included, data generation incorporates PV for theta2.
-#' @param NA_pattern an (optional) \code{length(theta)} by \code{nrow(parms)} data.frame with \code{NA} entries for each item a dyad did not answer. The missing values are preserved in the generated data.
-
-#' @return A data.frame with \code{length(theta)} rows containing an id variable for each pair and each sample, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
-#' @export
-
-data_gen <- function(n_reps, mix_prop, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
-
-  # Set up parms
-  #models <- c("Ind", "Min", "Max", "Add")
-  models <- c("Ind", "Max", "Add")
-
-  n_obs <- length(theta1)
-  if (is.null(dim(mix_prop))) {
-   mix_prop <- kronecker(mix_prop, rep(1, n_obs))
-  }
-
-  # Storage
-  out <- data.frame(rep(1:n_obs, each = n_reps), rep(1:n_reps, times = n_obs))
-  names(out) <- c("pairs", "samples")
-
-  # Sort thetas
-  temp_theta <- theta_sort(theta1, theta2, theta1_se, theta2_se)
-
-  # Generate / replicate thetas
-  out$theta1 <- theta_gen(n_reps, temp_theta$theta_min, temp_theta$se_min)
-  out$theta2 <- theta_gen(n_reps, temp_theta$theta_max, temp_theta$se_max)
-
-  # Select model
-  out[models] <- mix_prop
-  out$model <- apply(mix_prop, 1, function(x) sample.int(length(models), 1, prob = x))
-
-  # Simulate data
-  data <- data.frame(matrix(NA, nrow = n_reps*n_obs, ncol = nrow(parms)))
-  names(data) <- row.names(parms)
-
-  for (i in 1:length(models)) {
-    temp <- out$model == i
-    data[temp, ] <- sim_model(models[i], parms, out$theta1[temp], out$theta2[temp], sorted = T)
-  }
-
-  # Apply NA pattern
-  data <- format_NA(data, NA_pattern)
-
-  # Return
-  cbind(out[], data[])
-}
-
-
-#--------------------------------------------------------------------------
-#' Generates or replicates values of latent variable
-#'
-#' If \code{theta_se}' is no null, values are generated using \code{rnorm}. Otherwise, each value is replicated.
+#' If \code{theta_se}' is not null, values are generated using \code{rnorm}. Otherwise, each value is replicated.
 
 #' @param n number of values to generate / replicate for each value of \code{theta}.
 #' @param theta the latent trait.
 #' @param theta_se the standard error of the latent trait.
 
-#' @return An \code{n \times length(theta)} vector in which each value \code{theta} is generated / replicated \code{n} times.
+#' @return An \code{n * length(theta)} vector in which each value \code{theta} is generated / replicated \code{n} times.
 #' @export
 
 theta_gen <- function(n, theta, theta_se = NULL){
@@ -470,329 +716,21 @@ theta_gen <- function(n, theta, theta_se = NULL){
 }
 
 
-#--------------------------------------------------------------------------
-#' Uses element-wise comparison of two vectors to create two new vectors, one with all the smaller values and the other with all the larger values.
-#''
-#' Optionally sorts an additional pair of vectors based on the element-wise comparison of the first two vectors.
 
-#' @param theta1 the latent trait for member 1.
-#' @param theta2 the latent trait for member 2.
-#' @param theta1_se the standard error of the latent trait for member 1 (optional).
-#' @param theta2_se the standard error of the latent trait for member 2 (optional).
-
-#' @return A named list of length 4, containin \code{theta_min, theta_max, se_min, se_max}. The last two elements are null of the corresponding input is.
-#' @export
-
-theta_sort <- function(theta1, theta2, theta1_se = NULL, theta2_se = NULL) {
-  n <- length(theta1)
-  temp_theta <- cbind(theta1, theta2)
-  min_ind <- cbind(1:n, apply(temp_theta, 1, which.min))
-  max_ind <- cbind(1:n, 3 - min_ind[,2])
-  out <- list(theta_min = temp_theta[min_ind], theta_max = temp_theta[max_ind])
-  if (!is.null(theta1_se)) {
-    temp_se <- cbind(theta1_se, theta2_se)
-    out_se <- list(se_min = temp_se[min_ind], se_max = temp_se[max_ind])
-  } else {
-    out_se <- list(se_min = NULL, se_max = NULL)
-  }
-  c(out, out_se)
+bdiag_m <- function(lmat) {
+  ## Copyright (C) 2016 Martin Maechler, ETH Zurich
+  if(!length(lmat)) return(new("dgCMatrix"))
+  stopifnot(is.list(lmat), is.matrix(lmat[[1]]),
+    (k <- (d <- dim(lmat[[1]]))[1]) == d[2], # k x k
+    all(vapply(lmat, dim, integer(2)) == k)) # all of them
+  N <- length(lmat)
+  if(N * k > .Machine$integer.max)
+    stop("resulting matrix too large; would be  M x M, with M=", N*k)
+  M <- as.integer(N * k)
+  ## result: an   M x M  matrix
+  new("dgCMatrix", Dim = c(M,M),
+    ## 'i :' maybe there's a faster way (w/o matrix indexing), but elegant?
+    i = as.vector(matrix(0L:(M-1L), nrow=k)[, rep(seq_len(N), each=k)]),
+    p = k * 0L:M,
+    x = as.double(unlist(lmat, recursive=FALSE, use.names=FALSE)))
 }
-
-
-#--------------------------------------------------------------------------
-#' Plots individual versus collaborative peformance.
-#'
-#' Wrapper on ggplot to make barbell plots for pariwise collboration.
-#'
-#' @param ind_theta vector of test scores on a individual assessment.
-#' @param col_theta corresponding vector of test scores on collaborative assessment.
-#' @param group_score optional numeric vector used to color barbells; if omitted, each pair  has its own color.
-#' @param legend passed to ggplot2 \code{legend.position}.
-#' @return A barbell plot.
-#' @export
-
-barbell_plot <- function(ind_theta, col_theta, group_score = NULL, legend = "none") {
-  data <- data.frame(ind_theta, col_theta)
-  lim <- c(min(data)-.2, max(data)+.2)
-  data$pairs <- factor(rep(1:(length(ind_theta)/2), each = 2))
-  if (is.null(group_score)) {
-    data$group_score <- data$pairs
-    legend_title <- "pairs"
-  } else {
-    data$group_score <- group_score
-    legend_title <- "group_score"
-  }
-  ggplot(data = data, aes(x = ind_theta, y = col_theta, group = pairs)) +
-    geom_line(aes(color = group_score)) +
-    geom_point(aes(color = group_score), size = 4) +
-    scale_x_continuous(limits = lim) +
-    scale_y_continuous(limits = lim) +
-    geom_abline(intercept = 0, slope = 1, col = "grey") +
-    theme(legend.position = legend) +
-    labs(color = legend_title) +
-    ggtitle("Collaborative vs Individual Performance") +
-    xlab("Individual Theta")+
-    ylab("Collaborative Theta")+
-    theme(axis.text.x = element_text(size = 13),
-          axis.text.y = element_text(size = 13)
-   )
-}
-
-#--------------------------------------------------------------------------
-#' Plots posterior probabilities of each model for each observation.
-#'
-#' Wrapper on ggplot.
-#'
-#' @param mix_prop a matrix of mixing proportions, where rows are obsevrations and columns are latent classes (e.g, the output of \code{em$poster})
-#' @param sort logical indicating whether the observations should be sorted in expectation.
-#' @param grey_scale logical indicating whether to use grey scale.
-
-#' @return A raster plot.
-#' @export
-
-raster_plot <-function(mix_prop, sort = F, grey_scale = F) {
-  mix_prop <- as.matrix(mix_prop)
-
-  if (sort) {
-    #u <- mix_prop[,4]
-    u <- mix_prop%*%1:4
-    mix_prop <- mix_prop[order(u, decreasing = F),]
-  }
-
-  temp <- data.frame(cbind(1:nrow(mix_prop), mix_prop))
-  names(temp) <- c("pair", "Ind", "Min", "Max", "Add")
-
-  gg <- reshape(temp,
-    varying = names(temp)[-1],
-    v.names = "prob",
-    timevar = "model",
-    times = names(temp)[-1],
-    direction = "long"
-  )
-  gg$model <- ordered(gg$model, c("Ind", "Min", "Max", "Add"))
-
-  #NYU <- rgb(87, 6, 140, maxColorValue = 255)
-  # scale_fill_gradient2( high=muted('NYU'))
-
-  p <- ggplot(gg, aes(pair, model, fill = prob)) +
-    geom_raster() +
-    theme_bw() +
-    xlab("Group") +
-    ylab("Model")
-
-  if (grey_scale) {
-    p <-  p + scale_fill_gradient(low="grey10", high="grey80")
-  }
-  p
-}
-
-
-
-# --------------------------------------------------------------------------
-# --------------------------------------------------------------------------
-# --------------------------------------------------------------------------
-# OLD CODE -----------------------------------------------------------------
-# --------------------------------------------------------------------------
-# --------------------------------------------------------------------------
-# --------------------------------------------------------------------------
-
-
-# #' Likelihood ratio tests for various models of collaboration.
-# #'
-# #' Computes a likelihood ratio test for one or more models of pairwise collaboration, given ``assumed to be known" item and person parameters (i.e., neither estimation error in item parameters nor prediction error in latent variables is accounted for by this procedure).
-# #'
-# #' @param resp the matrix binary data from the conjunctively scored \strong{collaborative responses}
-# #' @param model is one or more of \code{c("Ind", "Min", "Max", "Add") }
-# #' @param alpha the item discriminations of (only) the resp items
-# #' @param beta the item difficulties of (only) the resp items
-# #' @param ind_theta the \code{nrow(resp)*2}-dimensional vector of latent traits for each member, as estimated from a non-collaborative form
-# #' @param col_theta the \code{nrow(resp)}-dimensional vector of latent traits for each pair, as estimated from a (conjunctively scored) collaborative form
-# #' @param n_boot number of bootstraps to use for testing the likelihood ratio.
-# #' @return A list of length \code{length(model)}, each element of which is a data frame with \code{nrow(resp)} rwos containing the output for lr_tests for each pair.
-# #' @export
-#
-# lr_test_old <-function(resp, model, alpha, beta, ind_theta, col_theta, n_boot = 0) {
-#
-#   odd <- seq(from = 1, to = length(ind_theta), by = 2)
-#   theta1 <- ind_theta[odd]
-#   theta2 <- ind_theta[odd+1]
-#   n_pair <- length(odd)
-#   n_model <- length(model)
-#   mod <- matrix(0, nrow = n_pair, ncol = n_model)
-#   out <- vector("list", n_model)
-#   names(out) <- model
-#
-#   # Helper function for computing P(x > obs)
-#   pobs <- function(cdf, obs) {
-#     1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
-#   }
-#
-#   # logL for collaboration models
-#   for (i in 1:n_model) {
-#     mod[, i] <-
-#       logL(resp, model = model[i], alpha, beta, theta1, theta2)
-#   }
-#
-#   # logL for reference model
-#   ref <- logL(resp, "IRF", alpha, beta, col_theta)
-#   lr <- -2*(mod - ref)
-#
-#   # Bootstrapping (could fancy this up...)
-#   if (n_boot > 0) {
-#     theta1_long <- rep(theta1, each = n_boot)
-#     theta2_long <- rep(theta2, each = n_boot)
-#     boot_ind <- rep(1:n_pair, each = n_boot)
-#
-#     for (i in 1:n_model) {
-#       message(cat("Running bootstraps for model", i, "..."),"\r", appendLF = FALSE)
-#       flush.console()
-#
-#       boot_data <- sim_data(model[i], alpha, beta, theta1_long, theta2_long)
-#       boot_mod <- logL(boot_data, model[i], alpha, beta, theta1_long, theta2_long)
-#       boot_ref <- ml_IRF(boot_data, alpha, beta)
-#       boot_lr <- -2*(boot_mod - boot_ref[,1])
-#
-#       # 95% CIs
-#       temp <- tapply(boot_lr, boot_ind, function(x) quantile(x, p = c(.025, .975)))
-#       boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = n_pair))
-#
-#       # P(lr > obs)
-#       boot_cdf <- tapply(boot_lr, boot_ind, ecdf)
-#       boot_p <-mapply(function(x,y) pobs(x, y), boot_cdf, lr[,i])
-#
-#       # Storage
-#       temp <- data.frame(cbind(lr[,i], boot_ci[], boot_p))
-#       names(temp) <- c("lr", "ci_lower", "ci_upper", "p_obs")
-#       out[[i]] <- temp
-#
-#     }
-#   }
-#   out
-# }
-#
-#
-#
-#
-# #--------------------------------------------------------------------------
-# #' Simulates data from an averaged model of collaboration resulting from application of \code{EM}.
-# #'
-# #' Generates data from an averaged model of pairwise collaboration, for one or more dyads indexed by theta1 and theta2. For each dyad, arppoximately n_i = \code{mix_prop[i] * n_boot} response patterns are generated from each of the i = 1,..4 models of collaboration. If \code{theta_se} are included, data generation uses a plausible values approach in which \code{n_boot} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}, for each dayd.
-# #'
-# #' @param n_boot number of samples to generate for each dyad
-# #' @param mix_prop is em$posterior
-# #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-# #' @param theta1 the latent trait for member 1
-# #' @param theta2 the latent trait for member 2
-# #' @param theta1_se the standard error of the latent trait for member 1 (optional)
-# #' @param theta2_se the standard errr of the latent trait for member 2 (optional)
-# #' @param NA_pattner an (optional) \code{length(theta)} by \code{nrow(parms)} data.frame with \code{NA} entries for each item a dyad did not answer. The missing values are preserved in the generated data. This would usually be the original response matrix.
-#
-# #' @return A data.frame with \code{length(theta)*n_boot} rows containing an id variable for each pair, the data generating values of theta1, theta2, and mix_prop; the model used to simulate the response pattern; and the simulated response pattern.
-# #' @export
-#
-# theta_gen <- function(n, theta, theta_se = NULL){
-#   theta_long <- rep(theta, each = n)
-#
-#   if(!is.null(theta_se)) {
-#     theta_long <- rnorm(n, theta_long, rep(theta_se, each = n))
-#   }
-#   theta_long
-# }
-#
-# sim_data_old <- function(n_obs, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
-#
-#   # Expand data generating parms
-#   models <- c("Ind", "Min", "Max", "Add")
-#   n_long <- length(theta1)*n_obs
-#   pairs_long <- rep(1:length(theta1), each = n_obs)
-#   mix_prop_long <- kronecker(mix_prop, rep(1, n_obs))
-#
-#   # Step 1. Use PV for theta if SE given
-#   theta1_long <- rep(theta1, each = n_obs)
-#   theta2_long <- rep(theta2, each = n_obs)
-#
-#   if(!is.null(theta1_se)) {
-#     theta1_long <- rnorm(n_long, theta1_long, rep(theta1_se, each = n_obs))
-#   }
-#   if(!is.null(theta2_se)) {
-#     theta2_long <- rnorm(n_long, theta2_long, rep(theta2_se, each = n_obs))
-#   }
-#
-#   # Set up storage
-#   out <- data.frame(pairs_long, theta1_long, theta2_long, mix_prop_long)
-#   names(out) <- c("pairs", "theta1", "theta2", models)
-#
-#   # Step 2. Get model for each rep
-#   out$model <- model_indices(n_long, mix_prop_long)
-#
-#   # Step 3. Simulate data
-#   data <- data.frame(matrix(NA, nrow = n_long, ncol = nrow(parms)))
-#   names(data) <- row.names(parms)
-#
-#   for (i in 1:length(models)) {
-#     temp <- out$model == i
-#     data[temp, ] <- sim_model(models[i], parms, out$theta1[temp], out$theta2[temp])
-#   }
-#   NA_pattern_long <- kronecker(as.matrix(NA_pattern), rep(1, n_boot))
-#   data <- format_NA(data, NA_pattern_long)
-#   cbind(out[], data[])
-# }
-#
-#
-# #--------------------------------------------------------------------------
-# #' Bootstrapped likelihood ratio test for averaged model of collaboration resulting from application of \code{EM}.
-# #'
-# #' Computes a likelihood ratio test for the averaged model of pairwise collaboration, given ``assumed to be known" item parameters (i.e., estimation error in item parameters is not accounted for by this procedure). If SEs are included for the thetas, data generation uses a plausible values approach in which \code{n_obs} values of theta are generated using \code{rnorm(n_boot, theta, theta_se)}, for each dayd (i.e., prediction error in theta1 and theta2 can be accounted for using this procedure).
-# #'
-# #' @param resp the matrix binary data from the conjunctively scored \strong{collaborative responses}
-# #' @param mix_prop is the em$posterior
-# #' @param parms a list or data.frame with elements parms$alpha and parms$beta corresponding to the discrimination and difficulty parameters of the 2PL model, respectively
-# #' @param theta1 the latent trait for member 1
-# #' @param theta2 the latent trait for member 2
-# #' @param theta1_se the standard error of the latent trait for member 1
-# #' @param theta2_se the standard errr of the latent trait for member 2
-# #' @param n_boot number of bootstraps to use for testing the likelihood ratio.
-# #' @return A data.frame with \code{nrow(resp)} rows containing the output for lr_tests for each pair.
-# #' @export
-#
-# lr_test <- function(resp, mix_prop, parms, theta1 = 0, theta2 = 0, theta1_se = NULL, theta2_se = NULL, n_boot = 0) {
-#
-#   models <- c("Ind", "Min", "Max", "Add")
-#   items <- row.names(parms)
-#
-#   # Helper function for computing P(x > obs)
-#   pobs <- function(cdf, obs) {
-#     1 - environment(cdf)$y[which.min(abs(environment(cdf)$x-obs))]
-#   }
-#
-#   # Observed likelihood ratios for each dyad
-#   components <- likelihood(models, resp, parms, theta1, theta2, Log = F)
-#   log_mix <- incomplete_data(components, mix_prop, Sum = F)
-#   mle_ref <- MLE(resp, parms)
-#   lr_obs <- -2*(log_mix - mle_ref$logL)
-#
-#   # Bootstrapping
-#   if (n_boot == 0) {
-#     return(lr_obs)
-#   } else {
-#     boot <- sim_mix(100, mix_prop, parms, theta1, theta2, theta1_se, theta2_se)
-#     temp <- likelihood(models, boot[items], parms, boot$theta1, boot$theta2, Log = F)
-#     boot$log_mix <- incomplete_data(temp, boot[models], Sum = F)
-#     temp <- MLE(boot[items], parms)
-#     boot <- cbind(boot, temp)
-#     boot$lr <- -2*(boot$log_mix - boot$logL)
-#
-#     # 95% CIs
-#     temp <- tapply(boot$lr, boot$pairs, function(x) quantile(x, p = c(.025, .975)))
-#     boot_ci <- t(matrix(unlist(temp), nrow = 2, ncol = length(theta1)))
-#
-#     # P(lr > obs)
-#     boot_cdf <- tapply(boot$lr, boot$pairs, ecdf)
-#     boot_p <- mapply(function(x,y) pobs(x, y), boot_cdf, lr_obs)
-#
-#     # Storage
-#     out <- data.frame(cbind(lr_obs, boot_ci, boot_p))
-#     names(out) <- c("lr", "ci_lower", "ci_upper", "p_obs")
-#   }
-#   out
-# }

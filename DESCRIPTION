@@ -1,15 +1,15 @@
 Package: cirt
 Type: Package
-Title: Some functions and data psychometric models of small group interactions
-Version: 0.2.0
+Title: Psychometric models of small group collaborations.
+Version: 0.3.0
 Author: Peter F Halpin
 Maintainer: Peter F Halpin <peter.halpin@nyu.edu>
 Description: In progress
 License: GNU GENERAL PUBLIC LICENSE
 LazyData: TRUE
-RoxygenNote: 5.0.1
-Imports: stats4,
-         ggplot2,
-         dplyr
+RoxygenNote: 6.0.1
+Imports:
 Suggests: ltm
-Depends: R(>= 2.10)
+Depends: R(>= 2.10),
+         Matrix,
+         dplyr
