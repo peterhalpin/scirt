@@ -21,7 +21,7 @@ parms <- read.csv("calibration_parms.csv", row.names = 1)
 summary(parms)
 
 # Drop DIF items
-#dif_items <- "045|065"
+dif_items <- "045|065"
 temp_parms <- parms[!grepl(dif_items, row.names(parms)),]
 items <- paste0(row.names(temp_parms), collapse = "|")
 ind_parms <- col_parms <- temp_parms
@@ -54,6 +54,57 @@ head(resp)
 
 # Estimate RSC
 est <- est_WA(resp, parms, SE = "exp", method = "map", parallel = F)
+est
+head(est)
+legend = "none"
+plot(c(est$w, est$w), c(est$theta1, est$theta2))
+cor(c(est$w, est$w), c(est$theta1, est$theta2))
+barbell_plot( c(est$theta1, est$theta2), c(est$w, est$w))
+
+ind_theta <- c(rbind(est$theta1, est$theta2))
+col_theta <- rep(est$w, each = 2)
+data <- data.frame(ind_theta, col_theta)
+data$pairs <- factor(rep(1:(length(ind_theta)/2), each = 2))
+if (is.null(group_score)) {
+  data$group_score <- data$pairs
+  legend_title <- "pairs"
+} else {
+  data$group_score <- group_score
+  legend_title <- "group_score"
+}
+ggplot(data = data, aes(x = ind_theta, y = col_theta, group = pairs)) +
+  geom_line(aes(color = group_score)) +
+  geom_point(aes(color = group_score), size = 4) +
+  #scale_x_continuous(limits = lim) +
+  #scale_y_continuous(limits = lim) +
+  geom_abline(intercept = 0, slope = 1, col = "grey") +
+  theme(legend.position = legend) +
+  labs(color = legend_title) +
+  ggtitle("Collaborative vs Individual Performance") +
+  xlab("Individual Theta")+
+  ylab("Collaborative Theta")+
+  theme(axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size = 13)
+ )
+data$diff <- rep(est$theta1 - est$theta2, each = 2)
+data$se <- abs(data$diff) < 1
+(data$diff[data$se == T]
+  sum(data$se)/2
+cor((est$theta1 + est$theta2) / 2, est$w)
+)
+col
+ ggplot(data = data[data$se == T, ], aes(x = ind_theta, y = col_theta, group = pairs)) +
+   geom_point(aes(color = group_score), size = 4) +
+   geom_line(aes(color = group_score)) +
+   theme(legend.position = "none") +
+   #ggtitle("Collaborative vs Individual Performance") +
+   xlab("Individual Proficiency")+
+   ylab("Baseline Group Performance")+
+   theme(axis.text.x = element_text(size = 13),
+         axis.text.y = element_text(size = 13)
+  )
+
+plot(est$w, est$theta2)
 
 # Plot confidence intervals
 gg <- est
