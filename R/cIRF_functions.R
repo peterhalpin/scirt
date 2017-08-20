@@ -1,17 +1,9 @@
-<<<<<<< HEAD
 # Last update: 04/25/2017
 # Functions for group assessments. Depends on IRF_functions.R
 # User beware: functions do not check or handle input errors.
 
 require(ggplot2)
 require(dplyr)
-=======
-# Last update: 14/06/2017
-# User beware: functions not written to check or handle input errors.
-# devtools::document("R")
-# devtools::use_data(sim_data)
-# Functions for estimation of one-parameter Restricted Social Combination model. The following reference contains details:  Halpin & Bergner (2017) Pyschometric Models for Small Group Collaborations.
->>>>>>> 03f57fee6205cc0bbcfff54c43c6a192415f16b3
 
 #--------------------------------------------------------------------------
 #' The IRF of the one-parameter RSC model.
@@ -32,11 +24,8 @@ RSC <- function(w, parms, theta1, theta2) {
   W * (p1 + p2) + (1 - 2 * W) * p1 * p2
 }
 
-<<<<<<< HEAD
 
 
-=======
->>>>>>> 03f57fee6205cc0bbcfff54c43c6a192415f16b3
 #--------------------------------------------------------------------------
 #' First derivatives of the IRF of the one-parameter RSC model.
 #'
@@ -130,11 +119,8 @@ Mstar <- function(resp, w, parms, theta1, theta2) {
   resp / p - (1 - resp) / (1 - p)
 }
 
-<<<<<<< HEAD
 
 
-=======
->>>>>>> 03f57fee6205cc0bbcfff54c43c6a192415f16b3
 #--------------------------------------------------------------------------
 #' Gradient of log-likelihood of one-parameter RSC model.
 #'

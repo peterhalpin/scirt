@@ -53,7 +53,6 @@ resp <- cbind(ind_form, col_form)
 head(resp)
 
 # Estimate RSC
-<<<<<<< HEAD
 est <- est_WA(resp, parms, SE = "exp", method = "map", parallel = F)
 est
 head(est)
@@ -106,9 +105,6 @@ col
   )
 
 plot(est$w, est$theta2)
-=======
-est <- est_RSC(resp, parms, SE = "exp", method = "map", parallel = F)
->>>>>>> 03f57fee6205cc0bbcfff54c43c6a192415f16b3
 
 # Plot confidence intervals
 gg <- est
