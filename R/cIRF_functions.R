@@ -162,7 +162,7 @@ Nstar <- function(resp, w, parms, theta1, theta2, obs = F) {
   if (obs) {
     resp / p^2 + (1 - resp) / (1 - p)^2
   } else {
-    1 / p / (1 - p) * !is.na(resp)
+    1 / p / (1 - p) #* !is.na(resp)
   }
 }
 
@@ -410,6 +410,7 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
   out <- data.frame(matrix(0, nrow = n_obs, ncol = 7))
   names(out) <- c("log", "w", "w_se", "theta1", "theta1_se", "theta2", "theta2_se")
 
+
   # Starting values
   if(is.null(starts)) {starts <- rep(c(.5, 0, 0), times = n_obs)}
   lower <- rep(c(.00001, -8, -8), times = n_obs)
@@ -648,13 +649,11 @@ data_gen <- function(n_reps, w, parms, theta1, theta2, theta1_se = NULL, theta2_
 
 format_resp <- function(resp, items, version = NULL) {
   if (!is.null(version)) {
-    resp <- resp[grep(version, names(resp))]
+    temp <- resp[grep(version, names(resp))]
   }
-  names(resp) <- substr(names(resp), 1, 5)
-  resp <- resp[names(resp)%in%items]
-  resp[items[!items%in%names(resp)]] <- NA
-  resp <- resp[items]
-  resp
+  temp[items[!items%in%names(temp)]] <- NA
+  temp <- temp[items]
+  temp
 }
 
 

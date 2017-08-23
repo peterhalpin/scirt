@@ -4,9 +4,9 @@
 
 # devtools::install_github("peterhalpin/cirt")
 # library("cirt")
-devtools::use_data(sim_parms)
-#source("~/github/cirt/R/cIRF_functions.R")
-#source("~/github/cirt/R/IRF_functions.R")
+# devtools::use_data(sim_parms)
+# source("~/github/cirt/R/cIRF_functions.R")
+# source("~/github/cirt/R/IRF_functions.R")
 
 # ------------------------------------------------------------
 # Data simulation for weighted addtive model

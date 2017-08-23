@@ -195,7 +195,7 @@ N <- function(resp, parms, theta, obs = F) {
   if (obs) {
     resp / p^2 + (1 - resp) / (1 - p)^2
   } else {
-    1 / p / (1 - p) * !is.na(resp)
+    1 / p / (1 - p) #* !is.na(resp)
   }
 }
 

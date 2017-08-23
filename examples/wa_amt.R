@@ -1,44 +1,45 @@
 # ------------------------------------------------------------
-# Real data example for paper
+# Real data example for paper: Psychometric models of small group collaborations
+# Last updated: 8/23/2017
 # ------------------------------------------------------------
 
 # devtools::install_github("peterhalpin/cirt")
 # library("cirt")
 
-library("ggplot2")
-library("dplyr")
-install.packages("dplyr")
-source("~/github/cirt/R/cIRF_functions.R")
-source("~/github/cirt/R/IRF_functions.R")
-
 # ------------------------------------------------------------
-# Load data and estimate individual thetas
+# Load item parms
 # ------------------------------------------------------------
-
-# Load calibrated item parms
 setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
-parms <- read.csv("calibration_parms.csv", row.names = 1)
-summary(parms)
+temp_parms <- read.csv("calibration_parms.csv", row.names = 1)
 
 # Drop DIF items
 dif_items <- "045|065"
-temp_parms <- parms[!grepl(dif_items, row.names(parms)),]
+temp_parms <- temp_parms[!grepl(dif_items, row.names(temp_parms)),]
+
+# Item names without versions suffix for easy extraction
 items <- paste0(row.names(temp_parms), collapse = "|")
+
+# Individual and collaborative versions
 ind_parms <- col_parms <- temp_parms
 row.names(ind_parms) <- paste0(row.names(ind_parms), "_IND")
 row.names(col_parms) <- paste0(row.names(col_parms), "_COL")
-parms <- rbind(col_parms, ind_parms)
 
-# Load collaboration data and split into forms
+# Final parameter set
+parms <- rbind(ind_parms, col_parms)
+
+# ------------------------------------------------------------
+# Load response data
+# ------------------------------------------------------------
 collab <- read.csv("collaboration_2016_0.csv", check.names = F)
-col_form <- format_resp(collab, row.names(temp_parms), "COL")
-ind_form <- format_resp(collab, row.names(temp_parms), "IND")
+col_form <- format_resp(collab, row.names(col_parms), "COL")
+ind_form <- format_resp(collab, row.names(ind_parms), "IND")
 
- # Apply conjunctive scoring rule
+# Apply conjunctive scoring rule to collaborative form
 odd <- seq(1, nrow(col_form), by = 2)
 col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
 
 # Drop 13 unsuable response patterns (all 1 or all 0)
+# (But are they unusable with simultaneous MAP??)
 drop_groups <- c(
   collab$group_id[apply(col_form, 1, mean, na.rm = T) %in% c(1,0)],
   collab$group_id[apply(ind_form, 1, mean, na.rm = T) %in% c(1,0)])
@@ -49,62 +50,13 @@ ind_form <-ind_form[!collab$group_id%in%drop_groups,]
 # Reset odd for dropped items
 odd <- seq(1, nrow(col_form), by = 2)
 
+# Final response data
 resp <- cbind(ind_form, col_form)
-head(resp)
 
-# Estimate RSC
-est <- est_WA(resp, parms, SE = "exp", method = "map", parallel = F)
-est
-head(est)
-legend = "none"
-plot(c(est$w, est$w), c(est$theta1, est$theta2))
-cor(c(est$w, est$w), c(est$theta1, est$theta2))
-barbell_plot( c(est$theta1, est$theta2), c(est$w, est$w))
-
-ind_theta <- c(rbind(est$theta1, est$theta2))
-col_theta <- rep(est$w, each = 2)
-data <- data.frame(ind_theta, col_theta)
-data$pairs <- factor(rep(1:(length(ind_theta)/2), each = 2))
-if (is.null(group_score)) {
-  data$group_score <- data$pairs
-  legend_title <- "pairs"
-} else {
-  data$group_score <- group_score
-  legend_title <- "group_score"
-}
-ggplot(data = data, aes(x = ind_theta, y = col_theta, group = pairs)) +
-  geom_line(aes(color = group_score)) +
-  geom_point(aes(color = group_score), size = 4) +
-  #scale_x_continuous(limits = lim) +
-  #scale_y_continuous(limits = lim) +
-  geom_abline(intercept = 0, slope = 1, col = "grey") +
-  theme(legend.position = legend) +
-  labs(color = legend_title) +
-  ggtitle("Collaborative vs Individual Performance") +
-  xlab("Individual Theta")+
-  ylab("Collaborative Theta")+
-  theme(axis.text.x = element_text(size = 13),
-        axis.text.y = element_text(size = 13)
- )
-data$diff <- rep(est$theta1 - est$theta2, each = 2)
-data$se <- abs(data$diff) < 1
-(data$diff[data$se == T]
-  sum(data$se)/2
-cor((est$theta1 + est$theta2) / 2, est$w)
-)
-col
- ggplot(data = data[data$se == T, ], aes(x = ind_theta, y = col_theta, group = pairs)) +
-   geom_point(aes(color = group_score), size = 4) +
-   geom_line(aes(color = group_score)) +
-   theme(legend.position = "none") +
-   #ggtitle("Collaborative vs Individual Performance") +
-   xlab("Individual Proficiency")+
-   ylab("Baseline Group Performance")+
-   theme(axis.text.x = element_text(size = 13),
-         axis.text.y = element_text(size = 13)
-  )
-
-plot(est$w, est$theta2)
+# ------------------------------------------------------------
+# Estimate RSC and plot estimates
+# ------------------------------------------------------------
+est <- est_RSC(resp, parms)
 
 # Plot confidence intervals
 gg <- est
@@ -142,25 +94,30 @@ ggplot(gg, aes(x = group, y = w, group = Ability)) +
 # Goodness of fit
 # ------------------------------------------------------------
 
+# Simulate data for each dyad
 n_reps <- 500
 n_obs <- length(est$w)
 sim <- data_gen(n_reps, est$w, col_parms, est$theta1, est$theta2, NA_pattern = col_form[odd,])
 sim_resp <- sim[grep(items, names(sim))]
+
+# Estimate model on simulated data (takes a while)
 sim_est <- est_RS2(sim_resp, col_parms, sim$theta1, sim$theta2, SE = "exp", parallel = T)
 
-sim$l <- l_RSC(sim_resp, sim_est$w, col_parms, sim$theta1, sim$theta2)
+# Compute likelihoods from original data and simulated data
 l <- l_RSC(col_form[odd,], est$w, col_parms, est$theta1, est$theta2)
+sim$l <- l_RSC(sim_resp, sim_est$w, col_parms, sim$theta1, sim$theta2)
 
-quant <- tapply(sim$l, sim$pairs, function(x) quantile(x, p = c(.5, .05))) %>% unlist %>% matrix(, nrow = 2, ncol = n_obs) %>% t()
+# Get quantiles of simulated reference distribtuion, for each dyad
+quant <- tapply(sim$l, sim$pairs, function(x) quantile(x, p = c(.5, .05))) %>%
+         unlist %>% matrix(, nrow = 2, ncol = n_obs) %>% t()
 
 # Visual key for misfit
 fit <- rep("<.95", times = n_obs)
 fit[l < quant[,2]] <- ">.95"
 fit <- ordered(fit, c(">.95", "<.95"))
 
-# Set up and plot
+# Plot
 gg <- data.frame(-2*sim$l, -2*rep(l, each = n_reps), rep(fit, each = n_reps), rep(-2*quant[,1], each = n_reps))
-
 names(gg) <- c("l_dist", "l_obs", "Fit", "median")
 gg <- gg[order(gg$median), ]
 gg$pair <- rep(1:n_obs, each = n_reps)
