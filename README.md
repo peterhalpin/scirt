@@ -1,6 +1,6 @@
 # cirt (formerly BearShare)
 
-This package contains code for running the analyses described in paper *Psychometric models of small group collaborations* (see Halpin_Bergner_2017.pdf). The package is under construction, but for a working example, see http://htmlpreview.github.io/?https://github.com/peterhalpin/cirt/blob/master/cirt_demo.html. 
+This package contains code for running the analyses described in the paper *Psychometric models of small group collaborations* (see Halpin_Bergner_2017.pdf). The package is under construction, but for a working example, see http://htmlpreview.github.io/?https://github.com/peterhalpin/cirt/blob/master/cirt_demo.html. 
 
 Version 0.3.0: Simultaneous estimation via ML and MAP (June 2017)
 
