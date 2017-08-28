@@ -4,7 +4,7 @@
 # ------------------------------------------------------------
 
 # devtools::install_github("peterhalpin/cirt")
-# library("cirt")
+library("cirt")
 
 # ------------------------------------------------------------
 # Load item parms
@@ -57,6 +57,7 @@ resp <- cbind(ind_form, col_form)
 # Estimate RSC and plot estimates
 # ------------------------------------------------------------
 est <- est_RSC(resp, parms)
+head(est)
 
 # Plot confidence intervals
 gg <- est
