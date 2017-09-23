@@ -1,3 +1,5 @@
+### Demo of scirt usage
+
 This code reproduces the simulation study reported in Halpin P. F. and Bergner, Y. (2017) *Psychometric models for small group collaborations.* Please contact me at `peter.halpin@nyu.edu` with questions or feedback.
 
 Note that the functions in this package currently do not check for or catch invalid arguments and will break (ungracefully) if the inputs are not formatted as described in this example. Future versions of the package will address these issues, but for now it's user beware.
