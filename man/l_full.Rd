@@ -20,6 +20,9 @@ l_full(resp, w, parms, theta1, theta2)
 \value{
 \code{length(w)}-vector of log-likelihoods.
 }
+\description{
+This function computes the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}.
+}
 \details{
 The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The (column) names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment. Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
 The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment.

@@ -124,7 +124,7 @@ Mstar <- function(resp, w, parms, theta1, theta2) {
 #--------------------------------------------------------------------------
 #' Gradient of log-likelihood of one-parameter RSC model.
 #'
-#' Computes the first derivatives of the log-likelihood, in \code{c{w, theta1, theta2)}. Called by \code{est_RSC}.
+#' Computes the first derivatives of the log-likelihood, in \code{c(w, theta1, theta2)}. Called by \code{est_RSC}.
 
 #' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
 #' @param w the weight parameter of the RSC model.
@@ -169,7 +169,7 @@ Nstar <- function(resp, w, parms, theta1, theta2, obs = F) {
 #--------------------------------------------------------------------------
 #' Hessian of log-likelihood of one-parameter RSC model.
 #'
-#' Computes the second derivatives of the log-likelihood, in \code{c{w, theta1, theta2)}. Called by \code{est_RSC}. Calls the function \code{bdiag_m} written by Martin Maechler, ETH Zurich.
+#' Computes the second derivatives of the log-likelihood, in \code{c(w, theta1, theta2)}. Called by \code{est_RSC}. Calls the function \code{bdiag_m} written by Martin Maechler, ETH Zurich.
 #'
 #' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
 #' @param w the weight parameter of the RSC model.
@@ -218,7 +218,7 @@ d2l_RSC <- function(resp, w, parms, theta1, theta2, obs = T) {
 #--------------------------------------------------------------------------
 #' Log-likelihood of a combined assessment.
 #'
-#' This function computes the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c{w, theta1, theta2)}.
+#' This function computes the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}.
 #'
 #' The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The (column) names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment. Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
 
@@ -293,7 +293,7 @@ lp <- function(w, theta1, theta2, epsilon = .05)
 #--------------------------------------------------------------------------
 #' Gradient of the log-likelihood of a combined assessment.
 #'
-#' This function computes first derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c{w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+#' This function computes first derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
 #'
 #' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
 #' @param w the weight parameter of the RSC model.
@@ -338,7 +338,7 @@ dlp <- function(w, theta1, theta2, epsilon = .05)
 #--------------------------------------------------------------------------
 #' Hessian of the log-likelihood for a combined assessment.
 #'
-#' This function computes second derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c{w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+#' This function computes second derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
 #'
 #' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
 #' @param w the weight parameter of the RSC model.
@@ -404,6 +404,12 @@ d2lp <- function(w, theta1, theta2, epsilon = .05)
 #' @export
 
 est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon = .05, parallel = F) {
+
+  stopifnot(ncol(resp) == nrow(parms),
+          method%in%c("MAP", "ML"),
+          is.logical(obs),
+          is.logical(parallel))
+
   n_obs <- nrow(resp)/2
   odd <- seq(from = 1, to = n_obs*2, by = 2)
   parm_index <- seq(from = 1, to = n_obs*3, by = 3)
@@ -508,6 +514,14 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
 #' @export
 
 est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, epsilon = .05, parallel = F) {
+
+  stopifnot(ncol(resp) == nrow(parms),
+            nrow(resp) == length(theta1),
+            length(theta1) == length(theta2),
+            method%in%c("MAP", "ML"),
+            is.logical(obs),
+            is.logical(parallel))
+
   n_obs <- nrow(resp)
   odd <- seq(from = 1, to = n_obs, by = 2)
   parm_index <- seq(from = 1, to = n_obs*3, by = 3)
@@ -520,7 +534,7 @@ est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, epsil
     -1 * sum(l_RSC(resp, par, parms, theta1, theta2))
   }
   fun2 <- function(par, resp, theta1, theta2) {
-    -1 * dl_RSC(resp, par, parms, theta1, theta2)[parm_index]
+    -1 * dl_RSC(resp, par, parms, theta1, theta2)[parm_index[1:length(par)]]
   }
 
   if (method == "ML") {
@@ -536,8 +550,8 @@ est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, epsil
       fun2(par, resp, theta1, theta2) - epsilon * (1 - 2 * par) / (par - par^2)
     }
   }
-
-  # Set up parm_indexing for parallel
+ 
+   # Set up parm_indexing for parallel
   fun <- function(i) {
     blocksize <- floor(n_obs/n_cores)
     m <- (i-1) * blocksize + 1
@@ -699,7 +713,6 @@ theta_gen <- function(n, theta, theta_se = NULL){
   }
   theta_long
 }
-
 
 
 bdiag_m <- function(lmat) {

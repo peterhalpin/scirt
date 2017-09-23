@@ -22,3 +22,6 @@ d2l_RSC(resp, w, parms, theta1, theta2, obs = T)
 \value{
 \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 }
+\description{
+Computes the second derivatives of the log-likelihood, in \code{c(w, theta1, theta2)}. Called by \code{est_RSC}. Calls the function \code{bdiag_m} written by Martin Maechler, ETH Zurich.
+}

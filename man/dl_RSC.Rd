@@ -20,3 +20,6 @@ dl_RSC(resp, w, parms, theta1, theta2)
 \value{
 \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 }
+\description{
+Computes the first derivatives of the log-likelihood, in \code{c(w, theta1, theta2)}. Called by \code{est_RSC}.
+}

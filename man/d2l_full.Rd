@@ -22,3 +22,6 @@ d2l_full(resp, w, parms, theta1, theta2, obs = T, parallel = F)
 \value{
 \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 }
+\description{
+This function computes second derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+}

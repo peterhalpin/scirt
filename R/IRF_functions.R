@@ -67,7 +67,7 @@ d2IRF <- function(parms, theta) {
 #' @export
 
 Info <- function(resp, parms, theta) {
-  p <- IRF(parms, theta)*!is.na(resp)
+  p <- IRF(parms, theta) *!is.na(resp)
   q <- 1 - p
   temp <-  t(parms$alpha^2 * t(p * q))  # faster with 2PL
   # temp <- dIRF(parms, theta)^2 / p / q  # too slow with 2PL
@@ -259,7 +259,7 @@ est_2PL <-function(resp, parms, method = "ML", parallel = T) {
   }
 
   fun <- function(resp) {
-    if (method == "ML" & sum(resp) %in% c(n_items, 0)) {
+    if (method == "ML" & sum(resp) %in% c(n_items, 0)) { #catch +/- Inf with ML
       NA
     } else {
       uniroot(obj, c(-10, 10), resp = resp, parms = parms)$root[1]

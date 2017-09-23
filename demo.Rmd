@@ -2,8 +2,8 @@
 title: "Simulated data example for cirt package."
 author: "Peter F Halpin"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
