@@ -1,4 +1,4 @@
-### Demo of scirt usage
+### Demo of *scirt* usage
 
 This code reproduces the simulation study reported in Halpin P. F. and Bergner, Y. (2017) *Psychometric models for small group collaborations.* Please contact me at `peter.halpin@nyu.edu` with questions or feedback.
 
