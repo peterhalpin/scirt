@@ -1,43 +1,37 @@
----
-title: "Simulated data example for scirt package."
-author: "Peter F Halpin"
-output:
-  md_document:
-    variant: markdown_github
-  html_document: default
-  pdf_document: default
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 This code reproduces the simulation study reported in Halpin P. F. and Bergner, Y. (2017) *Psychometric models for small group collaborations.* Please contact me at `peter.halpin@nyu.edu` with questions or feedback.
 
 Note that the functions in this package currently do not check for or catch invalid arguments and will break (ungracefully) if the inputs are not formatted as described in this example. Future versions of the package will address these issues, but for now it's user beware.
 
 Set up sesssion.
 
-```{r echo = T, message = F, warning = F}
+``` r
 # devtools::install_github("peterhalpin/scirt") # install package
 library(scirt)
 ```
 
-The data-generating item paramers for the simulation are loaded with the package as the data.frame `sim_parms`. The columns are the discrimination (`alpha`) and difficulty (`beta`) parameters of the 2PL model. These naming conventions are required for all `parms` arguments in this package. There are 100 items on the groups test, each including the `"COL"` suffix in the row names. There are 100 items on the individual test, each including  the `"IND"` suffix in the row names. The use of the `"IND"` and `"COL"` tags for items is required for all functions that expect a combined assessment (they are not necessary for functions that use either the individual test or collaborative test separately).
+The data-generating item paramers for the simulation are loaded with the package as the data.frame `sim_parms`. The columns are the discrimination (`alpha`) and difficulty (`beta`) parameters of the 2PL model. These naming conventions are required for all `parms` arguments in this package. There are 100 items on the groups test, each including the `"COL"` suffix in the row names. There are 100 items on the individual test, each including the `"IND"` suffix in the row names. The use of the `"IND"` and `"COL"` tags for items is required for all functions that expect a combined assessment (they are not necessary for functions that use either the individual test or collaborative test separately).
 
-```{r 1}
+``` r
 sim_parms[c(1:2, 100:102, 200), ]
 ```
+
+    ##                 alpha      beta
+    ## item1_COL   1.6031248 -2.817971
+    ## item2_COL   1.3161236 -2.792798
+    ## item100_COL 1.0459237  2.843536
+    ## item1_IND   1.3385670 -2.838862
+    ## item2_IND   0.7310759 -2.624016
+    ## item100_IND 0.7651154  2.773532
 
 The data.frame `sim_data` contains the generated item responses, along with information about the groups. For more information on data generation see `help(data_gen)` or inspect the source code of that function.
 
 The first five colums of `sim_data` indicate
 
-1. which dyad
-2. which sample from each dyad (in this case there is only one sample per dyad, although multiple can be generated)
-3. the data-generating value of the RSC weight of each dyad
-4. the data-generating values of the latent trait of member 1
-5. the data-generating values of the latent trait of member 2
+1.  which dyad
+2.  which sample from each dyad (in this case there is only one sample per dyad, although multiple can be generated)
+3.  the data-generating value of the RSC weight of each dyad
+4.  the data-generating values of the latent trait of member 1
+5.  the data-generating values of the latent trait of member 2
 
 Columns `6:105` contain the responses to the group test, and columns `106:205` contain the responses to the individual test.
 
@@ -45,13 +39,28 @@ For any function taking item response data as an argument (`resp`) in this packa
 
 Additionally, each odd row of the item reponse data matrix for a combined assessment must contain the data for member 1 of a dyad, and the subsequent even row must contain the data for member 2 of that dyad. Note that for all columns except the responses to the individual assessment, the odd and even rows will be duplicated.
 
-```{r 2}
+``` r
 head(sim_data[c(1:7, 105:107, 205)])
 ```
 
+    ##     pairs samples         w     theta1      theta2 item1_COL item2_COL
+    ## 1       1       1 0.9620921  0.3914314 -0.50999406         1         1
+    ## 1.1     1       1 0.9620921  0.3914314 -0.50999406         1         1
+    ## 2       2       1 0.7843039 -1.0496464  0.04600715         1         1
+    ## 2.1     2       1 0.7843039 -1.0496464  0.04600715         1         1
+    ## 3       3       1 0.4895265 -1.0088282 -0.65624967         1         1
+    ## 3.1     3       1 0.4895265 -1.0088282 -0.65624967         1         1
+    ##     item100_COL item1_IND item2_IND item100_IND
+    ## 1             1         0         1           0
+    ## 1.1           1         1         1           0
+    ## 2             0         1         1           0
+    ## 2.1           0         1         1           0
+    ## 3             0         1         0           0
+    ## 3.1           0         1         0           0
+
 Lastly, we have some additional data-generating parameters for the simulation.
 
-```{r 3}
+``` r
 n_obs <- 1000 # n respondents
 K <- n_obs/2 # n groups
 odd <- seq(1, n_obs, by = 2) # indexes odd rows of sim_data
@@ -72,7 +81,7 @@ The following chunk runs `est_RSC` in each of the four test length conditions ob
 
 The runtime for the long-long condition (200 items with 1000 respondents) is about 90 seconds for each estimator with a 2.4 GHz Intel Xeon (single core). For this sample size, parallelization (via `parallel:mclapply`) is acutally slower than for a single core; however, the `parallel` option of `est_RSC`can lead to significant improvements in runtime for very large samples (e.g., when bootstrapping). If you don't want to wait around for this to run, try using a subset of rows from `sim_data` (keeping in mind that for every odd row `m` the row `m + 1` must also be selected).
 
-```{r 4}
+``` r
 # long group test, long individual test
 ll_items <- c(col_names, ind_names)
 ml_ll <-  est_RSC(sim_data[ll_items], sim_parms[ll_items, ], method = "ML")
@@ -96,7 +105,7 @@ map_ss <- est_RSC(sim_data[ss_items], sim_parms[ss_items, ], method = "MAP")
 
 The rest of this document sets up `ggplot2` to reproduce Figure 1 and Figure 2 from the paper.
 
-```{r 5}
+``` r
 library(ggplot2)
 gg <- rbind(ml_ll, map_ll, ml_sl, map_sl, ml_ls, map_ls, ml_ss, map_ss)
 gg$ind_form <- rep(c("Individual long", "Indvidual short"), each = K*4)
@@ -120,7 +129,11 @@ p <- ggplot(gg, aes(x = dgp_w, y = w, group = Method)) +
 p + facet_grid(ind_form ~ col_form)
 ```
 
-```{r 6}
+    ## `geom_smooth()` using method = 'loess'
+
+![](demo_files/figure-markdown_github/5-1.png)
+
+``` r
 q <- ggplot(gg, aes(x = w, y = w_se, group = Method)) +
       geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
       geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
@@ -132,3 +145,7 @@ q <- ggplot(gg, aes(x = w, y = w_se, group = Method)) +
 
 q + facet_grid(ind_form ~ col_form)
 ```
+
+    ## `geom_smooth()` using method = 'loess'
+
+![](demo_files/figure-markdown_github/6-1.png)

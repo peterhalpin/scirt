@@ -4,3 +4,5 @@ devtools::install_github("peterhalpin/cirt")
 friends
 library(cirt)
 friends
+install.packages("colorout")
+library("colorout")
