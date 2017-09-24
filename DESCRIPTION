@@ -1,7 +1,7 @@
 Package: scirt
 Type: Package
 Title: Psychometric models of small group collaborations
-Version: 0.4.0
+Version: 0.3.1
 Author: Peter F Halpin
 Maintainer: Peter F Halpin <peter.halpin@nyu.edu>
 Description: In development
