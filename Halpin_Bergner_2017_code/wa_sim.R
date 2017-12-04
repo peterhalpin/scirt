@@ -18,6 +18,7 @@ n_items <- 100 # n items
 i <- 20 # n items for short form
 K <- n_obs/2 # n groups
 e <- .05 # beta prior parm
+sigma <- 3
 set.seed(101)
 
 # Individual test
@@ -46,7 +47,9 @@ theta1 <- theta[odd] # odds
 theta2 <- theta[odd + 1] # evens
 
 # RSC parameter
-w <- rbeta(K, 1 + e, 1 + e)
+#w <- rbeta(K, 1 + e, 1 + e)
+w <- rnorm(K, 0, 2)
+hist(w)
 
 # Generate group data
 col_data <- data_gen(1, w, col_parms, theta1, theta2)

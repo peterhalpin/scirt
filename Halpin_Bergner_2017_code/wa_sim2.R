@@ -15,9 +15,9 @@
 # Data generating parameters
 n_obs <- 1000 # n respondents
 n_items <- 200 # n items
-i <- 50 # n items for short form
+i <- 20 # n items for short form
 K <- n_obs/2 # n groups
-sigma <- 3 # beta prior parm
+sigma <- 2 # beta prior parm
 set.seed(101)
 
 # Individual test
@@ -58,14 +58,6 @@ ind_test <- ind_data[, -c(1:5)]
 # Parameter estimation for 4 conditions
 # ------------------------------------------------------------
 
-info <- ind_info1
-n_items <- 20
-
-sort(info[1,])
-temp2[[1]]
-info[1, order(info[1,], decreasing = T)[1:20]]
-order
-
 select_items <- function(n_items, info){
   temp <- apply(info, 1, order, decreasing = T) %>% t
   q <- cbind(rep(1:dim(info)[1], times = n_items), unlist(c(temp[,1:20])))
@@ -73,6 +65,7 @@ select_items <- function(n_items, info){
   out[q] <- 1
   out
 }
+
 ind_info1 <- Info(ind_parms, theta1)
 ind_info2 <- Info(ind_parms, theta2)
 temp1 <- select_items(i, ind_info1)
@@ -94,7 +87,7 @@ ml_ll <-  est_RSC(ll_data, ll_parms, method = "ML")
 map_ll <- est_RSC(ll_data, ll_parms, method = "MAP")
 
 plot(w, ml_ll$w)
-plot(w, map_ll$w, ylim=c(-10, 10))
+plot(w, map_ll$w)
 
 # random individual test, selected group test
 sl_data <- cbind(ind_test[ind_names_short], col_test*col_selected_items)
