@@ -66,12 +66,12 @@ d2IRF <- function(parms, theta) {
 #' @return \code{length(theta)} vector of test information.
 #' @export
 
-Info <- function(resp, parms, theta) {
-  p <- IRF(parms, theta) *!is.na(resp)
+Info <- function(parms, theta) {
+  p <- IRF(parms, theta) #*!is.na(resp)
   q <- 1 - p
   temp <-  t(parms$alpha^2 * t(p * q))  # faster with 2PL
   # temp <- dIRF(parms, theta)^2 / p / q  # too slow with 2PL
-  apply(temp, 1, sum, na.rm = T)
+  #apply(temp, 1, sum, na.rm = T)
 }
 
 #--------------------------------------------------------------------------

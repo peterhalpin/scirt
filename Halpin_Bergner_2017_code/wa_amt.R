@@ -59,14 +59,18 @@ resp <- cbind(ind_form, col_form)
 est <- est_RSC(resp, parms)
 head(est)
 
-# Plot confidence intervals
-gg <- est
+# Confidence intervals
+drops <- abs(est$w) > 20
+sum(drops)
+
+gg <- est[!drops, ]
 gg$lower <- gg$w - 1.96*gg$w_se
 gg$upper <- gg$w + 1.96*gg$w_se
-gg$lower[gg$lower < 0] <- 0
-gg$upper[gg$upper < 0] <- 0
-gg$lower[gg$lower > 1] <- 1
-gg$upper[gg$upper > 1] <- 1
+
+# Transfrom from logit to p?
+#gg$w <- p(gg$w)
+#gg$lower <- p(gg$lower)
+#gg$upper <- p(gg$upper)
 
 gg <- gg[order(gg$w), ]
 gg$group <- 1:nrow(gg)
@@ -75,21 +79,24 @@ gg$Ability[abs(gg$theta1 - gg$theta2) > .5] <- "Not Within 1/2 SD"
 gg$Ability <- ordered(gg$Ability, c("Within 1/2 SD", "Not Within 1/2 SD"))
 table(gg$Ability)
 
+
+
 ggplot(gg, aes(x = group, y = w, group = Ability)) +
-    geom_errorbar(aes(ymin = lower, ymax = upper, color = Ability), width = .1) +
+    geom_errorbar(aes(ymin = lower, ymax = upper, color = Ability), width = 1) +
     geom_point(aes(size = Ability, shape = Ability, color = Ability)) +
+    #scale_color_manual(values = c("#56B1F7", "#132B43")) +
     scale_color_manual(values = c("grey10", "grey70")) +
     scale_shape_discrete(solid = T) +
     ylab("Estimated RSC weight") +
     xlab("Group")  +
     theme_bw(base_size = 15) +
-    geom_abline(slope = 0, intercept = 0.5, col = "black", size = 1.2) +
-    scale_size_manual(values = c(4, 2)) +
+    geom_abline(slope = 0, intercept = 0, col = "black", size = 1) +
+    scale_size_manual(values = c(2, 1)) +
     theme_bw(base_size = 15) +
     theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
 
-(gg$lower[gg$Ability == "Within 1/2 SD"] > .5) %>% mean
-(gg$upper[gg$Ability == "Within 1/2 SD"] < .5) %>% mean
+(gg$lower[gg$Ability == "Within 1/2 SD"] > 0) %>% mean
+(gg$upper[gg$Ability == "Within 1/2 SD"] < 0) %>% mean
 
 # ------------------------------------------------------------
 # Goodness of fit
@@ -206,8 +213,8 @@ ggplot(gg, aes(x = calib_beta, y = collab_beta)) +
   xlab("Calibration sample") +
   ylab("Collaborative testing condition") +
   theme(legend.position = "none") +
-  scale_shape_manual(values = c(1, 4)) +
-  scale_color_manual(values = c("black", "red")) +
+  scale_shape_manual(values = c(20, 4)) +
+  scale_color_manual(values = c("black", "black")) +
   scale_size_manual(values = c(3, 4)) +
   theme_bw(base_size = 15) +
   theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
