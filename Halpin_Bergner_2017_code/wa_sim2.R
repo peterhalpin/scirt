@@ -1,5 +1,5 @@
 # ------------------------------------------------------------
-# Data simulation for paper
+# Simulation study for Halpin & Bergner paper
 # ------------------------------------------------------------
 
 # devtools::install_github("peterhalpin/cirt")
@@ -9,11 +9,11 @@
 # source("~/github/scirt/R/IRF_functions.R")
 
 # ------------------------------------------------------------
-# Data simulation for weighted addtive model
+# Data simulation
 # ------------------------------------------------------------
 
 # Data generating parameters
-n_obs <- 1000 # n respondents
+n_obs <- 50 # n respondents
 n_items <- 100 # n items
 i <- 20 # n items for short form
 K <- n_obs/2 # n groups
@@ -45,10 +45,10 @@ theta1 <- theta[odd] # odds
 theta2 <- theta[odd + 1] # evens
 
 # RSC parameter
-w <- rnorm(K, 0, sigma)
+u <- rnorm(K, 0, sigma)
 
 # Generate selected group data
-col_data <- data_gen(1, w, col_parms, theta1, theta2)
+col_data <- data_gen(1, u, col_parms, theta1, theta2)
 ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)
 
 col_test <- col_data[rep(1:K, each = 2), -c(1:5)]
@@ -57,6 +57,10 @@ ind_test <- ind_data[, -c(1:5)]
 # ------------------------------------------------------------
 # Parameter estimation for 4 conditions
 # ------------------------------------------------------------
+
+# 1. for selection, use observed information not expected. if this doesnt help, just do it with large sample size.
+# 2. check out results with CI
+#3. write a seperate function to compute information so don have to rerun
 
 # For select the most informative items
 select_items <- function(n_items, info){
@@ -67,17 +71,19 @@ select_items <- function(n_items, info){
   out
 }
 
-
 ind_info1 <- Info(ind_parms, theta1)
 ind_info2 <- Info(ind_parms, theta2)
-temp1 <- select_items(i, ind_info1)
-temp2 <- select_items(i, ind_info2)
+#temp1 <- select_items(i, ind_info1)
+#temp2 <- select_items(i, ind_info2)
+temp1 <- ind_info1  - ind_info1  + 1
+temp2 <- temp1
 ind_selected_items <- ind_test
 ind_selected_items[odd, ] <- temp1
 ind_selected_items[odd+1, ] <- temp2
 
-col_info <- Info_RSC(w, col_parms, theta1, theta2)
-temp <- select_items(i, col_info)
+col_info <- Info_u(u, col_parms, theta1, theta2)
+#temp <- select_items(i, col_info)
+temp <- col_info-col_info + 1
 col_selected_items <- col_test
 col_selected_items[odd, ] <- temp
 col_selected_items[odd+1, ] <- temp
@@ -85,11 +91,71 @@ col_selected_items[odd+1, ] <- temp
 t1 <- apply(col_info, 1, sum)
 t2 <- apply(col_info*temp, 1, sum, na.rm = T)
 
+# scratch
+
+# the information functions are good
+
+w <- p(u)
+parms <- col_parms
+max(p(u))
+plot(u, p(u))
+
+i_u <- Info_u(u, col_parms, theta1, theta2)
+i_w <- Info_w(w, col_parms, theta1, theta2)
+
+j = 3
+u[j]; theta1[j]; theta2[j]
+plot(as.numeric(i_u[j, ]) , as.numeric(i_w[j, ]))
+plot(as.numeric(i_u[j, ]))
+plot(as.numeric(i_w[j, ]))
+lm(as.numeric(i_w[j,]) ~ as.numeric(i_u[j, ]))
+
+hist(as.numeric(i_w[j, ]))
+
+sort(col_info[j,])
+sort(col_selected_items[j,]*col_info[j,])
+
+plot(u, map_ll$w)
+abline(a = 0, b = 1)
+
+plot(p(u), p(map_ll$w))
+abline(a = 0, b = 1)
+
+plot(map_ll$w, map_ll$w_se)
+
+plot(sort(map_ll$w), ylim = c(-6, 6))
+points(sort(map_ll$w + 2*map_ll$w_se), col = 3)
+points(sort(map_ll$w - 2*map_ll$w_se), col = 2)
+abline(a = 0, b = 0)
+
+plot(sort(p(map_ll$w)), ylim = c(0, 1))
+points(sort(p(map_ll$w + 2*map_ll$w_se)), col = 3)
+points(sort(p(map_ll$w - 2*map_ll$w_se)), col = 2)
+abline(a = .5, b = 0)
+
+
+var(u)/var(map_ll$w)
+(var(map_ll$w) - mean(map_ll$w_se^2))/var(map_ll$w)
+
+
+plot(u, ml_ll$w)
+abline(a = 0, b = 1)
+
+plot(p(u), p(ml_ll$w))
+abline(a = 0, b = 1)
+
+var(u)/var(ml_ll$w)
+(var(ml_ll$w) - mean(ml_ll$w_se^2))/var(ml_ll$w)
+
+
+
+
 # selected group test, selected individual test
 ll_data <- cbind(ind_test*ind_selected_items, col_test*col_selected_items)
 ll_parms <- rbind(ind_parms, col_parms)
 ml_ll <-  est_RSC(ll_data, ll_parms, method = "ML")
-map_ll <- est_RSC(ll_data, ll_parms, method = "MAP")
+map_ll <- est_RSC(ll_data, ll_parms, obs = T, method = "MAP")
+
 
 # random individual test, selected group test
 sl_data <- cbind(ind_test[ind_names_short], col_test*col_selected_items)

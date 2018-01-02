@@ -23,8 +23,8 @@
 IRF <-function(parms, theta) {
   Z <- matrix(0, nrow = length(theta), ncol = length(parms[[1]]))
   Z <- Z + theta
-  Z <- t(parms$alpha*(t(Z) - parms$beta))
-  1/(1 + exp(-Z))
+  Z <- t(parms$alpha * (t(Z) - parms$beta))
+  1 / (1 + exp(-Z))
 }
 
 #--------------------------------------------------------------------------

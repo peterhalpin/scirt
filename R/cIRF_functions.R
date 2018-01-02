@@ -10,8 +10,8 @@ require(Matrix)
 # Functions to transfrom w -> [0,1] and back
 
 p <- function(w){1/(1 + exp(-w))}
-dp <- function(w){p(w) * (1 - p(w))}
-d2p <- function(w){p(w) * (1 - p(w)) * (1 - 2*p(w))}
+dp <- function(p){p * (1 - p)}
+d2p <- function(p){p * (1 - p) * (1 - 2*p)}
 logit <- function(p){log(p /(1 - p))}
 
 #--------------------------------------------------------------------------
@@ -89,13 +89,38 @@ d2_RSC <- function(w, parms, theta1, theta2) {
   d2p2 <- d2IRF(parms, theta2)
 
   d2w <- d2W * (p1 + p2 - 2 * p1 * p2)
-  dwdt1 <- dp1 * (1 - 2 * p2)
-  dwdt2 <- dp2 * (1 - 2 * p1)
-  d2t1 <- (dW + (1 - 2 * dW) * p2) * d2p1
-  d2t2 <- (dW + (1 - 2 * dW) * p1) * d2p2
+  dwdt1 <- dW * dp1 * (1 - 2 * p2)
+  dwdt2 <- dW * dp2 * (1 - 2 * p1)
+  d2t1 <- (W + (1 - 2 * W) * p2) * d2p1
+  d2t2 <- (W + (1 - 2 * W) * p1) * d2p2
   dt1dt2 <- (1 - 2 * W) * dp1 * dp2
   out <- list(d2w, dwdt1, dwdt2, d2t1, d2t2, dt1dt2)
   names(out) <- c("d2w", "dw_dtheta1", "dw_dtheta2", "d2theta1", "d2theta2", "dtheta1_dtheta2")
+  out
+}
+
+#--------------------------------------------------------------------------
+#' Item info
+#'
+#' Computes item info for RSW weight #'
+#' @param u is the logit of the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return \code{length(w)} by \code{\length(parms)} matrix of item info
+#' @export
+
+Info_u <- function(u, parms, theta1, theta2) {
+  w <- p(u)
+  W <- w %*% t(rep(1, nrow(parms)))
+  dW <- W * (1 - W)
+  p1 <- IRF(parms, theta1)
+  p2 <- IRF(parms, theta2)
+  R <- W * (p1 + p2) + (1 - 2 * W) * p1 * p2
+  num <- dW^2 * (p1 + p2 - 2 * p1 * p2)^2
+  denom <- R * (1-R)
+  out <- data.frame(num / denom)
+  names(out) <- row.names(parms)
   out
 }
 
@@ -110,10 +135,9 @@ d2_RSC <- function(w, parms, theta1, theta2) {
 #' @return \code{length(w)} by \code{\length(parms)} matrix of item info
 #' @export
 
-Info_RSC <- function(w, parms, theta1, theta2) {
-  w <- p(w)
+Info_w <- function(w, parms, theta1, theta2) {
   W <- w %*% t(rep(1, nrow(parms)))
-  dW <- dp(W)
+  dW <- W - W + 1
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
   R <- W * (p1 + p2) + (1 - 2 * W) * p1 * p2
@@ -123,7 +147,6 @@ Info_RSC <- function(w, parms, theta1, theta2) {
   names(out) <- row.names(parms)
   out
 }
-
 
 #--------------------------------------------------------------------------
 #' Log-likelihood of the one-parameter RSC model.
@@ -204,7 +227,7 @@ Nstar <- function(resp, w, parms, theta1, theta2, obs = F) {
   if (obs) {
     resp / p^2 + (1 - resp) / (1 - p)^2
   } else {
-    1 / p / (1 - p) * !is.na(resp)
+    1 / p / (1 - p) #* !is.na(resp)
   }
 }
 
@@ -340,7 +363,7 @@ l_full_sum <- function(resp, w, parms, theta1, theta2, Sum = F)
 
 lp <- function(w, theta1, theta2, sigma = 5)
 {
-  (- w/sigma)^2 / 2 - theta1^2 / 2 - theta2^2 / 2
+  - (w/sigma)^2 / 2 - theta1^2 / 2 - theta2^2 / 2
 }
 
 
@@ -442,7 +465,7 @@ d2l_full <- function(resp, w, parms, theta1, theta2, obs = T, parallel = F) {
 #
 d2lp <- function(w, theta1, theta2, sigma = 5)
 {
-  rbind(rep(-1/sigma^2, times = length(w)), -1, -1) %>% c %>% diag
+   rep(c(-1/sigma^2, -1, -1), times = length(w))  %>% diag
 }
 
 
