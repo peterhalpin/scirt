@@ -6,6 +6,14 @@ require(ggplot2)
 require(dplyr)
 require(Matrix)
 
+
+# Functions to transfrom w -> [0,1] and back
+
+p <- function(w){1/(1 + exp(-w))}
+dp <- function(w){p(w) * (1 - p(w))}
+d2p <- function(w){p(w) * (1 - p(w)) * (1 - 2*p(w))}
+logit <- function(p){log(p /(1 - p))}
+
 #--------------------------------------------------------------------------
 #' The IRF of the one-parameter RSC model.
 #'
@@ -19,12 +27,12 @@ require(Matrix)
 #' @export
 
 RSC <- function(w, parms, theta1, theta2) {
+  w <- p(w)
+  W <- w %*% t(rep(1, nrow(parms)))
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
-  W <- w %*% t(rep(1, nrow(parms)))
   W * (p1 + p2) + (1 - 2 * W) * p1 * p2
 }
-
 
 
 #--------------------------------------------------------------------------
@@ -40,12 +48,14 @@ RSC <- function(w, parms, theta1, theta2) {
 #' @export
 
 d_RSC <- function(w, parms, theta1, theta2) {
+  w <- p(w)
+  W <- w %*% t(rep(1, nrow(parms)))
+  dW <- dp(W)
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
   dp1 <- dIRF(parms, theta1)
   dp2 <- dIRF(parms, theta2)
-  W <- w %*% t(rep(1, nrow(parms)))
-  dw <- p1 + p2 - 2 * p1 * p2
+  dw <- dW * (p1 + p2 - 2 * p1 * p2)
   dt1 <- (W + (1 - 2 * W) * p2) * dp1
   dt2 <- (W + (1 - 2 * W) * p1) * dp2
   out <- list(dw, dt1, dt2)
@@ -66,23 +76,54 @@ d_RSC <- function(w, parms, theta1, theta2) {
 #' @export
 
 d2_RSC <- function(w, parms, theta1, theta2) {
+  w <- p(w)
+  W <- w %*% t(rep(1, nrow(parms)))
+  dW <- dp(W)
+  d2W <- d2p(W)
+
   p1 <- IRF(parms, theta1)
   p2 <- IRF(parms, theta2)
   dp1 <- dIRF(parms, theta1)
   dp2 <- dIRF(parms, theta2)
   d2p1 <- d2IRF(parms, theta1)
   d2p2 <- d2IRF(parms, theta2)
-  W <- w %*% t(rep(1, nrow(parms)))
 
+  d2w <- d2W * (p1 + p2 - 2 * p1 * p2)
   dwdt1 <- dp1 * (1 - 2 * p2)
   dwdt2 <- dp2 * (1 - 2 * p1)
-  d2t1 <- (W + (1 - 2 * W) * p2) * d2p1
-  d2t2 <- (W + (1 - 2 * W) * p1) * d2p2
+  d2t1 <- (dW + (1 - 2 * dW) * p2) * d2p1
+  d2t2 <- (dW + (1 - 2 * dW) * p1) * d2p2
   dt1dt2 <- (1 - 2 * W) * dp1 * dp2
-  out <- list(dwdt1, dwdt2, d2t1, d2t2, dt1dt2)
-  names(out) <- c("dw_dtheta1", "dw_dtheta2", "d2theta1", "d2theta2", "dtheta1_dtheta2")
+  out <- list(d2w, dwdt1, dwdt2, d2t1, d2t2, dt1dt2)
+  names(out) <- c("d2w", "dw_dtheta1", "dw_dtheta2", "d2theta1", "d2theta2", "dtheta1_dtheta2")
   out
 }
+
+#--------------------------------------------------------------------------
+#' Item info
+#'
+#' Computes item info for RSW weight #'
+#' @param w the weight parameter of the RSC model.
+#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @return \code{length(w)} by \code{\length(parms)} matrix of item info
+#' @export
+
+Info_RSC <- function(w, parms, theta1, theta2) {
+  w <- p(w)
+  W <- w %*% t(rep(1, nrow(parms)))
+  dW <- dp(W)
+  p1 <- IRF(parms, theta1)
+  p2 <- IRF(parms, theta2)
+  R <- W * (p1 + p2) + (1 - 2 * W) * p1 * p2
+  num <- dW^2 * (p1 + p2 - 2 * p1 * p2)^2
+  denom <- R * (1-R)
+  out <- data.frame(num / denom)
+  names(out) <- row.names(parms)
+  out
+}
+
 
 #--------------------------------------------------------------------------
 #' Log-likelihood of the one-parameter RSC model.
@@ -163,7 +204,7 @@ Nstar <- function(resp, w, parms, theta1, theta2, obs = F) {
   if (obs) {
     resp / p^2 + (1 - resp) / (1 - p)^2
   } else {
-    1 / p / (1 - p) #* !is.na(resp)
+    1 / p / (1 - p) * !is.na(resp)
   }
 }
 
@@ -194,6 +235,7 @@ d2l_RSC <- function(resp, w, parms, theta1, theta2, obs = T) {
   if (obs) {
     m <- Mstar(resp, w, parms, theta1, theta2)
     d2 <- d2_RSC(w, parms, theta1, theta2)
+    dwdw <- dwdw + apply(m * d2$d2w, 1, sum, na.rm = T)
     dwdt1 <- dwdt1 + apply(m * d2$dw_dtheta1, 1, sum, na.rm = T)
     dwdt2 <- dwdt2 + apply(m * d2$dw_dtheta2, 1, sum, na.rm = T)
     dt1dt1 <- dt1dt1 + apply(m * d2$d2theta1, 1, sum, na.rm = T)
@@ -203,15 +245,20 @@ d2l_RSC <- function(resp, w, parms, theta1, theta2, obs = T) {
 
   fun <- function(i) {
       temp <- c(dwdw[i], dwdt1[i], dwdt2[i], dwdt1[i], dt1dt1[i], dt1dt2[i], dwdt2[i], dt1dt2[i], dt2dt2[i])
-      matrix(temp, nrow = 3, ncol = 3)
+        matrix(temp, nrow = 3, ncol = 3)
   }
 
-  #if (parallel) { # This isnt speeding anything up
+
+  # mclapply isnt speeding anything up
+  #if (parallel) {
   #  temp <- parallel::mclapply(1:length(w), fun)
   #} else {
-    temp <- vector("list", length(theta1))
-    for (i in 1:length(theta1)) {temp[[i]] <- fun(i)}
+  #  temp <- vector("list", length(theta1))
+  #  for (i in 1:length(theta1)) {temp[[i]] <- fun(i)}
   #}
+
+  temp <- vector("list", length(theta1))
+  for (i in 1:length(theta1)) {temp[[i]] <- fun(i)}
   bdiag_m(temp)
 }
 
@@ -286,10 +333,16 @@ l_full_sum <- function(resp, w, parms, theta1, theta2, Sum = F)
 #' @return \code{length(w)}-vector of log-priors (minus a constant).
 #' @export
 
-lp <- function(w, theta1, theta2, epsilon = .05)
+# lp <- function(w, theta1, theta2, epsilon = .05)
+# {
+#   (epsilon * log(w - w^2) - theta1^2 / 2 - theta2^2 / 2)
+# }
+
+lp <- function(w, theta1, theta2, sigma = 5)
 {
-  (epsilon * log(w - w^2) - theta1^2 / 2 - theta2^2 / 2)
+  (- w/sigma)^2 / 2 - theta1^2 / 2 - theta2^2 / 2
 }
+
 
 #--------------------------------------------------------------------------
 #' Gradient of the log-likelihood of a combined assessment.
@@ -330,10 +383,15 @@ dl_full <- function(resp, w, parms, theta1, theta2) {
 #' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
 
-dlp <- function(w, theta1, theta2, epsilon = .05)
+# dlp <- function(w, theta1, theta2, epsilon = .05)
+# {
+#   dlw <- epsilon * (1 - 2 * w) / (w - w^2)
+#   rbind(dlw, -theta1, -theta2) %>% c
+# }
+
+dlp <- function(w, theta1, theta2, sigma = 5)
 {
-  dlw <- epsilon * (1 - 2 * w) / (w - w^2)
-  rbind(dlw, -theta1, -theta2) %>% c
+  rbind(-w/sigma^2, -theta1, -theta2) %>% c
 }
 
 #--------------------------------------------------------------------------
@@ -375,12 +433,18 @@ d2l_full <- function(resp, w, parms, theta1, theta2, obs = T, parallel = F) {
 #' @return \code{3 * K} by \code{3 * K} diagonal matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
 
-d2lp <- function(w, theta1, theta2, epsilon = .05)
+# d2lp <- function(w, theta1, theta2, epsilon = .05)
+# {
+#   w2 <- w - w^2
+#   d2lw <- -1 * epsilon * (2 / w2 + ((1 - 2 * w) / w2)^2 )
+#   rbind(d2lw, -1, -1) %>% c %>% diag
+# }
+#
+d2lp <- function(w, theta1, theta2, sigma = 5)
 {
-  w2 <- w - w^2
-  d2lw <- -1 * epsilon * (2 / w2 + ((1 - 2 * w) / w2)^2 )
-  rbind(d2lw, -1, -1) %>% c %>% diag
+  rbind(rep(-1/sigma^2, times = length(w)), -1, -1) %>% c %>% diag
 }
+
 
 #--------------------------------------------------------------------------
 #' Simultaneous estimation of latent traits and the one-parameter RSC model for a combined assessment.
@@ -404,7 +468,7 @@ d2lp <- function(w, theta1, theta2, epsilon = .05)
 #' @return An named \code{nrow(resp)} by 7 data.frame containing the estimates, their standard errors, and the value of the objective function at the solution.
 #' @export
 
-est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon = .05, parallel = F) {
+est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, sigma = 3, parallel = F) {
 
   stopifnot(ncol(resp) == nrow(parms),
           method%in%c("MAP", "ML"),
@@ -420,8 +484,8 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
 
   # Starting values
   if(is.null(starts)) {starts <- rep(c(.5, 0, 0), times = n_obs)}
-  lower <- rep(c(.00001, -8, -8), times = n_obs)
-  upper <- rep(c(.99999, 8, 8), times = n_obs)
+  lower <- rep(c(-50, -8, -8), times = n_obs)
+  upper <- rep(c(50, 8, 8), times = n_obs)
 
   # Select objective function and gradient
   if (method == "ML"){
@@ -439,12 +503,12 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
     obj <- function(par, resp) {
       ind <- parm_index[1:(length(par) / 3)]
       -1 * l_full(resp, par[ind], parms, par[(ind+1)], par[(ind+2)]) -
-        sum(lp(par[ind], par[(ind+1)], par[(ind+2)], epsilon))
+        sum(lp(par[ind], par[(ind+1)], par[(ind+2)], sigma))
     }
     grad <- function(par, resp) {
       ind <- parm_index[1:(length(par) / 3)]
       -1 * dl_full(resp, par[ind], parms, par[(ind+1)], par[(ind+2)]) -
-        dlp(par[ind], par[(ind+1)], par[(ind+2)], epsilon)
+        dlp(par[ind], par[(ind+1)], par[(ind+2)], sigma)
     }
   }
 
@@ -479,7 +543,7 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
   # Standard errors
   temp_se <- d2l_full(resp, out$w, parms, out$theta1, out$theta2, obs)
   if (method == "MAP") {
-    temp_se <- temp_se + d2lp(out$w, out$theta1, out$theta2, epsilon)
+    temp_se <- temp_se + d2lp(out$w, out$theta1, out$theta2, sigma)
   }
   temp_se <- (-1 * temp_se) %>% solve %>% diag %>% sqrt
 
@@ -490,7 +554,7 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
   # Objective function
   out$log <- l_full_sum(resp, out$w, parms, out$theta1, out$theta2)
   if (method == "MAP") {
-    out$log <- out$log + lp(out$w, out$theta1, out$theta2, epsilon)
+    out$log <- out$log + lp(out$w, out$theta1, out$theta2, sigma)
   }
 
   out
@@ -514,7 +578,7 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, epsilon
 #' @return An named \code{nrow(resp)} by 3 data.frame containing the estimates, their standard errors, and the value of the log-likelihood of the RSC model at the solution (not log posterior with MAP).
 #' @export
 
-est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, epsilon = .05, parallel = F) {
+est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma = 5, parallel = F) {
 
   stopifnot(ncol(resp) == nrow(parms),
             nrow(resp) == length(theta1),
@@ -538,6 +602,14 @@ est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, epsil
     -1 * dl_RSC(resp, par, parms, theta1, theta2)[parm_index[1:length(par)]]
   }
 
+  # Beta
+  # prior1 <- function(par) {epsilon * log(par - par^2)}
+  # prior2 <- function(par) {epsilon * (1 - 2 * par) / (par - par^2)}
+
+  # logit
+  prior1 <- function(par) {(par / sigma)^2 / 2}
+  prior2 <- function(par) {par / sigma^2}
+
   if (method == "ML") {
     obj <- function(par, resp, theta1, theta2) {fun1(par, resp, theta1, theta2)}
     grad <- function(par, resp, theta1, theta2) {fun2(par, resp, theta1, theta2)}
@@ -545,10 +617,10 @@ est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, epsil
 
   if (method == "MAP") {
     obj <- function(par, resp, theta1, theta2) {
-      fun1(par, resp, theta1, theta2) - sum(epsilon * log(par - par^2))
+      fun1(par, resp, theta1, theta2) - prior1
     }
     grad <- function(par, resp, theta1, theta2) {
-      fun2(par, resp, theta1, theta2) - epsilon * (1 - 2 * par) / (par - par^2)
+      fun2(par, resp, theta1, theta2) - prior2
     }
   }
 

@@ -5,8 +5,8 @@
 # devtools::install_github("peterhalpin/cirt")
 # library("cirt")
 # devtools::use_data(sim_parms)
-# source("~/github/cirt/R/cIRF_functions.R")
-# source("~/github/cirt/R/IRF_functions.R")
+# source("~/github/scirt/R/cIRF_functions.R")
+# source("~/github/scirt/R/IRF_functions.R")
 
 # ------------------------------------------------------------
 # Data simulation for weighted addtive model
@@ -14,7 +14,7 @@
 
 # Data generating parameters
 n_obs <- 1000 # n respondents
-n_items <- 200 # n items
+n_items <- 100 # n items
 i <- 20 # n items for short form
 K <- n_obs/2 # n groups
 sigma <- 2 # beta prior parm
@@ -58,6 +58,7 @@ ind_test <- ind_data[, -c(1:5)]
 # Parameter estimation for 4 conditions
 # ------------------------------------------------------------
 
+# For select the most informative items
 select_items <- function(n_items, info){
   temp <- apply(info, 1, order, decreasing = T) %>% t
   q <- cbind(rep(1:dim(info)[1], times = n_items), unlist(c(temp[,1:20])))
@@ -65,6 +66,7 @@ select_items <- function(n_items, info){
   out[q] <- 1
   out
 }
+
 
 ind_info1 <- Info(ind_parms, theta1)
 ind_info2 <- Info(ind_parms, theta2)
@@ -80,14 +82,14 @@ col_selected_items <- col_test
 col_selected_items[odd, ] <- temp
 col_selected_items[odd+1, ] <- temp
 
+t1 <- apply(col_info, 1, sum)
+t2 <- apply(col_info*temp, 1, sum, na.rm = T)
+
 # selected group test, selected individual test
 ll_data <- cbind(ind_test*ind_selected_items, col_test*col_selected_items)
 ll_parms <- rbind(ind_parms, col_parms)
 ml_ll <-  est_RSC(ll_data, ll_parms, method = "ML")
 map_ll <- est_RSC(ll_data, ll_parms, method = "MAP")
-
-plot(w, ml_ll$w)
-plot(w, map_ll$w)
 
 # random individual test, selected group test
 sl_data <- cbind(ind_test[ind_names_short], col_test*col_selected_items)
@@ -107,16 +109,20 @@ ss_parms <- rbind(ind_parms[ind_names_short, ], col_parms[col_names_short,  ])
 ml_ss <-  est_RSC(ss_data, ss_parms, method = "ML")
 map_ss <- est_RSC(ss_data, ss_parms, method = "MAP")
 
+dim(ml_ll)
 
 # ------------------------------------------------------------
 # Plots
 # ------------------------------------------------------------
 
-gg <- rbind(ml_ll, map_ll, ml_ls, map_ls, ml_ls, map_ls, ml_ss, map_ss)
+gg <- rbind(ml_ll, map_ll, ml_sl, map_sl, ml_ls, map_ls, ml_ss, map_ss)
+
+
 gg$ind_form <- rep(c("Individual selected", "Indvidual random"), each = K*4)
 gg$col_form <- rep(c("Group selected", "Group random"), each = K*2) %>% rep(times = 2)
+
 gg$Method <- rep(c("ML", "MAP"), each = K) %>% rep(times = 4)
-gg$dgp_w <- rep(logit(w), times = 8)
+gg$dgp_w <- rep(w, times = 8)
 gg[1:200,]
 gg$sample <- 0
 gg$sample[sample(nrow(gg), nrow(gg)/10)] <- 1
