@@ -1,260 +1,3 @@
-#devtools::install_github("peterhalpin/BearShare")#
-library("BearShare")#
-library("ltm")#
-library("ggplot2")#
-library("stats4")#
-calib_ltm <- ltm(calibration ~ z1)#
-beta <- coef(calib_ltm)[,1]#
-alpha <- coef(calib_ltm)[,2]#
-#
-ind_form <- col_form <- friends[,-1]#
-ind_form[, grep("C", names(ind_form))] <- NA#
-col_form[, grep("I", names(col_form))] <- NA#
-#
-odd <- seq(1, nrow(col_form), by = 2)#
-col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]#
-#
-ind_theta <- factor.scores(calib_ltm, ind_form, type = "EB", prior = F)$score.dat$z1#
-col_theta <- factor.scores(calib_ltm, col_form, type = "EB", prior = F)$score.dat$z1#
-barbell_plot(ind_theta, col_theta, legend = "left")#
-#
-parms <- coef(calib_ltm)#
-beta_C <- parms[grep("C", row.names(parms)), 1]#
-alpha_C <- parms[grep("C", row.names(parms)), 2]
-resp <- col_form[odd, grep("C", names(col_form))]#
-theta1 <- ind_theta[odd]#
-theta2 <- ind_theta[odd+1]#
-alpha <- alpha_C#
-beta <- beta_C#
-a <- c(.25, .25, .25, .25)
-WA <- function(w, alpha, beta, theta1, theta2){#
-  w * twoPL(alpha, beta, theta1) + w * twoPL(alpha, beta, theta2) + (1 - 2*w) * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2)#
-}
-I_WA <- function(w, alpha, beta, theta1, theta2){#
-    W <- WA(w, alpha, beta, theta1, theta2)#
-    (twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) - 2 * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2))^2 / w / (1-w)#
-}
-w = seq(0, 1 .1)
-w = seq(0, 1, .01)
-w
-alpha = 1
-beta = 0
-theta1 = 0
-theta2 = 0
-plot(w, I_WA(w, alpha, beta, theta1, theta2))
-theta1 = -1
-plot(w, I_WA(w, alpha, beta, theta1, theta2))
-I_WA <- function(w, alpha, beta, theta1, theta2){#
-    W <- WA(w, alpha, beta, theta1, theta2)#
-    (twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) - 2 * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2))^2 / w / (1-w)#
-}
-plot(w, I_WA(w, alpha, beta, theta1, theta2))
-theta1 = 1
-plot(w, I_WA(w, alpha, beta, theta1, theta2))
-theta2 = 1
-plot(w, I_WA(w, alpha, beta, theta1, theta2))
-theta2 = 0
-plot(w, I_WA(w, alpha, beta, theta1, theta2))
-theta1 = 0
-plot(w, I_WA(w, alpha, beta, theta1, theta2))
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = l)
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-points(w, I_WA(w, alpha, beta, 1, theta2), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 2, theta2), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 3, theta2), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 4, theta2), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, 1), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, 2), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, 3), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, 4), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, 5), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, -5), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, -4), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, -3), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, -2), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 0, -1), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 1, -1), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 1, 0), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 1, -1), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 2, -1), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 3, -1), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 4, -1), type = "l", col = 2)
-w = seq(.1, .9, .01)
-alpha = 1#
-beta = 0#
-theta1 = 0#
-theta2 = 0#
-#
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-points(w, I_WA(w, alpha, beta, 0, 0), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, 1, -1), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, -1, -1), type = "l", col = 2)
-theta1 = -1#
-theta2 = -1
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-theta1 = -5#
-theta2 = -5
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-points(w, I_WA(w, alpha, beta, -1, -1), type = "l", col = 2)
-theta1 = 5
-theta2 = -5
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-theta1 = -5#
-theta2 = 5
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-points(w, I_WA(w, alpha, beta, -1, -1), type = "l", col = 2)
-I2 <- function(theta1, theta2){#
-  I_WA(w, alpha, beta, theta1, theta2){#
-}
-theta1 <- theta2 <- seq(-5, 5, by = .1)
-w = .5
-theta1 <- theta2 <- seq(-5, 5, by = .1)#
-w = .5
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-I2 <- function(theta1, theta2, w, alpha, beta){#
-  I_WA(w, alpha, beta, theta1, theta2)#
-}
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 45, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = -45, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-w = .1
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-theta1 <- theta2 <- seq(-5, 5, by = .5)
-w = .1
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-w = .9
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-w = .25
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-w = .5
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-theta1 <- theta2 <- seq(-5, 5, by = .5)
-I2 <- function(theta1, theta2, w, alpha, beta){#
-  I_WA(w, alpha, beta, theta1, theta2)#
-}
-theta1 <- theta2 <- seq(-5, 5, by = .5)
-w = .5
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-w = .2
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-w = .8
-l <- outer(theta1, theta2, I2, w, alpha, beta)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-l <- outer(theta1, theta2, I2, w, alpha, 3)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-l <- outer(theta1, theta2, I2, w, alpha, 2)
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-theta1 <- theta2 <- seq(-5, 5, by = .2)
-w = .5
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = -25, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 75, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 20, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 50, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = -45, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 45, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 90, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 180, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 160, phi = 20, ticktype = "detailed", nticks = 5)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-theta1 <- theta2 <- seq(-10, 10, by = .2)
-w = .5
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-theta1 <- theta2 <- seq(-20, 20, by = .2)
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-theta1 <- theta2 <- seq(-20, 20, by = 1)
-w = .5
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-w = .1
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-w = ..9
-w = .9
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-w = .8
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-w = .5
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-w = .4
-l <- outer(theta1, theta2, I2, w, 2, 2)
-persp(theta1, theta2, l, theta = 0, phi = 20, ticktype = "detailed", nticks = 5)
-w = seq(.1, .9, .01)#
-alpha = 1#
-beta = 0#
-theta1 = -5#
-theta2 = 5#
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-theta1 = 1#
-theta2 = 0#
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-theta2 = 1
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-theta1 = 0
-theta2 = 0
-plot(w, I_WA(w, alpha, beta, theta1, theta2), type = "l")
-plot(w, I_WA(w, alpha, 3, theta1, theta2), type = "l")
-plot(w, I_WA(w, alpha, -3, theta1, theta2), type = "l")
-plot(w, I_WA(w, alpha, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 2, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 3, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 4, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 2, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 1, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 0, 1, theta1, theta2), type = "l")
-plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
-theta1 = 1
-theta2 = 0
-plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
-theta2 = -1
-plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 1, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 2, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 0, 0, theta1, theta2), type = "l")
-plot(w, I_WA(w, 1, 0, theta1, theta2), type = "l")
-points(w, I_WA(w, alpha, beta, -1, -1), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, -1, 1), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, -1, 2), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, -2, 2), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, -3, 2), type = "l", col = 2)
-points(w, I_WA(w, alpha, beta, -3, 3), type = "l", col = 2)
-I2 <- function(delta, w, alpha, beta){
-I2 <- function(delta, w, alpha, beta){#
-  theta1 <- beta + delta/2#
-  theta2 <- beta - delta/2#
-  I_WA(w, alpha, beta, theta1, theta2)#
-}
-delta <- seq(-5, 5, by = .25)
-plot(delta, I2(delta, .5, 1, 0), type = "l")
-delta <- seq(-5, 5, by = .25)
-plot(delta, I2(delta, .5, 1, 0), type = "l")
-I2 <- function(delta, w, alpha, beta){#
-  theta1 <- beta + delta/2#
-  theta2 <- beta - delta/2#
-  I_WA(w, alpha, beta, theta1, theta2)#
-}
-plot(delta, I2(delta, .5, 1, 0), type = "l")
 I2 <- function(delta, w, alpha, beta){#
   theta1 <- beta + delta/2#
   theta2 <- beta - delta/2#
@@ -327,3 +70,730 @@ I_WA <- function(w, alpha, beta, theta1, theta2){#
     W <- WA(w, alpha, beta, theta1, theta2)#
     (twoPL(alpha, beta, theta1) + twoPL(alpha, beta, theta2) - 2 * twoPL(alpha, beta, theta1) * twoPL(alpha, beta, theta2))^2 / W / (1-W)#
 }
+source("~/github/cirt/R/cIRF_functions2.R")
+source("~/github/scirt/R/cIRF_functions2.R")
+source("~/github/scirt/R/IRF_functions.R")
+# Data generating parameters#
+n_obs <- 1000 # n respondents#
+n_items <- 200 # n items#
+i <- 20 # n items for short form#
+K <- n_obs/2 # n groups#
+sigma <- 2 # beta prior parm#
+set.seed(101)#
+#
+# Individual test#
+ind_alpha <- runif(n_items, .65, 2.5)#
+ind_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+ind_parms <- data.frame(ind_alpha, ind_beta)#
+ind_names <- paste0("item", 1:n_items, "_IND")#
+ind_names_short <- ind_names[sample(n_items, i)] # random short form#
+row.names(ind_parms) <- ind_names#
+names(ind_parms) <- c("alpha", "beta")#
+#
+# Group test#
+col_alpha <- runif(n_items, .65, 2.5)#
+col_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+col_parms <- data.frame(col_alpha, col_beta)#
+col_names <- paste0("item", 1:n_items, "_COL")#
+col_names_short <- col_names[sample(n_items, i)] # random short form#
+row.names(col_parms) <- col_names#
+names(col_parms) <- c("alpha", "beta")#
+#
+# Respondents#
+odd <- seq(1, n_obs, by = 2)#
+theta <- rnorm(n_obs)#
+theta1 <- theta[odd] # odds#
+theta2 <- theta[odd + 1] # evens#
+#
+# RSC parameter#
+w <- rnorm(K, 0, sigma)#
+#
+# Generate selected group data#
+col_data <- data_gen(1, w, col_parms, theta1, theta2)#
+ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)#
+#
+col_test <- col_data[rep(1:K, each = 2), -c(1:5)]#
+ind_test <- ind_data[, -c(1:5)]
+select_items <- function(n_items, info){#
+  temp <- apply(info, 1, order, decreasing = T) %>% t#
+  q <- cbind(rep(1:dim(info)[1], times = n_items), unlist(c(temp[,1:20])))#
+  out <- info*NA#
+  out[q] <- 1#
+  out#
+}#
+#
+ind_info1 <- Info(ind_parms, theta1)#
+ind_info2 <- Info(ind_parms, theta2)#
+temp1 <- select_items(i, ind_info1)#
+temp2 <- select_items(i, ind_info2)#
+ind_selected_items <- ind_test#
+ind_selected_items[odd, ] <- temp1#
+ind_selected_items[odd+1, ] <- temp2#
+#
+col_info <- Info_RSC(w, col_parms, theta1, theta2)#
+temp <- select_items(i, col_info)#
+col_selected_items <- col_test#
+col_selected_items[odd, ] <- temp#
+col_selected_items[odd+1, ] <- temp
+c_info <- apply(apply col_info, 2, sum)
+c_info <- apply(col_info, 2, sum)
+plot(w, c_info)
+c_info <- apply(col_info, 1, sum)
+plot(w, c_info)
+plot(abs(theta1-theta2), c_info)
+Info_RSC
+ii <- function(w, p1) {#
+  w <- p(w)#
+  W <- w %*% t(rep(1, nrow(parms)))#
+  dW <- dp(W)#
+  p2 <- 1 - p1#
+  R <- W * (p1 + p2) + (1 - 2 * W) * p1 * p2#
+  num <- dW^2 * (p1 + p2 - 2 * p1 * p2)^2#
+  denom <- R * (1-R)#
+  out <- data.frame(num / denom)#
+  names(out) <- row.names(parms)#
+  out#
+}
+help(persp)
+info <- outer(ii, w, p1)
+w <- p1 <- seq(0, 1, by = .01)
+info <- outer(ii, w, p1)
+info <- outer(w, p1, ii)
+help(oute)
+help(outer)
+w <- p1 <- seq(0, 1, by = .01)#
+info <- outer(w, p1, ii)
+ii <- function(w, p1) {#
+  w <- p(w)#
+  W <- w %*% t(rep(1, nrow(parms)))#
+  dW <- dp(W)#
+  p2 <- 1 - p1#
+  R <- W * (p1 + p2) + (1 - 2 * W) * p1 * p2#
+  num <- dW^2 * (p1 + p2 - 2 * p1 * p2)^2#
+  denom <- R * (1-R)#
+  out <- data.frame(num / denom)#
+  names(out) <- row.names(parms)#
+  out#
+}
+ii <- function(w, p1) {#
+  w <- p(w)#
+  #W <- w %*% t(rep(1, nrow(parms)))#
+  dW <- dp(W)#
+  p2 <- 1 - p1#
+  R <- W * (p1 + p2) + (1 - 2 * W) * p1 * p2#
+  num <- dW^2 * (p1 + p2 - 2 * p1 * p2)^2#
+  denom <- R * (1-R)#
+  num / denom#
+}
+w <- p1 <- seq(0, 1, by = .01)#
+info <- outer(w, p1, ii)
+ii <- function(w, p1) {#
+  w <- p(w)#
+  #W <- w %*% t(rep(1, nrow(parms)))#
+  dW <- dp(w)#
+  p2 <- 1 - p1#
+  R <- W * (p1 + p2) + (1 - 2 * W) * p1 * p2#
+  num <- dW^2 * (p1 + p2 - 2 * p1 * p2)^2#
+  denom <- R * (1-R)#
+  num / denom#
+}#
+#
+w <- p1 <- seq(0, 1, by = .01)#
+info <- outer(w, p1, ii)
+ii <- function(w, p1) {#
+  W <- p(w)#
+  #W <- w %*% t(rep(1, nrow(parms)))#
+  dW <- dp(W)#
+  p2 <- 1 - p1#
+  R <- W * (p1 + p2) + (1 - 2 * W) * p1 * p2#
+  num <- dW^2 * (p1 + p2 - 2 * p1 * p2)^2#
+  denom <- R * (1-R)#
+  num / denom#
+}#
+#
+w <- p1 <- seq(0, 1, by = .01)#
+info <- outer(w, p1, ii)
+persp(w, p1, info)
+persp(w, p1, info theta = .45)
+persp(w, p1, info, theta = .45)
+persp(w, p1, info, theta = 45)
+persp(w, p1, info, theta = 25)
+persp(w, p1, info, theta = 25, phi = 15)
+persp(w, p1, info, theta = 25, phi = 0)
+persp(w, p1, info, theta = 0, phi = 0)
+persp(w, p1, info, theta = 60, phi = 0)
+w <- p1 <- seq(0, 1, by = .05)#
+info <- outer(w, p1, ii)#
+help(persp)#
+persp(w, p1, info, theta = 60, phi = 0)
+persp(w, p1, info, theta = 70, phi = 0)
+persp(w, p1, info, theta = 270, phi = 0)
+persp(w, p1, info, theta = 70, phi = 0)
+persp(w, p1, info, theta = 60, phi = 0)
+persp(w, p1, info, theta = 80, phi = 0)
+w <- seq(-5, 5, by = .05)#
+p1 <- seq(0, 1, by = .05)#
+info <- outer(w, p1, ii)#
+help(persp)#
+persp(w, p1, info, theta = 80, phi = 0)
+w <- seq(-5, 5, by = .25)#
+p1 <- seq(0, 1, by = .05)#
+info <- outer(w, p1, ii)#
+help(persp)#
+persp(w, p1, info, theta = 80, phi = 0)
+p(w)
+persp(w, p1, info, theta = 80, phi = 0)
+persp(w, p1, info, theta = 45, phi = 0)
+persp(w, p1, info, theta = 0, phi = 0)
+persp(w, p1, info, theta = 25, phi = 0)
+w <- seq(-3, 3, by = .25)#
+p1 <- seq(0, 1, by = .05)#
+info <- outer(w, p1, ii)#
+persp(w, p1, info, theta = 25, phi = 0)
+help(persp)
+persp(w, p1, info, theta = 25, phi = 0, ticktype = "detailed")
+persp(w, p1, info, theta = 45, phi = 0, ticktype = "detailed")
+persp(w, p1, info, theta = 245, phi = 0, ticktype = "detailed")
+persp(w, p1, info, theta = 45, phi = 0, ticktype = "detailed")
+f <- function(w) {1 / (2*w^2 - 2*w + 3/2 )}
+plot(p1, f(p1))
+f <- function(w) {1 / (2*w^2 - 2*w + 3/2 )}#
+#
+plot(p1, f(p1))
+p1 <- seq(0, 1, by = .01)
+f <- function(w) {1 / (2*w^2 - 2*w + 3/2 )}#
+#
+plot(p1, f(p1))
+f <- function(w) {1 / (w- w^2 + 3/4 )}#
+#
+plot(p1, f(p1))
+f <- function(w) {(w - w^2)^2 / (w - w^2 + 3/4 )}#
+#
+plot(p1, f(p1))
+f2 <- function(alpha) {#
+  w <- p(alpha)#
+  (w - w^2)^2 / (w - w^2 + 3/4 )#
+}
+plot(w, f2(w))
+w <- seq(-3, 3, by = .05)
+plot(w, f2(w))
+))
+plot(p1, f(p1))
+f <- function(w) {1 / (w - w^2 + 3/4 )}#
+#
+f2 <- function(alpha) {#
+  w <- p(alpha)#
+  (w - w^2)^2 / (w - w^2 + 3/4 )#
+}#
+#
+plot(p1, f(p1))
+plot(w, f2(w))
+plot(w, f2(w))
+plot(p1, f(p1))
+w <- seq(-3, 3, by = .05)#
+p1 <- seq(0, 1, by = .01)#
+info <- outer(w, p1, ii)#
+persp(w, p1, info, theta = 45, phi = 0, ticktype = "detailed")
+i1 <- function(w, p1) {#
+  q1 <- 1 - p1#
+  z <- p1*q1/(p1^1 + q1^2) #
+  1/ (w * (1 - w) + z(1 + z))#
+}
+i1 <- function(w, p1) {#
+  q1 <- 1 - p1#
+  z <- p1*q1/(p1^1 + q1^2) #
+  1/ (w * (1 - w) + z(1 + z))#
+}#
+#
+i2 <- function(alpha, p1) {#
+  w <- p(alpha)#
+  p2 <- 1 - p1#
+  q1 <- 1 - p1#
+  z <- p1*q1/(p1^1 + q1^2) #
+   (w * (1 - w))^2 / (w * (1 - w) + z(1 + z))#
+}#
+#
+f <- function(w) {1 / (w - w^2 + 3/4 )}#
+#
+f2 <- function(alpha) {#
+  w <- p(alpha)#
+  (w - w^2)^2 / (w - w^2 + 3/4 )#
+}
+alpha <- seq(-3, 3, by = .05)#
+w <- p1 <- seq(0, 1, by = .01)#
+#
+plot(w, f(w))#
+plot(alpha, f2(alpha))
+plot(w, i(w))
+plot(w, i(w))
+plot(w, i1(w))
+info1 <- outer(w, p1, i1)#
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+info1 <- outer(w, p1, i1)
+i1 <- function(w, p1) {#
+  q1 <- 1 - p1#
+  z <- p1*q1/(p1^1 + q1^2) #
+  1/ (w * (1 - w) + z*(1 + z))#
+}#
+#
+i2 <- function(alpha, p1) {#
+  w <- p(alpha)#
+  p2 <- 1 - p1#
+  q1 <- 1 - p1#
+  z <- p1*q1/(p1^1 + q1^2) #
+   (w * (1 - w))^2 / (w * (1 - w) + z*(1 + z))#
+}
+info1 <- outer(w, p1, i1)
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+w <- p1 <- seq(.00001, .9999, by = .01)
+info1 <- outer(w, p1, i1)#
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+w <- p1 <- seq(.1, .9999, by = .01)#
+#
+plot(w, f1(w))#
+plot(alpha, f2(alpha))#
+#
+info1 <- outer(w, p1, i1)#
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+alpha <- seq(-3, 3, by = .25)#
+w <- p1 <- seq(.1, .9999, by = .01)#
+#
+plot(w, f1(w))#
+plot(alpha, f2(alpha))#
+#
+info1 <- outer(w, p1, i1)#
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+alpha <- seq(-3, 3, by = .25)#
+w <- p1 <- seq(.1, .9999, by = .01)#
+#
+plot(w, f1(w))#
+plot(alpha, f2(alpha))#
+#
+info1 <- outer(w, p1, i1)#
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+info2 <- outer(alpha, p1, i2)#
+persp(alpha, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+persp(alpha, p1, info2, theta = 45, phi = 0, ticktype = "detailed")
+info1 <- outer(w, p1, i1)#
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+w <- p1 <- seq(.1, .9, by = .01)#
+#
+plot(w, f1(w))#
+plot(alpha, f2(alpha))#
+#
+info1 <- outer(w, p1, i1)#
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+persp(w, p1, info1, theta = 0, phi = 0, ticktype = "detailed")
+persp(w, p1, info1, theta = 0, phi = 15, ticktype = "detailed")
+persp(w, p1, info1, theta = 0, phi = 95, ticktype = "detailed")
+persp(w, p1, info1, theta = 0, phi = 275, ticktype = "detailed")
+persp(w, p1, info1, theta = 0, phi = -15, ticktype = "detailed")
+persp(w, p1, info1, theta = 0, phi = -45, ticktype = "detailed")
+min(info1)
+persp(w, p1, info1, theta = 0, phi = 15, ticktype = "detailed")
+persp(w, p1, info1, theta = 25, phi = 15, ticktype = "detailed")
+persp(w, p1, info1, theta = 45, phi = 15, ticktype = "detailed")
+persp(w, p1, info1, theta = 90, phi = 15, ticktype = "detailed")
+persp(w, p1, info1, theta = 90, phi = 0, ticktype = "detailed")
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+1/min(info1)
+1/min(info1) * 10
+10/min(info1)
+1 / (10*min(info1))
+1 / (12*min(info1))
+1 / (15*min(info1))
+sqrt(1 / (15*min(info1)))
+sqrt(1 / (30*min(info1)))
+sqrt(1 / (50*min(info1)))
+1 / (1* sqrt(min(info1)))
+1 / (2* sqrt(min(info1)))
+1 / (3* sqrt(min(info1)))
+1 / (4 * sqrt(min(info1)))
+1 / sqrt(min(info1))
+2 / sqrt(min(info1))
+3 / sqrt(min(info1))
+1 / (4 * min(info1)) %>% sqrt
+1 / (5 * min(info1)) %>% sqrt
+1 / (10 * min(info1)) %>% sqrt
+1 / (120 * min(info1)) %>% sqrt
+1 / (100 * min(info1)) %>% sqrt
+ind_info1 <- Info(ind_parms, theta1)#
+ind_info2 <- Info(ind_parms, theta2)#
+#
+temp1 <- ind_info1*0 + 1#
+temp2 <- ind_info1*0 + 1#
+#temp1 <- select_items(i, ind_info1)#
+#temp2 <- select_items(i, ind_info2)#
+#
+ind_selected_items <- ind_test#
+ind_selected_items[odd, ] <- temp1#
+ind_selected_items[odd+1, ] <- temp2#
+#
+col_info <- Info_RSC(w, col_parms, theta1, theta2)#
+#
+temp <- col_info*0 + 1#
+#temp <- select_items(i, col_info)#
+#
+col_selected_items <- col_test#
+col_selected_items[odd, ] <- temp#
+col_selected_items[odd+1, ] <- temp
+ll_data <- cbind(ind_test*ind_selected_items, col_test*col_selected_items)#
+ll_parms <- rbind(ind_parms, col_parms)#
+ml_ll <-  est_RSC(ll_data, ll_parms, method = "ML")#
+map_ll <- est_RSC(ll_data, ll_parms, method = "MAP")
+# ------------------------------------------------------------#
+# Data simulation for paper#
+# ------------------------------------------------------------#
+#
+# devtools::install_github("peterhalpin/cirt")#
+# library("cirt")#
+# devtools::use_data(sim_parms)#
+# source("~/github/scirt/R/cIRF_functions2.R")#
+# source("~/github/scirt/R/IRF_functions.R")#
+#
+# ------------------------------------------------------------#
+# Data simulation for weighted addtive model#
+# ------------------------------------------------------------#
+#
+# Data generating parameters#
+n_obs <- 1000 # n respondents#
+n_items <- 200 # n items#
+i <- 20 # n items for short form#
+K <- n_obs/2 # n groups#
+sigma <- 2 # beta prior parm#
+set.seed(101)#
+#
+# Individual test#
+ind_alpha <- runif(n_items, .65, 2.5)#
+ind_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+ind_parms <- data.frame(ind_alpha, ind_beta)#
+ind_names <- paste0("item", 1:n_items, "_IND")#
+ind_names_short <- ind_names[sample(n_items, i)] # random short form#
+row.names(ind_parms) <- ind_names#
+names(ind_parms) <- c("alpha", "beta")#
+#
+# Group test#
+col_alpha <- runif(n_items, .65, 2.5)#
+col_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+col_parms <- data.frame(col_alpha, col_beta)#
+col_names <- paste0("item", 1:n_items, "_COL")#
+col_names_short <- col_names[sample(n_items, i)] # random short form#
+row.names(col_parms) <- col_names#
+names(col_parms) <- c("alpha", "beta")#
+#
+# Respondents#
+odd <- seq(1, n_obs, by = 2)#
+theta <- rnorm(n_obs)#
+theta1 <- theta[odd] # odds#
+theta2 <- theta[odd + 1] # evens#
+#
+# RSC parameter#
+w <- rnorm(K, 0, sigma)#
+#
+# Generate selected group data#
+col_data <- data_gen(1, w, col_parms, theta1, theta2)#
+ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)#
+#
+col_test <- col_data[rep(1:K, each = 2), -c(1:5)]#
+ind_test <- ind_data[, -c(1:5)]
+# selected group test, selected individual test#
+ll_data <- cbind(ind_test*ind_selected_items, col_test*col_selected_items)#
+ll_parms <- rbind(ind_parms, col_parms)#
+ml_ll <-  est_RSC(ll_data, ll_parms, method = "ML")#
+map_ll <- est_RSC(ll_data, ll_parms, method = "MAP")
+source("~/github/scirt/R/cIRF_functions2.R")
+# Data generating parameters#
+n_obs <- 1000 # n respondents#
+n_items <- 200 # n items#
+i <- 20 # n items for short form#
+K <- n_obs/2 # n groups#
+sigma <- 2 # beta prior parm#
+set.seed(101)#
+#
+# Individual test#
+ind_alpha <- runif(n_items, .65, 2.5)#
+ind_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+ind_parms <- data.frame(ind_alpha, ind_beta)#
+ind_names <- paste0("item", 1:n_items, "_IND")#
+ind_names_short <- ind_names[sample(n_items, i)] # random short form#
+row.names(ind_parms) <- ind_names#
+names(ind_parms) <- c("alpha", "beta")#
+#
+# Group test#
+col_alpha <- runif(n_items, .65, 2.5)#
+col_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+col_parms <- data.frame(col_alpha, col_beta)#
+col_names <- paste0("item", 1:n_items, "_COL")#
+col_names_short <- col_names[sample(n_items, i)] # random short form#
+row.names(col_parms) <- col_names#
+names(col_parms) <- c("alpha", "beta")#
+#
+# Respondents#
+odd <- seq(1, n_obs, by = 2)#
+theta <- rnorm(n_obs)#
+theta1 <- theta[odd] # odds#
+theta2 <- theta[odd + 1] # evens#
+#
+# RSC parameter#
+w <- rnorm(K, 0, sigma)#
+#
+# Generate selected group data#
+col_data <- data_gen(1, w, col_parms, theta1, theta2)#
+ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)#
+#
+col_test <- col_data[rep(1:K, each = 2), -c(1:5)]#
+ind_test <- ind_data[, -c(1:5)]
+select_items <- function(n_items, info){#
+  temp <- apply(info, 1, order, decreasing = T) %>% t#
+  q <- cbind(rep(1:dim(info)[1], times = n_items), unlist(c(temp[,1:20])))#
+  out <- info*NA#
+  out[q] <- 1#
+  out#
+}#
+#
+ind_info1 <- Info(ind_parms, theta1)#
+ind_info2 <- Info(ind_parms, theta2)#
+#
+temp1 <- ind_info1*0 + 1#
+temp2 <- ind_info1*0 + 1#
+#temp1 <- select_items(i, ind_info1)#
+#temp2 <- select_items(i, ind_info2)#
+#
+ind_selected_items <- ind_test#
+ind_selected_items[odd, ] <- temp1#
+ind_selected_items[odd+1, ] <- temp2#
+#
+col_info <- Info_RSC(w, col_parms, theta1, theta2)#
+#
+temp <- col_info*0 + 1#
+#temp <- select_items(i, col_info)#
+#
+col_selected_items <- col_test#
+col_selected_items[odd, ] <- temp#
+col_selected_items[odd+1, ] <- temp
+# selected group test, selected individual test#
+ll_data <- cbind(ind_test*ind_selected_items, col_test*col_selected_items)
+ll_data
+ll_parms <- rbind(ind_parms, col_parms)
+ll_parms
+# Data generating parameters#
+n_obs <- 1000 # n respondents#
+n_items <- 100 # n items#
+i <- 20 # n items for short form#
+K <- n_obs/2 # n groups#
+sigma <- 2 # beta prior parm#
+set.seed(101)#
+#
+# Individual test#
+ind_alpha <- runif(n_items, .65, 2.5)#
+ind_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+ind_parms <- data.frame(ind_alpha, ind_beta)#
+ind_names <- paste0("item", 1:n_items, "_IND")#
+ind_names_short <- ind_names[sample(n_items, i)] # random short form#
+row.names(ind_parms) <- ind_names#
+names(ind_parms) <- c("alpha", "beta")#
+#
+# Group test#
+col_alpha <- runif(n_items, .65, 2.5)#
+col_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+col_parms <- data.frame(col_alpha, col_beta)#
+col_names <- paste0("item", 1:n_items, "_COL")#
+col_names_short <- col_names[sample(n_items, i)] # random short form#
+row.names(col_parms) <- col_names#
+names(col_parms) <- c("alpha", "beta")#
+#
+# Respondents#
+odd <- seq(1, n_obs, by = 2)#
+theta <- rnorm(n_obs)#
+theta1 <- theta[odd] # odds#
+theta2 <- theta[odd + 1] # evens#
+#
+# RSC parameter#
+w <- rnorm(K, 0, sigma)#
+#
+# Generate selected group data#
+col_data <- data_gen(1, w, col_parms, theta1, theta2)#
+ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)#
+#
+col_test <- col_data[rep(1:K, each = 2), -c(1:5)]#
+ind_test <- ind_data[, -c(1:5)]
+ind_info1 <- Info(ind_parms, theta1)#
+ind_info2 <- Info(ind_parms, theta2)#
+#
+temp1 <- ind_info1*0 + 1#
+temp2 <- ind_info1*0 + 1#
+#temp1 <- select_items(i, ind_info1)#
+#temp2 <- select_items(i, ind_info2)#
+#
+ind_selected_items <- ind_test#
+ind_selected_items[odd, ] <- temp1#
+ind_selected_items[odd+1, ] <- temp2#
+#
+col_info <- Info_RSC(w, col_parms, theta1, theta2)#
+#
+temp <- col_info*0 + 1#
+#temp <- select_items(i, col_info)#
+#
+col_selected_items <- col_test#
+col_selected_items[odd, ] <- temp#
+col_selected_items[odd+1, ] <- temp
+col_selected_items
+ll_data <- cbind(ind_test*ind_selected_items, col_test*col_selected_items)#
+ll_parms <- rbind(ind_parms, col_parms)#
+ml_ll <-  est_RSC(ll_data, ll_parms, method = "ML")
+map_ll <- est_RSC(ll_data, ll_parms, method = "MAP")
+plot(w, ml_ll$w)
+plot(w, map_ll$w)
+abline(a = 0, b = 1)
+plot(p(w), p(map_ll$w))
+abline(a = 0, b = 1)
+plot(w, map_ll$se_w)
+plot(w, map_ll$se_w)
+map_ll$se_w
+head(map_se)
+head(map_ll)
+plot(w, map_ll$w_se)
+var(map_ll$w)
+var(w)
+(var(map_ll$w) - mean(map_ll$w_se^2))/var(map_ll$w)
+var(map_ll$w)
+map_ll$w
+map_ll$w > 6 <- 6#
+map_ll$w < -6 <- -6
+plot(p(w), p(map_ll$w))#
+abline(a = 0, b = 1)
+plot(w, map_ll$w)
+map_ll$w > 6 <- 6#
+map_ll$w < -6 <- -6
+map_ll$w[map_ll$w > 6] <- 6#
+map_ll$w[map_ll$w < -6] <- -6
+plot(w, map_ll$w)
+plot(p(w), p(map_ll$w))
+plot(w, map_ll$w)
+abline(a = 0, b = 1)
+(var(map_ll$w) - mean(map_ll$w_se^2))/var(map_ll$w)
+var(map_ll$w)
+var(w)
+(var(map_ll$w) - mean(map_ll$w_se^2))/var(map_ll$w)
+map_ll$w_se^2
+mean(map_ll$w_se^2)
+# random group test, random individual test#
+ss_data <- cbind(ind_test[ind_names_short], col_data[col_names_short])#
+ss_parms <- rbind(ind_parms[ind_names_short, ], col_parms[col_names_short,  ])#
+ml_ss <-  est_RSC(ss_data, ss_parms, method = "ML")#
+map_ss <- est_RSC(ss_data, ss_parms, method = "MAP")
+plot(w, map_ss$w)
+abline(a = 0, b = 1)
+plot(p(w), p(map_ss$w))
+abline(a = 0, b = 1)
+(var(map_ss$w) - mean(map_ss$w_se^2))/var(map_ss$w)
+map_ss$w[map_ss$w > 6] <- 6#
+map_ss$w[map_ss$w < -6] <- -6
+plot(w, map_ss$w_se)#
+(var(map_ss$w) - mean(map_ss$w_se^2))/var(map_ss$w)
+var(w)
+var(map_ss$w)
+var(w) / var(map_ss$w)
+map_ss$w_se
+var(w) / var(map_ll$w)
+(var(map_ll$w) - mean(map_ll$w_se^2))/var(map_ll$w)
+# Data generating parameters#
+n_obs <- 1000 # n respondents#
+n_items <- 100 # n items#
+i <- 20 # n items for short form#
+K <- n_obs/2 # n groups#
+sigma <- 2 # beta prior parm#
+set.seed(101)#
+#
+# Individual test#
+ind_alpha <- runif(n_items, .65, 2.5)#
+ind_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+ind_parms <- data.frame(ind_alpha, ind_beta)#
+ind_names <- paste0("item", 1:n_items, "_IND")#
+ind_names_short <- ind_names[sample(n_items, i)] # random short form#
+row.names(ind_parms) <- ind_names#
+names(ind_parms) <- c("alpha", "beta")#
+#
+# Group test#
+col_alpha <- runif(n_items, .65, 2.5)#
+col_beta <- sort(rnorm(n_items, mean = 0, sd = 1.3))#
+col_parms <- data.frame(col_alpha, col_beta)#
+col_names <- paste0("item", 1:n_items, "_COL")#
+col_names_short <- col_names[sample(n_items, i)] # random short form#
+row.names(col_parms) <- col_names#
+names(col_parms) <- c("alpha", "beta")#
+#
+# Respondents#
+odd <- seq(1, n_obs, by = 2)#
+theta <- rnorm(n_obs)#
+theta1 <- theta[odd] # odds#
+theta2 <- theta[odd + 1] # evens#
+#
+# RSC parameter#
+w <- rnorm(K, 0, sigma)#
+#
+# Generate selected group data#
+col_data <- data_gen(1, w, col_parms, theta1, theta2)#
+ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)#
+#
+col_test <- col_data[rep(1:K, each = 2), -c(1:5)]#
+ind_test <- ind_data[, -c(1:5)]
+ind_info1 <- Info(ind_parms, theta1)#
+ind_info2 <- Info(ind_parms, theta2)#
+#
+temp1 <- ind_info1*0 + 1#
+temp2 <- ind_info1*0 + 1#
+#temp1 <- select_items(i, ind_info1)#
+#temp2 <- select_items(i, ind_info2)#
+#
+ind_selected_items <- ind_test#
+ind_selected_items[odd, ] <- temp1#
+ind_selected_items[odd+1, ] <- temp2#
+#
+col_info <- Info_RSC(w, col_parms, theta1, theta2)#
+#
+temp <- col_info*0 + 1#
+#temp <- select_items(i, col_info)#
+#
+col_selected_items <- col_test#
+col_selected_items[odd, ] <- temp#
+col_selected_items[odd+1, ] <- temp
+c_info <- apply(col_info, 1, sum)
+plot(w, c_info)
+hist(c_info)
+i_info <- apply(ind_info1, 1, sum)
+hist(i_info)
+hist(c_info)
+hist(c_info[c_info < 20])
+plot(w, f1(w))
+i1 <- function(w, p1) {#
+  q1 <- 1 - p1#
+  z <- p1*q1/(p1^1 + q1^2)#
+  1/ (w * (1 - w) + z*(1 + z))#
+}#
+#
+i2 <- function(alpha, p1) {#
+  w <- p(alpha)#
+  p2 <- 1 - p1#
+  q1 <- 1 - p1#
+  z <- p1*q1/(p1^1 + q1^2)#
+   (w * (1 - w))^2 / (w * (1 - w) + z*(1 + z))#
+}#
+#
+f1 <- function(w) {1 / (w - w^2 + 3/4 )}#
+#
+f2 <- function(alpha) {#
+  w <- p(alpha)#
+  (w - w^2)^2 / (w - w^2 + 3/4 )#
+}#
+#
+alpha <- seq(-3, 3, by = .25)#
+w <- p1 <- seq(.1, .9, by = .01)#
+#
+plot(w, f1(w))#
+plot(alpha, f2(alpha))
+plot(alpha, 1/sqrt(f2(alpha)))
+info1 <- outer(w, p1, i1)#
+persp(w, p1, info1, theta = 45, phi = 0, ticktype = "detailed")
+info2 <- outer(alpha, p1, i2)#
+persp(alpha, p1, info2, theta = 45, phi = 0, ticktype = "detailed")
