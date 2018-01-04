@@ -90,6 +90,7 @@ col_selected_items[odd+1, ] <- temp
 # Plots to check out item info..
 # Looks like all collab items have low info
 # So selecting fewer items means less info = no adaptivity possible?
+##--------------------------------------------------------------------------------
 
 c_info <- apply(col_info, 1, sum)
 i_info <- apply(ind_info1, 1, sum)
@@ -152,6 +153,67 @@ abline(a = 0, b = 1)
 plot(w, map_ll$w_se)
 (var(map_ll$w) - mean(map_ll$w_se^2))/var(map_ll$w)
 var(w) / var(map_ll$w)
+
+
+
+# scratch
+
+# the information functions are good
+
+w <- p(u)
+parms <- col_parms
+max(p(u))
+plot(u, p(u))
+
+i_u <- Info_u(u, col_parms, theta1, theta2)
+i_w <- Info_w(w, col_parms, theta1, theta2)
+
+j = 3
+u[j]; theta1[j]; theta2[j]
+plot(as.numeric(i_u[j, ]) , as.numeric(i_w[j, ]))
+plot(as.numeric(i_u[j, ]))
+plot(as.numeric(i_w[j, ]))
+lm(as.numeric(i_w[j,]) ~ as.numeric(i_u[j, ]))
+
+hist(as.numeric(i_w[j, ]))
+
+sort(col_info[j,])
+sort(col_selected_items[j,]*col_info[j,])
+
+plot(u, map_ll$w)
+abline(a = 0, b = 1)
+
+plot(p(u), p(map_ll$w))
+abline(a = 0, b = 1)
+
+plot(map_ll$w, map_ll$w_se)
+
+plot(sort(map_ll$w), ylim = c(-6, 6))
+points(sort(map_ll$w + 2*map_ll$w_se), col = 3)
+points(sort(map_ll$w - 2*map_ll$w_se), col = 2)
+abline(a = 0, b = 0)
+
+plot(sort(p(map_ll$w)), ylim = c(0, 1))
+points(sort(p(map_ll$w + 2*map_ll$w_se)), col = 3)
+points(sort(p(map_ll$w - 2*map_ll$w_se)), col = 2)
+abline(a = .5, b = 0)
+
+
+var(u)/var(map_ll$w)
+(var(map_ll$w) - mean(map_ll$w_se^2))/var(map_ll$w)
+
+
+plot(u, ml_ll$w)
+abline(a = 0, b = 1)
+
+plot(p(u), p(ml_ll$w))
+abline(a = 0, b = 1)
+
+var(u)/var(ml_ll$w)
+(var(ml_ll$w) - mean(ml_ll$w_se^2))/var(ml_ll$w)
+##--------------------------------------------------------------------------------
+
+
 
 # random individual test, selected group test
 sl_data <- cbind(ind_test[ind_names_short], col_test*col_selected_items)

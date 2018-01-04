@@ -563,13 +563,8 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, sigma =
   out$theta1 <- temp[parm_index+1]
   out$theta2 <- temp[parm_index+2]
 
-  # Standard errors
-  temp_se <- d2l_full(resp, out$w, parms, out$theta1, out$theta2, obs)
-  if (method == "MAP") {
-    temp_se <- temp_se + d2lp(out$w, out$theta1, out$theta2, sigma)
-  }
-  temp_se <- (-1 * temp_se) %>% solve %>% diag %>% sqrt
-
+  # SEs
+  temp_se <- se_RSC(resp, out$w, parms, out$theta1, out$theta2, method, obs, sigma, w_only = F)
   out$w_se <- temp_se[parm_index]
   out$theta1_se <- temp_se[parm_index+1]
   out$theta2_se <- temp_se[parm_index+2]
@@ -579,9 +574,20 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, sigma =
   if (method == "MAP") {
     out$log <- out$log + lp(out$w, out$theta1, out$theta2, sigma)
   }
-
   out
 }
+
+se_RSC <- function(resp, w, parms, theta1, theta2, method = "MAP", obs = F, sigma = 3, w_only = T){
+  temp_se <- d2l_full(resp, w, parms, theta1, theta2, obs)
+
+  if (method == "MAP") {
+    temp_se <- temp_se + d2lp(w, theta1, theta2, sigma)
+  }
+  out <- (-1 * temp_se) %>% solve %>% diag %>% sqrt
+  if(w_only){out <- out[seq(1, length(out), by = 3)]}
+  out
+}
+
 
 #--------------------------------------------------------------------------
 #' Estimation of the one-parameter RSC model, with latent traits assumed to be known.
