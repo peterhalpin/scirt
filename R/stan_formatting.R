@@ -27,7 +27,7 @@ format_stan_data <- function(data, parms, item_names = NULL){
   ind_names <- row.names(parms)[grep("IND", row.names(parms))]
   col_names <- row.names(parms)[grep("COL", row.names(parms))]
 
-  parms <- list(parms[ind_names, 2], parms[ind_names, 1], parms[col_names, 2], parms[col_names, 1])
+  parms <- list(parms[ind_names, "alpha"], parms[ind_names, "beta"], parms[col_names, "alpha"], parms[col_names, "beta"])
 
   names(parms) <- item_parm_names
 
