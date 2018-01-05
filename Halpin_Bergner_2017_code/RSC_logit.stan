@@ -58,7 +58,7 @@ model {
   for (k in 1:K) {
     theta1[k] ~ normal(0, 1);
     theta2[k] ~ normal(0, 1);
-    u[k] ~ normal(0, 2);
+    u[k] ~ normal(0, 3.5);
   }
 
   // log likelihoods for individual responses, partner 1
@@ -83,10 +83,12 @@ model {
   target += l1 + l2 + lR;
 }
 
+// posterior predictive check using -2log likeklihood
 generated quantities {
   real p1 = 0;
   real p2 = 0;
   real R = 0;
+  int<lower=0, upper=1> y[N_col];
   real log_lik[K];
 
   for(k in 1:K){
@@ -97,9 +99,7 @@ generated quantities {
     p1 = inv_logit(alpha_col[jj_col[n]] * (theta1[kk_col[n]] - beta_col[jj_col[n]]));
     p2 = inv_logit(alpha_col[jj_col[n]] * (theta2[kk_col[n]] - beta_col[jj_col[n]]));
     R  = w[kk_col[n]] * (p1 + p2) + (1 - 2 * w[kk_col[n]]) * p1 * p2;
-    log_lik[kk_col[n]] = log_lik[kk_col[n]] -  2*(log(R)  * y_col[n] + log(1 - R) * (1 - y_col[n]));
+    y[n] = bernoulli_rng(R);
+    log_lik[kk_col[n]] = log_lik[kk_col[n]] -  2*(log(R)  * y[n] + log(1 - R) * (1 - y[n]));
   }
-
-
-
 }

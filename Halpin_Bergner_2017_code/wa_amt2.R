@@ -52,8 +52,8 @@ amt_data <- format_stan_data(resp, parms)
 fit <- stan(file = RSC_logit, data = amt_data, iter = 2000, chains = 4)
 
 # Extract parms
-probs <- c(.005, .025, .05, .1, .9, .95, .975, .995, .99)
-int_names <- c(paste0(rep(c("lower", "upper"), each = 4), c("_99", "_95", "_90", "_80",  "_80",  "_90",  "_95", "_99")), "one_sided_99")
+probs <- c(.005, .025, .05, .1, .15, .85, .9, .95, .975, .995)
+int_names <- c(paste0(rep(c("lower", "upper"), each = 5), c("_99", "_95", "_90", "_80",  "_75",  "_75", "_80",  "_90",  "_95", "_99")))
 
 theta1_hat <- summary(fit, pars = "theta1", probs = probs)$summary
 theta2_hat <- summary(fit, pars = "theta2", probs = probs)$summary
@@ -72,13 +72,11 @@ gg$obs <- -2*l_RSC(col_form[odd,],
                 u_hat[,"mean"],
                 col_parms,
                 theta1_hat[,"mean"],
-                theta1_hat[,"mean"])
-
-
+                theta2_hat[,"mean"])
 
 # Visual indicator for fit
 gg$fit <- rep("<.95", times = K)
-gg$fit[gg$obs > gg$one_sided_99] <- ">.95"
+gg$fit[gg$obs > gg$upper_90] <- ">.95"
 gg$fit <- ordered(gg$fit, c(">.95", "<.95"))
 poor_fit <- which(gg$fit == ">.95")
 
@@ -91,7 +89,7 @@ y_max <- max(gg$upper_99)
 
 ggplot(gg[, ], aes(x = group, y = mean, group = fit)) +
     geom_errorbar(aes(ymin = lower_80, ymax = upper_80, color = fit), size = 2, width = 0) +
-    geom_errorbar(aes(ymin = lower_95, ymax = one_sided_99, color = fit), size = .5, width = 0, alpha = 1) +
+    geom_errorbar(aes(ymin = lower_90, ymax = upper_90, color = fit), size = .5, width = 0, alpha = 1) +
     geom_point(aes(x = group, y = obs, pch = fit, size = fit)) +
     scale_shape_manual(values = c(4, 20)) +
     scale_size_manual(values = c(4, 1)) +
@@ -142,7 +140,7 @@ gg$group <- 1:nrow(gg)
 
 # Plot
 ggplot(gg[, ], aes(x = group, y = mean, group = Ability)) +
-    geom_errorbar(aes(ymin = lower_80, ymax = upper_80, color = Ability), size = 2, width = 0) +
+    geom_errorbar(aes(ymin = lower_75, ymax = upper_75, color = Ability), size = 2, width = 0) +
     geom_errorbar(aes(ymin = lower_90, ymax = upper_90, color = Ability), size = .5, width = 0, alpha = 1) +
     geom_point(aes(size = Ability, color = Ability)) +
     scale_color_manual(values = c("#132B43", "#56B1F7")) +
@@ -160,8 +158,8 @@ ggplot(gg[, ], aes(x = group, y = mean, group = Ability)) +
 
 # Prop strong synergy
 table(gg$Ability)
-(gg$lower_80[gg$Ability == "Within 1/2 SD"] > 0) %>% mean
-(gg$lower_90[gg$Ability == "Within 1/2 SD"] > 0) %>% mean
+(gg$lower_80[gg$Ability == "Within 1/2 SD"] > 0) %>% sum
+(gg$lower_90[gg$Ability == "Within 1/2 SD"] > 0) %>% sum
 
 
 # Marginal reliability
@@ -170,7 +168,7 @@ table(gg$Ability)
 
 # Plot zoom in
 ggplot(gg[-(1:100),], aes(x = group, y = mean, group = Ability)) +
-    geom_errorbar(aes(ymin = lower_80, ymax = upper_80, color = Ability), size = 6, width = 0) +
+    geom_errorbar(aes(ymin = lower_75, ymax = upper_75, color = Ability), size = 6, width = 0) +
     geom_errorbar(aes(ymin = lower_90, ymax = upper_90, color = Ability), size = .5, width = 0, alpha = 1) +
     geom_point(aes(size = Ability, color = Ability)) +
     scale_color_manual(values = c("#132B43", "#56B1F7")) +

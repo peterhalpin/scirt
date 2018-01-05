@@ -135,7 +135,6 @@ map_ss <- est_RSC(ss_data, ss_parms, method = "MAP")
 
 gg <- rbind(ml_ll, map_ll, ml_sl, map_sl, ml_ls, map_ls, ml_ss, map_ss)
 
-
 gg$ind_form <- rep(c("Individual selected", "Indvidual random"), each = K*4)
 gg$col_form <- rep(c("Group selected", "Group random"), each = K*2) %>% rep(times = 2)
 
