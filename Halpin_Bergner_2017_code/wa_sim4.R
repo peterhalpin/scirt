@@ -5,9 +5,9 @@
 # devtools::install_github("peterhalpin/cirt")
 # library("cirt")
 # devtools::use_data(sim_parms)
-# source("~/github/scirt/R/cIRF_functions.R")
-# source("~/github/scirt/R/IRF_functions.R")
-# source("~/github/scirt/R/stan_formatting.R")
+source("~/github/scirt/R/cIRF_functions.R")
+source("~/github/scirt/R/IRF_functions.R")
+source("~/github/scirt/R/stan_formatting.R")
 library("rstan")
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
@@ -108,6 +108,8 @@ bayes_sl <- summary(stan_sl , pars = "u")$summary
 ss_data <- format_stan_data(data, parms, ss_items)
 stan_ss <- stan(file = RSC_logit, data = ss_data, iter = 1000, chains = 4)
 bayes_ss <- summary(stan_ss , pars = "u")$summary
+
+save(ml_ll, stan_ll, ml_ls, stan_ls, ml_sl, stan_sl, ml_ss, stan_ss, file = "sim_results")
 
 # ------------------------------------------------------------
 # Plots
