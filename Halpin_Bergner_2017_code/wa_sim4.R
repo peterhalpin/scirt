@@ -76,6 +76,11 @@ ss_items <- c(col_names_short, ind_names_short)
 ## ML
 # long group test, long individual test
 ml_ll <-  est_RSC(data[ll_items], parms[ll_items, ], method = "ML", obs = T)
+map_ll <-  est_RSC(data[ll_items], parms[ll_items, ], method = "MAP", obs = T, sigma = sigma)
+
+ll_data <- format_stan_data(data, parms, ll_items)
+stan_ll <- stan(file = RSC_logit, data = ll_data, iter = 1000, chains = 2)
+bayes_ll <- summary(stan_ll , pars = "u")$summary
 
 # long group test, short individual test
 ml_ls <-  est_RSC(data[ls_items], parms[ls_items, ], method = "ML", obs = T)
@@ -114,14 +119,21 @@ save(ml_ll, stan_ll, ml_ls, stan_ls, ml_sl, stan_sl, ml_ss, stan_ss, file = "sim
 # ------------------------------------------------------------
 # Plots
 # ------------------------------------------------------------
-u_hat <- c(ml_ll$w, bayes_ll[,"mean"], ml_sl$w, bayes_sl[,"mean"], ml_ls$w, bayes_ls[,"mean"], ml_ss$w, bayes_ss[,"mean"])
+u_hat <- c(map_ll$w, bayes_ll[,"mean"], ml_sl$w, bayes_sl[,"mean"], ml_ls$w, bayes_ls[,"mean"], ml_ss$w, bayes_ss[,"mean"])
 
-u_se <- c(ml_ll$w_se, bayes_ll[,"sd"], ml_sl$w_se, bayes_sl[,"sd"], ml_ls$w_se, bayes_ls[,"sd"], ml_ss$w_se, bayes_ss[,"sd"])
+plot(dgp_u,  bayes_ll[,"mean"])
+plot(dgp_u,  ml_ll$w)
+plot(dgp_u,  map_ll$w)
+abline(a = 0 , b = 1)
+plot(bayes_ll[,"mean"],  map_ll$w)
+plot(ml_ll$w_se,  map_ll$w_se)
+
+u_se <- c(map_ll$w_se, bayes_ll[,"sd"], ml_sl$w_se, bayes_sl[,"sd"], ml_ls$w_se, bayes_ls[,"sd"], ml_ss$w_se, bayes_ss[,"sd"])
 
 ind_form <- rep(c("Individual long", "Indvidual short"), each = K*4)
 col_form <- rep(c("Group long", "Group short"), each = K*2) %>% rep(times = 2)
 Method <- rep(c("ML", "Bayes"), each = K) %>% rep(times = 4)
-dgp_u <- rep(dgp_u, times = 8)
+dgp_u <- rep(u, times = 8)
 
 gg <- data.frame(u_hat, u_se, ind_form, col_form, Method, dgp_u)
 
@@ -129,7 +141,7 @@ gg$sample <- 0
 gg$sample[sample(nrow(gg), nrow(gg)/10)] <- 1
 head(gg)
 
-p1 <- ggplot(gg, aes(x = dgp_u, y = u_hat, group = Method)) +
+p1 <- ggplot(gg, aes(x = (dgp_u), y = (u_hat), group = Method)) +
     geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
     geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
     scale_color_manual(values = c("grey10", "grey10")) +
@@ -138,6 +150,10 @@ p1 <- ggplot(gg, aes(x = dgp_u, y = u_hat, group = Method)) +
     ylab("Estimate")  +
     geom_abline(slope = 1, intercept = 0, col = "grey50", size = 1.2) +
     theme_bw(base_size = 15)
+
+    # +
+    # xlim(-3, 3) +
+    # ylim(-3, 3)
 
 
 p1 + facet_grid(ind_form ~ col_form)
@@ -150,6 +166,7 @@ p2 <- ggplot(gg, aes(x = dgp_u, y = u_se, group = Method)) +
     xlab("Estimate") +
     ylab("Standard error")  +
     theme_bw(base_size = 15) +
-    ylim(0, 5)
+    ylim(0, 5) +
+        xlim(-5, 5)
 
 p2 + facet_grid(ind_form ~ col_form)
