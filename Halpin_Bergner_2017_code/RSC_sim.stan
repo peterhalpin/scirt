@@ -5,6 +5,7 @@ data {
   int<lower=1> J_ind; // n items on individual form
   int<lower=1> J_col; // n items on group form
   int<lower=1> K; // n dyads
+  real<lower=0> sigma; //prior on   logit(w)
 
   // individual data, respondent 1
   int<lower=1> N_ind1; // n non-missing responses on individual form, partner 1
@@ -49,28 +50,23 @@ model {
   real p2 = 0;
   real R = 0;
 
-  // log likelihoods
-  real l1 = 0;
-  real l2 = 0;
-  real lR = 0;
-
   // priors
   for (k in 1:K) {
     theta1[k] ~ normal(0, 1);
     theta2[k] ~ normal(0, 1);
-    u[k] ~ normal(0, 2);
+    u[k] ~ normal(0, sigma);
   }
 
   // log likelihoods for individual responses, partner 1
   for (n in 1:N_ind1) {
-    p1 = inv_logit(alpha_ind[jj_ind1[n]] * (theta1[kk_ind1[n]] - beta_ind[jj_ind1[n]]));
-    l1 = l1 + log(p1) * y_ind1[n] + log(1 - p1) * (1 - y_ind1[n]);
+    y_ind1[n] ~ bernoulli_logit(alpha_ind[jj_ind1[n]]
+                            * (theta1[kk_ind1[n]] - beta_ind[jj_ind1[n]]));
   }
 
   // log likelihoods for individual responses, partner 2
   for (n in 1:N_ind2) {
-    p2 = inv_logit(alpha_ind[jj_ind2[n]] * (theta2[kk_ind2[n]] - beta_ind[jj_ind2[n]]));
-    l2 = l2 + log(p2) * y_ind2[n] + log(1 - p2) * (1 - y_ind2[n]);
+    y_ind2[n] ~ bernoulli_logit(alpha_ind[jj_ind2[n]]
+                            * (theta2[kk_ind2[n]] - beta_ind[jj_ind2[n]]));
   }
 
   // log likelihood for group responses
@@ -78,7 +74,6 @@ model {
     p1 = inv_logit(alpha_col[jj_col[n]] * (theta1[kk_col[n]] - beta_col[jj_col[n]]));
     p2 = inv_logit(alpha_col[jj_col[n]] * (theta2[kk_col[n]] - beta_col[jj_col[n]]));
     R  = w[kk_col[n]] * (p1 + p2) + (1 - 2 * w[kk_col[n]]) * p1 * p2;
-    lR = lR + log(R)  * y_col[n] + log(1 - R) * (1 - y_col[n]);
+    y_col[n] ~ bernoulli_logit(R);
   }
-  target += l1 + l2 + lR;
 }

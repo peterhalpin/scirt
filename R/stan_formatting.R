@@ -14,7 +14,7 @@ df_to_long <- function(df, names = NULL){
   out
 }
 
-format_stan_data <- function(data, parms, item_names = NULL){
+format_stan_data <- function(data, parms, sigma, item_names = NULL){
 
   # RSC_logit.stan parm names
   ind1_parm_names <- c("jj_ind1", "kk_ind1", "y_ind1", "N_ind1")
@@ -35,7 +35,7 @@ format_stan_data <- function(data, parms, item_names = NULL){
   ind1 <- df_to_long(data[odd, ind_names], names = ind1_parm_names)
   ind2 <- df_to_long(data[odd+1, ind_names], names = ind2_parm_names)
   col <- df_to_long(data[odd, col_names], names = col_parm_names)
-  const <- list(K = length(odd), J_ind = length(ind_names), J_col = length(col_names))
+  const <- list(K = length(odd), J_ind = length(ind_names), J_col = length(col_names), sigma = sigma)
 
   c(const, ind1, ind2, col, parms)
 }

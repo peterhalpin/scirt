@@ -33,7 +33,6 @@ row.names(col_parms) <- paste0(row.names(col_parms), "_COL")
 
 # Final parameter set
 parms <- rbind(ind_parms, col_parms)
-
 collab <- read.csv("collaboration_2016_0.csv", check.names = F)
 col_form <- format_resp(collab, row.names(col_parms), "COL")
 ind_form <- format_resp(collab, row.names(ind_parms), "IND")

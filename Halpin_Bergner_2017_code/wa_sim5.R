@@ -1,3 +1,5 @@
+
+
 # ------------------------------------------------------------
 # Stan code for paper
 # ------------------------------------------------------------
@@ -66,6 +68,61 @@ parms <- rbind(col_parms, ind_parms)
 data <- cbind(col_test, ind_test)
 
 
+z <- function(u, theta1, theta2, alpha, stat = "synergy") {
+  Theta <- cbind(theta1, theta2)
+  theta_min <- apply(Theta, 1, min)
+  theta_max <- apply(Theta, 1, max)
+  u - mean(alpha) * (theta_max - theta_min)
+}
+
+sigma = 3
+plot(u, z_hat)
+hist(z_hat)
+resp <- data
+diag(var)
+var <- var_RSC(resp, u, parms, theta1, theta2, method, obs, sigma)
+
+z1 <- z_test(data, map_ll$u, parms, map_ll$theta1, map_ll$theta2, method = "MAP", obs = T, sigma = 3)
+z1[z1$z_hat > 0,]
+head(map_ll)
+z1[z_hat > 0, ]
+
+plot(map_ll$u_se, z1$z_se)
+abline(a= 0, b = 1)
+
+z_test <- function(resp, u, parms, theta1, theta2, method = "ML", obs = T, sigma = 3, stat = "synergy") {
+
+   alpha_bar <- mean(parms[grep("COL", row.names(parms)), "alpha"])
+   Theta <- cbind(theta1, theta2)
+   theta_min <- apply(Theta, 1, which.min, arr.ind = T)
+   theta_max <- apply(Theta, 1, which.max)
+   z_hat <-  u - alpha_bar * (Theta[,which.max] - theta_min)
+   z_se <- z_hat*0
+   var <- var_RSC(resp, u, parms, theta_max, theta_min, method, obs, sigma)
+
+   if (stat == "antagonism") {
+     r <- c(1, -alpha_bar, alpha_bar)
+   } else {
+     r <- c(1, alpha_bar, -alpha_bar)
+   }
+   R <- matrix(r, nrow = 1, ncol = 3)
+   ind <- seq(1, nrow(var), by = 3)
+
+   for (i in 1:length(ind)) {
+     j <- ind[i]
+     k <- j + 2
+     temp <- var[j:k, j:k]
+     z_se[i] <-  R %*% temp %*% t(R) %>% sqrt %>% as.numeric
+  }
+  data.frame(z_hat, z_se)
+}
+
+warnings()
+A <- matrix(1:64, nrow = 8, ncol = 8)
+d <-
+abs(row(A) - col(A))
+
+ > 2
 # ------------------------------------------------------------
 # Simulations for 4 conditions
 # ------------------------------------------------------------
@@ -180,7 +237,7 @@ p2 <- ggplot(gg, aes(x = dgp_u, y = u_se, group = Method)) +
     scale_shape_discrete(solid=F) +
     xlab("Estimate") +
     ylab("Standard error")  +
-    theme_bw(base_size = 15) + 
+    theme_bw(base_size = 15) +
     coord_cartesian(ylim=c(0,5), xlim=c(-5,5))
 
 p2 + facet_grid(ind_form ~ col_form)
