@@ -206,7 +206,7 @@ Mstar <- function(resp, u, parms, theta1, theta2) {
 #' @param theta2 the latent trait of member 2.
 #' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 #' @export
-dim(m)
+
 dl_RSC <- function(resp, u, parms, theta1, theta2) {
   m <- Mstar(resp, u, parms, theta1, theta2)
   d <- d_RSC(u, parms, theta1, theta2)
@@ -595,6 +595,12 @@ var_RSC <- function(resp, u, parms, theta1, theta2, method = "MAP", obs = F, sig
 }
 
 
+
+
+
+
+
+
 #--------------------------------------------------------------------------
 #' Estimation of the one-parameter RSC model, with latent traits assumed to be known.
 #'
@@ -613,7 +619,7 @@ var_RSC <- function(resp, u, parms, theta1, theta2, method = "MAP", obs = F, sig
 #' @return An named \code{nrow(resp)} by 3 data.frame containing the estimates, their standard errors, and the value of the log-likelihood of the RSC model at the solution (not log posterior with MAP).
 #' @export
 
-est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma = 5, parallel = F) {
+est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma = 3, parallel = F) {
 
   stopifnot(ncol(resp) == nrow(parms),
             nrow(resp) == length(theta1),
@@ -627,7 +633,7 @@ est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma
   parm_index <- seq(from = 1, to = n_obs*3, by = 3)
   out <- data.frame(matrix(0, nrow = n_obs, ncol = 3))
   names(out) <- c("log", "u", "u_se")
-  starts <- rep(.5, times = n_obs)
+  starts <- rep(0, times = n_obs)
 
   # Select objective function and gradient
   fun1 <- function(par, resp, theta1, theta2) {
@@ -637,13 +643,9 @@ est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma
     -1 * dl_RSC(resp, par, parms, theta1, theta2)[parm_index[1:length(par)]]
   }
 
-  # Beta
-  # prior1 <- function(par) {epsilon * log(par - par^2)}
-  # prior2 <- function(par) {epsilon * (1 - 2 * par) / (par - par^2)}
-
-  # logit
-  prior1 <- function(par) {(par / sigma)^2 / 2}
-  prior2 <- function(par) {par / sigma^2}
+  # Logit Prior
+  prior <- function(par) {-(par / sigma)^2 / 2}
+  dprior <- function(par) {-par / sigma^2}
 
   if (method == "ML") {
     obj <- function(par, resp, theta1, theta2) {fun1(par, resp, theta1, theta2)}
@@ -652,10 +654,10 @@ est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma
 
   if (method == "MAP") {
     obj <- function(par, resp, theta1, theta2) {
-      fun1(par, resp, theta1, theta2) - prior1
+      fun1(par, resp, theta1, theta2) - sum(prior(par))
     }
     grad <- function(par, resp, theta1, theta2) {
-      fun2(par, resp, theta1, theta2) - prior2
+      fun2(par, resp, theta1, theta2) - dprior(par)
     }
   }
 
@@ -670,33 +672,35 @@ est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma
              theta1 = theta1[m:n],
              theta2 = theta2[m:n],
              method = "L-BFGS-B",
-             lower = .000001,
-             upper = .999999)$par
+             lower = -8,
+             upper = 8)$par
   }
 
   # Estimation
   if(parallel) {
     n_cores <- parallel::detectCores()
-    out$w <- parallel::mclapply(1:n_cores, fun) %>% unlist
+    out$u <- parallel::mclapply(1:n_cores, fun) %>% unlist
   } else {
     n_cores <- 1
     out$u <- fun(1)
   }
 
   # Standard errors
-  out$se <- diag(d2l_RSC(resp, out$u, parms, theta1, theta2, obs))[parm_index]
-  if (method == "MAP") {
-    out$u_se <- out$u_se + diag(d2lp(out$u, theta1, theta2, epsilon))[parm_index]
-  }
-  out$u_se <- sqrt(-1 / out$u_se)
-
-  # Objective function
-  out$log <- l_RSC(resp, out$u, parms, theta1, theta2)
+  # #out$se <- diag(d2l_RSC(resp, out$u, parms, theta1, theta2, obs))[parm_index]
+  # if (method == "MAP") {
+  #   out$u_se <- out$u_se + diag(d2lp(out$u, theta1, theta2, epsilon))[parm_index]
+  # }
+  # out$u_se <- sqrt(-1 / out$u_se)
+  #
+  # # Objective function
+  # out$log <- l_RSC(resp, out$u, parms, theta1, theta2)
   #if (method == "MAP") {
   #  out$log <- out$log + epsilon * log(out$w - out$w^2)
   #}
   out
 }
+
+
 
 
 #--------------------------------------------------------------------------

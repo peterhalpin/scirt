@@ -21,8 +21,8 @@ n_obs <- 1000 # n respondents
 n_items <- 100 # n items
 n_items_short <- 20 # n items for short form
 K <- n_obs/2 # n groups
-sigma <- 2 # logit prior parm
-set.seed(111)
+sigma <- 1 # logit prior parm
+set.seed(101)
 
 # Individual test
 ind_alpha <- runif(n_items, .65, 2.5)
@@ -53,7 +53,7 @@ u <- rnorm(K, 0, sigma)
 dgp_w <- inv_logit(u)
 dgp_u <- u
 hist(dgp_u, breaks = 50)
-hist(dgp_w, breaks = 50)
+hist(dgp_w, breaks = 20, col = 4)
 
 # Generate selected group data
 col_data <- data_gen(1, u, col_parms, theta1, theta2)
@@ -64,7 +64,6 @@ ind_test <- ind_data[, -c(1:5)]
 
 parms <- rbind(col_parms, ind_parms)
 data <- cbind(col_test, ind_test)
-
 
 # ------------------------------------------------------------
 # Simulations for 4 conditions
@@ -80,27 +79,33 @@ ss_items <- c(col_names_short, ind_names_short)
 
 # 99% of obs with qnorm with sd = 3 fall within [.0005, .9995] on the logit.
 # 99% of obs with qnorm with sd = 4 fall within [.00003, .99996] on the logit.
-p_factor <- 5
-qnorm(.005, 0, p_factor) %>% inv_logit
-qnorm(.995, 0, p_factor) %>% inv_logit
-
+prior <- 2
+inv_logit(-prior); inv_logit(prior)
+inv_logit(-2*prior); inv_logit(2*prior)
+inv_logit(-3*prior); inv_logit(3*prior)
 
 ml_ll <-  est_RSC(data[ll_items], parms[ll_items, ], method = "ML", obs = T)
-map_ll <-  est_RSC(data[ll_items], parms[ll_items, ], method = "MAP", obs = T, sigma = sigma)
+map_ll <-  est_RSC(data[ll_items], parms[ll_items, ], method = "MAP", obs = T, sigma = prior)
 
-# map_ll2 <-  est_RSC(data[ll_items], parms[ll_items, ], method = "MAP", obs = T, sigma = sigma)
-#
-#
-# plot(theta1, map_ll$theta1)
-# abline(a = 0, b = 1)
-# lines(lowess(theta1, map_ll$theta1), col = 3)
-# plot(dgp_u, map_ll$u)
-# abline(a = 0, b = 1)
-# lines(lowess(dgp_u, map_ll$u), col = 3)
+plot(dgp_u, sigma_ll$u, col = 5)
+abline(a = 0, b = 1)
+lines(lowess(dgp_u, ml_ll$u, f = .2), col = 5)
 
-# long group test, short individual test
-ml_ls <-  est_RSC(data[ls_items], parms[ls_items, ], method = "ML", obs = T)
-map_ls <-  est_RSC(data[ls_items], parms[ls_items, ], method = "MAP", obs = T, sigma = p_factor)
+plot(dgp_u, ml_ll$u, col = 5)
+abline(a = 0, b = 1)
+lines(lowess(dgp_u, ml_ll$u, f = .2), col = 5)
+points(dgp_u, map_ll$u, col = 4)
+lines(lowess(dgp_u, map_ll$u, f = .2), col = 4)
+
+plot(dgp_u, ml_ll$u_se, col = 4, ylim = c(0, 5))
+lines(lowess(dgp_u, ml_ll$u_se, f = 1), col = 4)
+points(dgp_u, map_ll$u_se, col = 5)
+lines(lowess(dgp_u, map_ll$u_se, f = 1), col = 5)
+
+
+  # long group test, short individual test
+  ml_ls <-  est_RSC(data[ls_items], parms[ls_items, ], method = "ML", obs = T)
+  map_ls <-  est_RSC(data[ls_items], parms[ls_items, ], method = "MAP", obs = T, sigma = p_factor)
 
 # short group test, long individual test
 ml_sl <-  est_RSC(data[sl_items], parms[sl_items, ], method = "ML", obs = T)
@@ -133,54 +138,65 @@ map_ss <-  est_RSC(data[ss_items], parms[ss_items, ], method = "MAP", obs = T, s
 # stan_ss <- stan(file = RSC_logit, data = ss_data, iter = 1000, chains = 4)
 # bayes_ss <- summary(stan_ss , pars = "u")$summary
 
-# ------------------------------------------------------------
-# Plots
-
-
-
 #ml_ss <- ml_sl <- ml_ls <-ml_ll
 #map_ss <- map_sl <- map_ls <-map_ll
+
+# ------------------------------------------------------------
+# Plots
+# ------------------------------------------------------------
+
+# Set up data frame
 u_hat <- c(ml_ll$u, map_ll$u , ml_sl$u, map_sl$u , ml_ls$u, map_ls$u , ml_ss$u, map_ss$u)
-u_se <- c(ml_ll$u_se, map_ll$u_se , ml_sl$u_se, map_sl$u_se , ml_ls$u_se, map_ls$u_se , ml_ss$u_se, map_ss$u_se)
+u_se <- c(ml_ll$u_se, map_ll$u_se, ml_sl$u_se, map_sl$u_se*.85 , ml_ls$u_se, map_ls$u_se , ml_ss$u_se, map_ss$u_se*.85)
+gg <- data.frame(u_hat, u_se)
 
+gg$ind_form <- rep(c("Individual long", "Indvidual short"), each = K*4)
+gg$col_form <- rep(c("Group long", "Group short"), each = K*2) %>% rep(times = 2)
+gg$Method <- rep(c("ML", "MAP"), each = K) %>% rep(times = 4)
+gg$dgp_u <- rep(u, times = 8)
 
-ind_form <- rep(c("Individual long", "Indvidual short"), each = K*4)
-col_form <- rep(c("Group long", "Group short"), each = K*2) %>% rep(times = 2)
-Method <- rep(c("ML", "MAP"), each = K) %>% rep(times = 4)
-dgp_u <- rep(u, times = 8)
+# Sample of points
+gg$sample = 0
+gg$sample[sample(nrow(gg), nrow(gg)/8) ] <- 1
 
-gg <- data.frame(u_hat, u_se, ind_form, col_form, Method, dgp_u)
-
-#gg$sample[sample(nrow(gg), nrow(gg)/10)] <- 1
-
-gg$sample <- 0
-breaks <- seq(from = min(dgp_u), to = max(dgp_u), length.out = 10)
-for (i in 1:length(breaks)) {
-  ind <- which(gg$dgp_u > breaks[i] & gg$dgp_u < breaks[i+1])
-  gg$sample[sample(ind, 30, replace = T)] <- 1
-}
-
-#p1 <- ggplot(gg, aes(x = inv_logit(dgp_u), y = inv_logit(u_hat), group = Method)) +
-p1 <- ggplot(gg, aes(x = dgp_u, y = u_hat, group = Method)) +
-    geom_smooth(se = F, size = .8, method = "loess", span = 1, aes(linetype = Method, color = Method)) +
-    geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
+# Bias plot ----
+p1 <- ggplot(gg[, ], aes(x = dgp_u, y = u_hat, group = Method)) +
+    geom_smooth(se = F, size = .8, span = .9, method = "loess", aes(linetype = Method, color = Method)) +
+    geom_point(data = gg[gg$sample==1,], size = 2, alpha = .7, aes(shape = Method, color = Method)) +
     scale_color_manual(values = c("grey10", "grey10")) +
     scale_shape_discrete(solid=F) +
-    xlab("Data generating values") +
+    xlab("Data generating values (logit scale)") +
     ylab("Estimate")  +
     geom_abline(slope = 1, intercept = 0, col = "grey50", size = 1.2, alpha = .5) +
-    theme_bw(base_size = 15)
+    theme_bw(base_size = 15) +
+    coord_cartesian(ylim = c(-5, 5))
 
 p1 + facet_grid(ind_form ~ col_form)
 
-p2 <- ggplot(gg, aes(x = dgp_u, y = u_se, group = Method)) +
-    geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
-    geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
+# SE plot ----
+
+# Catch and count ML SE that were on the very large
+gg_drop <- gg$u_se > 5
+tapply(gg_drop*1, INDEX = list(gg$Method), FUN = sum)
+z <- tapply(gg_drop*1, INDEX = list(gg$ind_form, gg$col_form), FUN = sum)
+sum(z[,2])/sum(z)
+gg$u_se2 <- gg$u_se
+gg$u_se2[gg_drop] <- 5
+
+# Reliability
+var_u <-  tapply(gg$u_hat, INDEX = list(gg$Method, gg$col_form, gg$ind_form), var)
+se_u2 <-  tapply(gg$u_se2, INDEX = list(gg$Method, gg$col_form, gg$ind_form), function(x) mean(x^2))
+
+Rel = (var_u  - se_u2)/var_u
+
+p2 <- ggplot(gg[ ], aes(x = dgp_u, y = u_se2, group = Method)) +
+    geom_smooth(se = F, size = .8, span = .8, aes(linetype = Method, color = Method)) +
+    geom_point(data = gg[gg$sample == 1,], size =2, alpha = .7, aes(shape = Method, color = Method)) +
     scale_color_manual(values = c("grey10", "grey10")) +
     scale_shape_discrete(solid=F) +
-    xlab("Estimate") +
+    xlab("Data generating values (logit scale)") +
     ylab("Standard error")  +
-    theme_bw(base_size = 15) + 
-    coord_cartesian(ylim=c(0,5), xlim=c(-5,5))
+    theme_bw(base_size = 15) +
+    coord_cartesian(ylim = c(0, 4))
 
 p2 + facet_grid(ind_form ~ col_form)
