@@ -48,37 +48,38 @@ theta2 <- theta[odd + 1] # evens
 
 # RSC parameter
 #w <- rbeta(K, 1 + e, 1 + e)
-w <- rnorm(K, 0, 2)
-hist(w)
+u <- rnorm(K, 0, 1)
+
 
 # Generate group data
-col_data <- data_gen(1, w, col_parms, theta1, theta2)
+col_data <- data_gen(1, u, col_parms, theta1, theta2)
 ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)
 data <- cbind(col_data[rep(1:K, each = 2),], ind_data[, -c(1:5)])
 head(data)
+
 # ------------------------------------------------------------
 # Parameter estimation for 4 conditions
 # ------------------------------------------------------------
 
 # long group test, long individual test
 ll_items <- c(col_names, ind_names)
-ml_ll <-  est_RSC(data[ll_items], parms[ll_items, ], method = "ML")
-map_ll <- est_RSC(data[ll_items], parms[ll_items, ], method = "MAP")
+ml_ll <-  rsc(data[ll_items], parms[ll_items, ], method = "ML")
+map_ll <- rsc(data[ll_items], parms[ll_items, ], method = "MAP")
 
 # long group test, short individual test
 ls_items <- c(col_names, ind_names_short)
-ml_ls <-  est_RSC(data[ls_items], parms[ls_items, ], method = "ML")
-map_ls <- est_RSC(data[ls_items], parms[ls_items, ], method = "MAP")
+ml_ls <-  rsc(data[ls_items], parms[ls_items, ], method = "ML")
+map_ls <- rsc(data[ls_items], parms[ls_items, ], method = "MAP")
 
 # short group test, long individual test
 sl_items <- c(col_names_short, ind_names)
-ml_sl <-  est_RSC(data[sl_items], parms[sl_items, ], method = "ML")
-map_sl <- est_RSC(data[sl_items], parms[sl_items, ], method = "MAP")
+ml_sl <-  rsc(data[sl_items], parms[sl_items, ], method = "ML")
+map_sl <- rsc(data[sl_items], parms[sl_items, ], method = "MAP")
 
 # short group test, short individual test
 ss_items <- c(col_names_short, ind_names_short)
-ml_ss <-  est_RSC(data[ss_items], parms[ss_items, ], method = "ML")
-map_ss <- est_RSC(data[ss_items], parms[ss_items, ], method = "MAP")
+ml_ss <-  rsc(data[ss_items], parms[ss_items, ], method = "ML")
+map_ss <- rsc(data[ss_items], parms[ss_items, ], method = "MAP")
 
 
 # ------------------------------------------------------------
@@ -89,14 +90,20 @@ gg <- rbind(ml_ll, map_ll, ml_sl, map_sl, ml_ls, map_ls, ml_ss, map_ss)
 gg$ind_form <- rep(c("Individual long", "Indvidual short"), each = K*4)
 gg$col_form <- rep(c("Group long", "Group short"), each = K*2) %>% rep(times = 2)
 gg$Method <- rep(c("ML", "MAP"), each = K) %>% rep(times = 4)
-gg$dgp_w <- rep(w, times = 8)
+gg$dgp_u <- rep(u, times = 8)
 
 gg$sample <- 0
 gg$sample[sample(nrow(gg), nrow(gg)/10)] <- 1
 
-p <- ggplot(gg, aes(x = dgp_w, y = w, group = Method)) +
-    geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
-    geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
+drops <- gg[abs(gg$u) > 4, ]
+#drops <- gg[abs(gg$u_se) > 15, ]
+table(drops$ind_form, drops$col_form)
+gg <- gg[abs(gg$u) < 4, ]
+
+
+p <- ggplot(gg, aes(x = dgp_u, y = u, group = Method)) +
+     geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
+    geom_smooth(se = F, size = .8,  aes(linetype = Method, color = Method)) +
     scale_color_manual(values = c("grey10", "grey10")) +
     scale_shape_discrete(solid=F) +
     xlab("Data generating values") +
@@ -107,13 +114,14 @@ p <- ggplot(gg, aes(x = dgp_w, y = w, group = Method)) +
 p + facet_grid(ind_form ~ col_form)
 
 
-q <- ggplot(gg, aes(x = w, y = w_se, group = Method)) +
+q <- ggplot(gg, aes(x = u, y = u_se, group = Method)) +
     geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
     geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
     scale_color_manual(values = c("grey10", "grey10")) +
     scale_shape_discrete(solid=F) +
     xlab("Estimate") +
     ylab("Standard error")  +
-    theme_bw(base_size = 15)
+    theme_bw(base_size = 15) +
+    coord_cartesian(ylim=c(0,5), xlim=c(-4,4))
 
 q + facet_grid(ind_form ~ col_form)

@@ -4,14 +4,14 @@
 \alias{d2l_RSC}
 \title{Hessian of log-likelihood of one-parameter RSC model.}
 \usage{
-d2l_RSC(resp, w, parms, theta1, theta2, obs = T)
+d2l_RSC(resp, u, parms, theta1, theta2, obs = T)
 }
 \arguments{
-\item{resp}{a matrix or data.frame containing the (conjunctively-scored) binary item responses.}
+\item{resp}{a matrix or data.frame containing the (conjunctively-scored, binary)item responses.}
 
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{the logit of the weight parameter of the RSC model.}
 
-\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
+\item{parms}{a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
 
 \item{theta1}{the latent trait of member 1.}
 
@@ -23,5 +23,5 @@ d2l_RSC(resp, w, parms, theta1, theta2, obs = T)
 \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
 }
 \description{
-Computes the second derivatives of the log-likelihood, in \code{c(w, theta1, theta2)}. Called by \code{est_RSC}. Calls the function \code{bdiag_m} written by Martin Maechler, ETH Zurich.
+Computes the second derivatives of the log-likelihood, in \code{c(u, theta1, theta2)}. Called by \code{RSC}. Calls the function \code{bdiag_m} written by Martin Maechler, ETH Zurich.
 }

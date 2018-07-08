@@ -2,7 +2,7 @@
 % Please edit documentation in R/cIRF_functions.R
 \name{theta_gen}
 \alias{theta_gen}
-\title{Generates or replicates values of latent variable.}
+\title{Generates or replicates values of latent trait}
 \usage{
 theta_gen(n, theta, theta_se = NULL)
 }

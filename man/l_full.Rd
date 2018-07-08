@@ -4,28 +4,31 @@
 \alias{l_full}
 \title{Log-likelihood of a combined assessment.}
 \usage{
-l_full(resp, w, parms, theta1, theta2)
+l_full(resp, u, parms, theta1, theta2)
 }
 \arguments{
 \item{resp}{a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.}
 
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{the logit of the weight parameter of the RSC model.}
 
-\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.}
+\item{parms}{a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.}
 
 \item{theta1}{the latent trait of member 1.}
 
 \item{theta2}{the latent trait of member 2.}
 }
 \value{
-\code{length(w)}-vector of log-likelihoods.
+\code{length(u)}-vector of log-likelihoods.
 }
 \description{
-This function computes the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}.
+This function computes the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment.
 }
 \details{
-The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The (column) names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment. Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
-The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment.
+The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The column names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment.
+
+The same text keys must be used when naming the rows of the data.frame \code{parms} containing the item parameters. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment. The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}.
+
+Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
 
 This description is much longer than the source code -- type \code{l_full} for a shorter explanation.
 }

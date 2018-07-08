@@ -14,6 +14,9 @@ library("rstan")
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
+logit <- function(p) { log(p / (1 - p)) }
+inv_logit <- function(u) { 1 / (1 + exp(-u)) }
+
 # ------------------------------------------------------------
 # Data simulation for weighted addtive model, using Rstan
 # ------------------------------------------------------------

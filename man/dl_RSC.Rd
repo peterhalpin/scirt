@@ -4,22 +4,22 @@
 \alias{dl_RSC}
 \title{Gradient of log-likelihood of one-parameter RSC model.}
 \usage{
-dl_RSC(resp, w, parms, theta1, theta2)
+dl_RSC(resp, u, parms, theta1, theta2)
 }
 \arguments{
-\item{resp}{a matrix or data.frame containing the (conjunctively-scored) binary item responses.}
+\item{resp}{a matrix or data.frame containing the (conjunctively-scored,  binary) item responses.}
 
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{the logit of the weight parameter of the RSC model.}
 
-\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
+\item{parms}{a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
 
 \item{theta1}{the latent trait of member 1.}
 
 \item{theta2}{the latent trait of member 2.}
 }
 \value{
-\code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+\code{3 * K}-vector of first derivatives, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}, with \code{K = length(w)}.
 }
 \description{
-Computes the first derivatives of the log-likelihood, in \code{c(w, theta1, theta2)}. Called by \code{est_RSC}.
+Computes the first derivatives of the log-likelihood, in \code{c(u, theta1, theta2)}. Called by \code{rsc}.
 }

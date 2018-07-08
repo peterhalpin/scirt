@@ -4,22 +4,22 @@
 \alias{dl_full}
 \title{Gradient of the log-likelihood of a combined assessment.}
 \usage{
-dl_full(resp, w, parms, theta1, theta2)
+dl_full(resp, u, parms, theta1, theta2)
 }
 \arguments{
 \item{resp}{a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.}
 
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{the logit of the weight parameter of the RSC model.}
 
-\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.}
+\item{parms}{a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.}
 
 \item{theta1}{the latent trait of member 1.}
 
 \item{theta2}{the latent trait of member 2.}
 }
 \value{
-\code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+\code{3 * K} - vector of first derivatives, with \code{K = length(u)}, ordered as \code{rep(c(u_k, theta1_k, theta2_k), times = K)}.
 }
 \description{
-This function computes first derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+This function computes first derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(u, theta1, theta2)}. See \code{help(l_full)} for details on formatting of \code{resp} and \code{parms}.
 }

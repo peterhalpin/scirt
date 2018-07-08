@@ -3,8 +3,9 @@
 # Last updated: 8/23/2017
 # ------------------------------------------------------------
 
-# devtools::install_github("peterhalpin/cirt")
-library("cirt")
+# devtools::install_github("peterhalpin/scirt")
+library("scirt")
+library("ggplot2")
 
 # ------------------------------------------------------------
 # Load item parms
@@ -14,7 +15,7 @@ temp_parms <- read.csv("calibration_parms.csv", row.names = 1)
 
 # Drop DIF items
 dif_items <- "045|065"
-temp_parms <- temp_parms[!grepl(dif_items, row.names(temp_parms)),]
+temp_parms <- temp_parms[!grepl(dif_items, row.names(temp_parms)), ]
 
 # Item names without versions suffix for easy extraction
 items <- paste0(row.names(temp_parms), collapse = "|")
@@ -36,27 +37,27 @@ ind_form <- format_resp(collab, row.names(ind_parms), "IND")
 
 # Apply conjunctive scoring rule to collaborative form
 odd <- seq(1, nrow(col_form), by = 2)
-col_form[odd,] <- col_form[odd+1,] <- col_form[odd,]*col_form[odd+1,]
+col_form[odd, ] <- col_form[odd+1, ] <- col_form[odd, ]*col_form[odd+1, ]
 
 # Drop 13 unsuable response patterns (all 1 or all 0)
 # (But are they unusable with simultaneous MAP??)
 drop_groups <- c(
-  collab$group_id[apply(col_form, 1, mean, na.rm = T) %in% c(1,0)],
-  collab$group_id[apply(ind_form, 1, mean, na.rm = T) %in% c(1,0)])
+  collab$group_id[apply(col_form, 1, mean, na.rm = T) %in% c(1, 0)],
+  collab$group_id[apply(ind_form, 1, mean, na.rm = T) %in% c(1, 0)])
 
-col_form <-col_form[!collab$group_id%in%drop_groups,]
-ind_form <-ind_form[!collab$group_id%in%drop_groups,]
+col_form <- col_form[!collab$group_id %in% drop_groups,]
+ind_form <- ind_form[!collab$group_id %in% drop_groups,]
 
 # Reset odd for dropped items
 odd <- seq(1, nrow(col_form), by = 2)
 
 # Final response data
 resp <- cbind(ind_form, col_form)
-nrow(resp)/2
+nrow(resp) / 2
 # ------------------------------------------------------------
 # Estimate RSC using logit parameterization
 # ------------------------------------------------------------
-est <- est_RSC(resp, parms, obs = T, sigma = 3)
+est <- rsc(resp, parms, obs = T, sigma = 3)
 
 
 
@@ -110,12 +111,13 @@ head(sim_est, 100)
       ylab("-2 * log-likelihood") +
       theme_bw() +
       theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
-            text = element_text(size=20))   #, legend.title=element_blank()))
+            text = element_text(size=20))
+            #, legend.title=element_blank()))
 
 
 
 # ------------------------------------------------------------
-# Estimates of w
+# Estimates of u
 # ------------------------------------------------------------
 
 # 95% and 80 %Confidence intervals
@@ -156,8 +158,7 @@ ggplot(gg[, ], aes(x = group, y = u, group = Ability)) +
     theme_bw() +
     theme(panel.border = element_rect(colour = "black", fill = NA, size = 1), text = element_text(size=20))
 
-
-
+# Summaries
 (gg$lower_80[gg$Ability == "Within 1/2 SD"] > 0) %>% mean
 (gg$lower_95[gg$Ability == "Within 1/2 SD"] > 0) %>% mean
 
@@ -165,9 +166,6 @@ ggplot(gg[, ], aes(x = group, y = u, group = Ability)) +
 (gg$upper_95[gg$Ability == "Within 1/2 SD"] < 0) %>% mean
 
 (var(est$u) - mean(est$u_se^2))/var(est$u)
-
-
-
 
 
 # ------------------------------------------------------------

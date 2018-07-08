@@ -2,16 +2,16 @@
 % Please edit documentation in R/cIRF_functions.R
 \name{Mstar}
 \alias{Mstar}
-\title{Mutiplier for first deriviative of log-likelihood of one-parameter RSC model.}
+\title{Mutiplier term for first deriviative of log-likelihood of one-parameter RSC model.}
 \usage{
-Mstar(resp, w, parms, theta1, theta2)
+Mstar(resp, u, parms, theta1, theta2)
 }
 \arguments{
-\item{resp}{a matrix or data.frame containing the (conjunctively-scored) binary item responses.}
+\item{resp}{a matrix or data.frame containing the (conjunctively-scored,  binary) item responses.}
 
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{the logit of the weight parameter of the RSC model.}
 
-\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
+\item{parms}{a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
 
 \item{theta1}{the latent trait of member 1.}
 
@@ -21,5 +21,5 @@ Mstar(resp, w, parms, theta1, theta2)
 \code{dim(resp)}-matrix of multipliers.
 }
 \description{
-Writing the derivative of the log-likelihood of the RSC model a single item as M * grad_IRF, this function computes (a matrix of values of) M, with grad_IRF being the gradient of the RSC IRF. Called by functions that compute derivative of the log-likelihood.
+The gradient of the log-likelihood of the RSC model a single item can be computed as M * grad_IRF. This function computes (a matrix of values of) M. Called by functions that compute derivatives of the log-likelihood.
 }

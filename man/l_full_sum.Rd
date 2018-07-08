@@ -4,14 +4,14 @@
 \alias{l_full_sum}
 \title{Log-likelihood of a combined assessment, with sum option.}
 \usage{
-l_full_sum(resp, w, parms, theta1, theta2, Sum = F)
+l_full_sum(resp, u, parms, theta1, theta2, Sum = F)
 }
 \arguments{
 \item{resp}{a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.}
 
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{is the logit of the weight parameter of the RSC model.}
 
-\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.}
+\item{parms}{a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.}
 
 \item{theta1}{the latent trait of member 1.}
 
@@ -21,5 +21,5 @@ l_full_sum(resp, w, parms, theta1, theta2, Sum = F)
 \code{length(w)}-vector of log-likelihoods.
 }
 \description{
-This function is identical to \code{l_full}, except that it has an option for whether or not to sum the log-liklihood over respondents. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+This function is identical to \code{l_full}, except that it has an option for whether to return the sum the log-liklihood over respondents. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
 }

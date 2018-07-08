@@ -4,12 +4,12 @@
 \alias{d2_RSC}
 \title{Second derivatives of the IRF of the one-parameter RSC model.}
 \usage{
-d2_RSC(w, parms, theta1, theta2)
+d2_RSC(u, parms, theta1, theta2)
 }
 \arguments{
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{the logit of the weight parameter of the RSC model.}
 
-\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
+\item{parms}{a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
 
 \item{theta1}{the latent trait of member 1.}
 
@@ -19,5 +19,5 @@ d2_RSC(w, parms, theta1, theta2)
 a named list of second derivatives, with elements \code{c("dw_dtheta1", "dw_dtheta2", "d2theta1", "d2theta2", "dtheta1_dtheta2")}.
 }
 \description{
-Computes a named list of derivatives of the IRF of the one-parameter RSC model. Uses 2PL model for individual responses. See Appendix of Halpin & Bergner (2017) for details.
+Computes a named list of second derivatives of the IRF of the one-parameter RSC model. Uses 2PL model for individual responses.
 }

@@ -2,16 +2,16 @@
 % Please edit documentation in R/cIRF_functions.R
 \name{Nstar}
 \alias{Nstar}
-\title{Multiplier for second deriviative of log-likelihood of one-parameter RSC model.}
+\title{Multiplier term for second deriviative of log-likelihood of one-parameter RSC model.}
 \usage{
-Nstar(resp, w, parms, theta1, theta2, obs = F)
+Nstar(resp, u, parms, theta1, theta2, obs = T)
 }
 \arguments{
-\item{resp}{a matrix or data.frame containing the (conjunctively-scored) binary item responses.}
+\item{resp}{a matrix or data.frame containing the (conjunctively-scored, binary)item responses.}
 
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{the logit of the weight parameter of the RSC model.}
 
-\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
+\item{parms}{a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
 
 \item{theta1}{the latent trait of member 1.}
 
@@ -23,5 +23,5 @@ Nstar(resp, w, parms, theta1, theta2, obs = F)
 \code{dim(resp)}-matrix of multipliers.
 }
 \description{
-Similar to \code{Mstar}, but for the second derivatives. Called by functions that compute second derivative of the log-likelihood.
+The Hessian of the log-likelihood of the RSC model a single item can be computed as \code{M * hess_IRF - N * grad_IRF^2}. This function computes (a matrix of values of) N. Called by functions that compute second derivatives of the log-likelihood.
 }

@@ -4,20 +4,20 @@
 \alias{d2lp}
 \title{Hessian of the log of the prior distribution for a combined assessment.}
 \usage{
-d2lp(w, theta1, theta2, epsilon = 0.05)
+d2lp(u, theta1, theta2, sigma = 3)
 }
 \arguments{
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{the logit of the weight parameter of the RSC model.}
 
 \item{theta1}{the latent trait of member 1.}
 
 \item{theta2}{the latent trait of member 2.}
 
-\item{epsilon}{a small positive number, see description for details.}
+\item{sigma}{prior standard deviation for logit of weight.}
 }
 \value{
-\code{3 * K} by \code{3 * K} diagonal matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+\code{3 * K} by \code{3 * K} diagonal matrix of second derivatives, with \code{K = length(u)} and rows/cols ordered as \code{rep(c(u_k, theta1_k, theta2_k), times = K)}.
 }
 \description{
-This function computes the Hessian of the log of the prior for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + epsilon.
+This function computes the Hessian of the log of the prior for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability, and for the logit of the weight of the RSC model a normal prior is used with standard deviation \code{sigma}.
 }

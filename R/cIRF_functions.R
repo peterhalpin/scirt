@@ -1,13 +1,10 @@
-# Last update: 04/25/2017
 # Functions for group assessments. Depends on IRF_functions.R
 # User beware: functions do not check or handle input errors.
 
-require(ggplot2)
 require(dplyr)
 require(Matrix)
 
-
-# Functions to transfrom w -> [0,1] and back
+# logit and related function; not indexed in manual
 
 logit <- function(p) { log(p / (1 - p)) }
 inv_logit <- function(u) { 1 / (1 + exp(-u)) }
@@ -23,16 +20,16 @@ d2_inv_logit <- function(u) {
 #--------------------------------------------------------------------------
 #' The IRF of the one-parameter RSC model.
 #'
-#' Computes a matrix of probabilities for correct responses under one parameter RSC model, using 2PL model for individual responses.
+#' Computes a matrix of response probabilities under one-parameter RSC model, using 2PL model for individual responses.
 #'
 #' @param u the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
 #' @return  \code{length(w)} by \code{nrow(parms)} matrix of response probabilities.
 #' @export
 
-RSC <- function(u, parms, theta1, theta2) {
+RSC_IRF <- function(u, parms, theta1, theta2) {
   U <- u %*% t(rep(1, nrow(parms)))
   W <- inv_logit(U)
   p1 <- IRF(parms, theta1)
@@ -40,14 +37,13 @@ RSC <- function(u, parms, theta1, theta2) {
   W * (p1 + p2) + (1 - 2 * W) * p1 * p2
 }
 
-
 #--------------------------------------------------------------------------
 #' First derivatives of the IRF of the one-parameter RSC model.
 #'
-#' Computes a named list of derivatives of the IRF of the one-parameter RSC model. Uses 2PL model for individual responses. See Appendix of Halpin & Bergner (2017) for details.
+#' Computes a named list of derivatives of the IRF of the one-parameter RSC model. Uses 2PL model for individual responses.
 #'
 #' @param u the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
 #' @return a named list of derivatives, with elements \code{c("dw", "dtheta1", "dtheta2")}.
@@ -74,10 +70,10 @@ d_RSC <- function(u, parms, theta1, theta2) {
 #--------------------------------------------------------------------------
 #' Second derivatives of the IRF of the one-parameter RSC model.
 #'
-#' Computes a named list of derivatives of the IRF of the one-parameter RSC model. Uses 2PL model for individual responses. See Appendix of Halpin & Bergner (2017) for details.
+#' Computes a named list of second derivatives of the IRF of the one-parameter RSC model. Uses 2PL model for individual responses.
 #'
 #' @param u the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
 #' @return a named list of second derivatives, with elements \code{c("dw_dtheta1", "dw_dtheta2", "d2theta1", "d2theta2", "dtheta1_dtheta2")}.
@@ -108,14 +104,15 @@ d2_RSC <- function(u, parms, theta1, theta2) {
 }
 
 #--------------------------------------------------------------------------
-#' Item info
+#' Item info: u.
 #'
-#' Computes item info for RSW weight #'
+#' Computes item info for the logit of the one-parameter RSC weight.
+#'
 #' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
-#' @return \code{length(w)} by \code{\length(parms)} matrix of item info
+#' @return \code{length(w)} by \code{nrow(parms)} matrix of item info.
 #' @export
 
 Info_u <- function(u, parms, theta1, theta2) {
@@ -133,14 +130,14 @@ Info_u <- function(u, parms, theta1, theta2) {
 }
 
 #--------------------------------------------------------------------------
-#' Item info
+#' Item info: w
 #'
-#' Computes item info for RSW weight #'
+#' Computes item info for RSC weight (not its logit).'
 #' @param w the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
-#' @return \code{length(w)} by \code{\length(parms)} matrix of item info
+#' @return \code{length(w)} by \code{nrow(parms)} matrix of item info
 #' @export
 
 Info_w <- function(w, parms, theta1, theta2) {
@@ -159,52 +156,50 @@ Info_w <- function(w, parms, theta1, theta2) {
 #--------------------------------------------------------------------------
 #' Log-likelihood of the one-parameter RSC model.
 #'
-#' Computes loglikeihood of a matrix of response patterns under the one-parameter RSC model.
+#' Computes loglikeihood of a response matrix under the one-parameter RSC model.
 #'
-#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param resp a matrix or data.frame containing the (conjunctively-scored,  binary) item responses.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
 #' @return  \code{length(w)}-vector of log-likelihood.
 #' @export
 
 l_RSC <- function(resp, u, parms, theta1, theta2) {
-  p <- RSC(u, parms, theta1, theta2)
+  p <- RSC_IRF(u, parms, theta1, theta2)
   apply(log(p) * (resp) + log(1-p) * (1-resp), 1, sum, na.rm = T)
 }
 
 #--------------------------------------------------------------------------
-#' Mutiplier for first deriviative of log-likelihood of one-parameter RSC model.
+#' Mutiplier term for first deriviative of log-likelihood of one-parameter RSC model.
 #'
-#' Writing the derivative of the log-likelihood of the RSC model a single item as M * grad_IRF, this function computes (a matrix of values of) M, with grad_IRF being the gradient of the RSC IRF. Called by functions that compute derivative of the log-likelihood.
+#' The gradient of the log-likelihood of the RSC model a single item can be computed as M * grad_IRF. This function computes (a matrix of values of) M. Called by functions that compute derivatives of the log-likelihood.
 
-#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param resp a matrix or data.frame containing the (conjunctively-scored,  binary) item responses.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
 #' @return \code{dim(resp)}-matrix of multipliers.
 #' @export
 
 Mstar <- function(resp, u, parms, theta1, theta2) {
-  p <- RSC(u, parms, theta1, theta2)
+  p <- RSC_IRF(u, parms, theta1, theta2)
   resp / p - (1 - resp) / (1 - p)
 }
-
-
 
 #--------------------------------------------------------------------------
 #' Gradient of log-likelihood of one-parameter RSC model.
 #'
-#' Computes the first derivatives of the log-likelihood, in \code{c(w, theta1, theta2)}. Called by \code{est_RSC}.
+#' Computes the first derivatives of the log-likelihood, in \code{c(u, theta1, theta2)}. Called by \code{rsc}.
 
-#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param resp a matrix or data.frame containing the (conjunctively-scored,  binary) item responses.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
-#' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @return \code{3 * K}-vector of first derivatives, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}, with \code{K = length(w)}.
 #' @export
 
 dl_RSC <- function(resp, u, parms, theta1, theta2) {
@@ -217,21 +212,21 @@ dl_RSC <- function(resp, u, parms, theta1, theta2) {
 }
 
 #--------------------------------------------------------------------------
-#' Multiplier for second deriviative of log-likelihood of one-parameter RSC model.
+#' Multiplier term for second deriviative of log-likelihood of one-parameter RSC model.
 #'
-#' Similar to \code{Mstar}, but for the second derivatives. Called by functions that compute second derivative of the log-likelihood.
+#' The Hessian of the log-likelihood of the RSC model a single item can be computed as \code{M * hess_IRF - N * grad_IRF^2}. This function computes (a matrix of values of) N. Called by functions that compute second derivatives of the log-likelihood.
 
-#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param resp a matrix or data.frame containing the (conjunctively-scored, binary)item responses.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
 #' @param obs logical: should the observed value be returned? If not, the expected value is returned.
 #' @return \code{dim(resp)}-matrix of multipliers.
 #' @export
 
-Nstar <- function(resp, u, parms, theta1, theta2, obs = F) {
-  p <- RSC(u, parms, theta1, theta2)
+Nstar <- function(resp, u, parms, theta1, theta2, obs = T) {
+  p <- RSC_IRF(u, parms, theta1, theta2)
   if (obs) {
     resp / p^2 + (1 - resp) / (1 - p)^2
   } else {
@@ -242,11 +237,11 @@ Nstar <- function(resp, u, parms, theta1, theta2, obs = F) {
 #--------------------------------------------------------------------------
 #' Hessian of log-likelihood of one-parameter RSC model.
 #'
-#' Computes the second derivatives of the log-likelihood, in \code{c(w, theta1, theta2)}. Called by \code{est_RSC}. Calls the function \code{bdiag_m} written by Martin Maechler, ETH Zurich.
+#' Computes the second derivatives of the log-likelihood, in \code{c(u, theta1, theta2)}. Called by \code{RSC}. Calls the function \code{bdiag_m} written by Martin Maechler, ETH Zurich.
 #'
-#' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param resp a matrix or data.frame containing the (conjunctively-scored, binary)item responses.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
 #' @param obs logical: should the observed value be returned? If not, the expected value is returned.
@@ -290,27 +285,29 @@ d2l_RSC <- function(resp, u, parms, theta1, theta2, obs = T) {
 
   temp <- vector("list", length(theta1))
   for (i in 1:length(theta1)) {temp[[i]] <- fun(i)}
-    bdiag_m(temp)
+  bdiag_m(temp)
 }
 
 
 #--------------------------------------------------------------------------
 #' Log-likelihood of a combined assessment.
 #'
-#' This function computes the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}.
+#' This function computes the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment.
 #'
-#' The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The (column) names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment. Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
-
-#' The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment.
+#' @details The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The column names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment.
+#'
+#' The same text keys must be used when naming the rows of the data.frame \code{parms} containing the item parameters. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment. The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}.
+#'
+#'Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
 #'
 #' This description is much longer than the source code -- type \code{l_full} for a shorter explanation.
 
 #' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
-#' @return \code{length(w)}-vector of log-likelihoods.
+#' @return \code{length(u)}-vector of log-likelihoods.
 #' @export
 
 l_full <- function(resp, u, parms, theta1, theta2)
@@ -328,11 +325,11 @@ l_full <- function(resp, u, parms, theta1, theta2)
 #--------------------------------------------------------------------------
 #' Log-likelihood of a combined assessment, with sum option.
 #'
-#' This function is identical to \code{l_full}, except that it has an option for whether or not to sum the log-liklihood over respondents. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+#' This function is identical to \code{l_full}, except that it has an option for whether to return the sum the log-liklihood over respondents. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
 #'
 #' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
 #' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
 #' @return \code{length(w)}-vector of log-likelihoods.
@@ -354,14 +351,14 @@ l_full_sum <- function(resp, u, parms, theta1, theta2, Sum = F)
 #--------------------------------------------------------------------------
 #' Log of prior distribution for a combined assessment.
 #'
-#' This function computes the log of the prior (minus a constant) for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + epsilon.
-#'
+#' This function computes the log of the prior (minus a constant) for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability, and for the logit of the weight of the RSC model a normal prior is used with standard deviation \code{sigma}.
 
-#' @param u is the logit of the weight parameter of the RSC model.
+#' @param u the logit of the weight parameter of the RSC model.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
-#' @param epsilon a small positive number, see description for details.
-#' @return \code{length(w)}-vector of log-priors (minus a constant).
+#' @param sigma prior standard deviation for logit of weight.
+# @param epsilon a small positive number, see description for details.
+#' @return \code{length(u)}-vector of log-priors (minus a constant).
 #' @export
 
 # lp <- function(w, theta1, theta2, epsilon = .05)
@@ -369,7 +366,7 @@ l_full_sum <- function(resp, u, parms, theta1, theta2, Sum = F)
 #   (epsilon * log(w - w^2) - theta1^2 / 2 - theta2^2 / 2)
 # }
 
-lp <- function(u, theta1, theta2, sigma = 5)
+lp <- function(u, theta1, theta2, sigma = 3)
 {
   - 1/2 * ((u/sigma)^2 + theta1^2 + theta2^2)
 }
@@ -378,14 +375,14 @@ lp <- function(u, theta1, theta2, sigma = 5)
 #--------------------------------------------------------------------------
 #' Gradient of the log-likelihood of a combined assessment.
 #'
-#' This function computes first derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+#' This function computes first derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(u, theta1, theta2)}. See \code{help(l_full)} for details on formatting of \code{resp} and \code{parms}.
 #'
 #' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
-#' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @return \code{3 * K} - vector of first derivatives, with \code{K = length(u)}, ordered as \code{rep(c(u_k, theta1_k, theta2_k), times = K)}.
 #' @export
 
 dl_full <- function(resp, u, parms, theta1, theta2) {
@@ -402,16 +399,16 @@ dl_full <- function(resp, u, parms, theta1, theta2) {
 }
 
 #--------------------------------------------------------------------------
-#' Graident of the log of the prior distribution for a combined assessment.
+#' Gradient of the log of the prior distribution for a combined assessment.
 #'
-#' This function computes the derivative of the log of the prior for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + epsilon.
-#'
-#'
-#' @param u is the logit of the weight parameter of the RSC model.
+#' This function computes the derivative of the log of the prior for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability, and for the logit of the weight of the RSC model a normal prior is used with standard deviation \code{sigma}.
+
+#' @param u the logit of the weight parameter of the RSC model.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
-#' @param epsilon a small positive number, see description for details.
-#' @return \code{3 * K} - vector of first derivatives, with \code{K = length(w)}, ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @param sigma prior standard deviation for logit of weight.
+# @param epsilon a small positive number, see description for details.
+#' @return \code{3 * K} - vector of first derivatives, with \code{K = length(u)}, ordered as \code{rep(c(u_k, theta1_k, theta2_k), times = K)}.
 #' @export
 
 # dlp <- function(w, theta1, theta2, epsilon = .05)
@@ -420,7 +417,7 @@ dl_full <- function(resp, u, parms, theta1, theta2) {
 #   rbind(dlw, -theta1, -theta2) %>% c
 # }
 
-dlp <- function(u, theta1, theta2, sigma = 5)
+dlp <- function(u, theta1, theta2, sigma = 3)
 {
   rbind(-u/sigma^2, -theta1, -theta2) %>% c
 }
@@ -428,18 +425,18 @@ dlp <- function(u, theta1, theta2, sigma = 5)
 #--------------------------------------------------------------------------
 #' Hessian of the log-likelihood for a combined assessment.
 #'
-#' This function computes second derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(w, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
+#' This function computes second derivatives of the log-likelihood for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. The derivatives are taken in \code{c(u, theta1, theta2)}. See \code{help(l_full)} for details on formatting \code{resp} and \code{parms}.
 #'
 #' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a  data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
 #' @param obs logical: should the observed value be returned? If not, the expected value is returned.
-#' @return \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @return \code{3 * K} by \code{3 * K} block-diagonal, symmmetrical matrix of second derivatives, with \code{K = length(u)} and rows/cols ordered as \code{rep(c(u_k, theta1_k, theta2_k), times = K)}.
 #' @export
 
-d2l_full <- function(resp, u, parms, theta1, theta2, obs = T, parallel = F) {
+d2l_full <- function(resp, u, parms, theta1, theta2, obs = T) {
   ind <- grep("IND", names(resp))
   col <- grep("COL", names(resp))
   ind_parms <- parms[grep("IND", row.names(parms)),]
@@ -455,13 +452,14 @@ d2l_full <- function(resp, u, parms, theta1, theta2, obs = T, parallel = F) {
 #--------------------------------------------------------------------------
 #' Hessian of the log of the prior distribution for a combined assessment.
 #'
-#' This function computes the Hessian of the log of the prior for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + epsilon.
+#' This function computes the Hessian of the log of the prior for a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment. A standard normal prior is used for individual ability, and for the logit of the weight of the RSC model a normal prior is used with standard deviation \code{sigma}.
 #'
-#' @param u is the logit of the weight parameter of the RSC model..
+#' @param u the logit of the weight parameter of the RSC model.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
-#' @param epsilon a small positive number, see description for details.
-#' @return \code{3 * K} by \code{3 * K} diagonal matrix of second derivatives, with \code{K = length(w)} and rows/cols ordered as \code{rep(c(w_k, theta1_k, theta2_k), times = K)}.
+#' @param sigma prior standard deviation for logit of weight.
+# @param epsilon a small positive number, see description for details.
+#' @return \code{3 * K} by \code{3 * K} diagonal matrix of second derivatives, with \code{K = length(u)} and rows/cols ordered as \code{rep(c(u_k, theta1_k, theta2_k), times = K)}.
 #' @export
 
 # d2lp <- function(w, theta1, theta2, epsilon = .05)
@@ -471,35 +469,37 @@ d2l_full <- function(resp, u, parms, theta1, theta2, obs = T, parallel = F) {
 #   rbind(d2lw, -1, -1) %>% c %>% diag
 # }
 #
-d2lp <- function(u, theta1, theta2, sigma = 5)
+d2lp <- function(u, theta1, theta2, sigma = 3)
 {
    rep(c(-1/sigma^2, -1, -1), times = length(u))  %>% diag
 }
 
 
 #--------------------------------------------------------------------------
-#' Simultaneous estimation of latent traits and the one-parameter RSC model for a combined assessment.
+#' Estimation of latent traits and the one-parameter RSC model for a combined assessment.
 #'
-#' This function calls \code{optim} to estimate the parameter vector \code{c(w, theta1, theta2)} from the repsonses to a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment.
+#' This function calls \code{optim} to estimate the parameter vector \code{c(u, theta1, theta2)} from the repsonses to a combined assessment, in which the 2PL model is used for the individual component of the assessment and the one-parameter RSC model is used for the group component of the assessment.
 #'
-#' @details Esimation is via either maximum likelihood (ML) or modal a'posteriori (MAP), with the latter being prefered. For MAP, a standard normal prior is used for individual ability. A two-parameter Beta prior is the parameter of the RSC model, in which both parameters are equal to 1 + \code{epsilon}. Standard errors (or posterior standard deviations) are computed by numerically inverting the analytically computed Hessian of the objective function, at the parameter estimates. The value of the objective function at the estimate is is also provided. If \code{parallel = T}, the call to \code{optim} is parallelized via \code{parallel::mclapply}.
+#' @details Esimation is via either maximum likelihood (ML) or modal a'posteriori (MAP), with the latter being prefered. For MAP, a standard normal prior is used for individual ability. A standard normal prior is used for individual ability, and for the logit of the weight of the RSC model a normal prior is used with standard deviation \code{sigma}. Standard errors (or posterior standard deviations) are computed by numerically inverting the analytically computed Hessian of the objective function, at the parameter estimates. The value of the objective function at the estimate is is also provided. If \code{parallel = T}, the call to \code{optim} is parallelized via \code{parallel::mclapply}.
 #'
-#' The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The (column) names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment. Note that only the odd rows of \code{resp[grep("COL", names(resp))]} are used when computing the log-likelihood for the group component.
+#' The response matrix \code{resp} must be formatted to contain one row of binary responses for each respondent (not each dyad). Members of the same dyad must be on adjancent rows, such that \code{resp[odd,]} gives the responses of one member of a dyad and \code{resp[odd + 1, ]} gives the responses of the other member of the dyad, where \code{odd} is any odd integer in \code{c(1, nrow(resp))}. The column names for items on the individual assessment must include \code{"IND"}; those on the (conjunctively-scored) group assessment just include \code{"COL"} -- these text-keys are grepped from \code{names(resp)} to obtain the response patterns for the individual assessment and the group assessment.
 #'
-#' The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment.
+#' The same text keys must be used when naming the rows of the data.frame \code{parms} containing the item parameters. Similarly to the procedure described for \code{names(resp)}, \code{row.names(parms)} is grepped for each of \code{c("IND", "COL")} to obtain the item parameters of the individual assessment and the group assessment. The order of items (columns) of \code{resp} is assumed to correpond to that of items (rows) of \code{parms}, for each of \code{c("IND", "COL")}.
+#'
 #' Type \code{l_full} for an illustration of how the formatting calls are made.
 #'
 #' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details for information on formatting.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
-#' @param starts starting values, ordered as triplets of \code{c(w, theta1, theta2)} for each row or \code{resp} (optional).
-#' @param method one of \code{c("ML", "MAP")}. The latter is strongly recommended.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param starts starting values, ordered as triplets of \code{c(w, theta1, theta2)} for each row of \code{resp} (optional).
+#' @param method one of \code{c("ML", "MAP")}. The latter isrecommended.
 #' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\code{FALSE}) Hessian?
-#' @param epsilon a small positive number, see description for details.
+#' @param sigma prior standard deviation for logit of weight.
+# @param epsilon a small positive number, see description for details.
 #' @param parallel logical: call \code{parallel:mclapply} instead of looping over \code{nrow(resp)}?
-#' @return An named \code{nrow(resp)} by 7 data.frame containing the estimates, their standard errors, and the value of the objective function at the solution.
+#' @return A named \code{nrow(resp)} by 7 data.frame containing the estimates, their standard errors, and the value of the objective function at the solution.
 #' @export
 
-est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, sigma = 3, parallel = F) {
+rsc <- function(resp, parms, starts = NULL, method = "MAP", obs = F, sigma = 3, parallel = F) {
 
   stopifnot(ncol(resp) == nrow(parms),
           method%in%c("MAP", "ML"),
@@ -543,7 +543,7 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, sigma =
     }
   }
 
-  # Set up parm_indexing for parallel
+  # Set up parm_indexing for parallelization
   fun <- function(i) {
     blocksize <- floor(n_obs/n_cores)
     m <- (i-1) * blocksize + 1
@@ -572,7 +572,7 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, sigma =
   out$theta2 <- temp[parm_index+2]
 
   # SEs
-  temp_se <- var_RSC(resp, out$u, parms, out$theta1, out$theta2, method, obs, sigma)  %>% diag %>% sqrt
+  temp_se <- var_rsc(resp, out$u, parms, out$theta1, out$theta2, method, obs, sigma)  %>% diag %>% sqrt
   out$u_se <- temp_se[parm_index]
   out$theta1_se <- temp_se[parm_index+1]
   out$theta2_se <- temp_se[parm_index+2]
@@ -585,7 +585,20 @@ est_RSC <- function(resp, parms, starts = NULL, method = "MAP", obs = F, sigma =
  out
 }
 
-var_RSC <- function(resp, u, parms, theta1, theta2, method = "MAP", obs = F, sigma = 3){
+#--------------------------------------------------------------------------
+#' Computes variance of latent traits and the one-parameter RSC model for a combined assessment.
+#'#' @param resp a data.frame containing the binary item responses of both the individual assessment and the (conjunctively scored) group assessment. See details of \code{rsc} for information on formatting.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param theta1 the latent trait of member 1.
+#' @param theta2 the latent trait of member 2.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details of \code{rsc} for information on formatting.
+#' @param method one of \code{c("ML", "MAP")}. The latter isrecommended.
+#' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\code{FALSE}) Hessian?
+#' @param sigma prior standard deviation for logit of weight.
+# @param epsilon a small positive number, see description for details.
+#' @return  \code{3 * K} by \code{3 * K} covariance matrix of the parameter estimates, with \code{K = length(u)} and rows/cols ordered as \code{rep(c(u_k, theta1_k, theta2_k), times = K)}.
+#'
+var_rsc <- function(resp, u, parms, theta1, theta2, method = "MAP", obs = F, sigma = 3){
   temp_se <- d2l_full(resp, u, parms, theta1, theta2, obs)
 
   if (method == "MAP") {
@@ -593,12 +606,6 @@ var_RSC <- function(resp, u, parms, theta1, theta2, method = "MAP", obs = F, sig
   }
   q <- solve(-1 * temp_se)
 }
-
-
-
-
-
-
 
 
 #--------------------------------------------------------------------------
@@ -609,17 +616,18 @@ var_RSC <- function(resp, u, parms, theta1, theta2, method = "MAP", obs = F, sig
 #' @details Estimation is via either maximum likelihood (ML) or modal a'posteriori (MAP), with the latter being prefered. For MAP, a two-parameter Beta prior is used with the parameter of the RSC model, in which both parameters are equal to \code{1 + epsilon}. Standard errors (or posterior standard deviations) are computed via the inverse of the analytically computed second derivatives of the objective function, at the parameter estimates. The value of the objective function at the estimate is is also provided. If \code{parallel = T}, the call to \code{optim} is parallelized via \code{parallel::mclapply}.
 #'
 #' @param resp a matrix or data.frame containing the (conjunctively-scored) binary item responses.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta2 the latent trait of member 2.
-#' @param method one of \code{c("ML", "MAP")}. The latter is strongly recommended.
+#' @param method one of \code{c("ML", "MAP")}. The latter isrecommended.
 #' @param obs logical: should standard errors be computed using the observed (\code{TRUE}) or expected (\code{FALSE}) Fisher information?
-#' @param epsilon a small positive number, see description for details.
+#' @param sigma prior standard deviation for logit of weight.
+# @param epsilon a small positive number, see description for details.
 #' @param parallel logical: call \code{parallel:mclapply} instead of looping over \code{nrow(resp)}?
-#' @return An named \code{nrow(resp)} by 3 data.frame containing the estimates, their standard errors, and the value of the log-likelihood of the RSC model at the solution (not log posterior with MAP).
+#' @return An named \code{nrow(resp)} by 3 data.frame containing the estimates, their standard errors, and the value of the log-likelihood of the RSC model at the solution (not the log posterior with MAP).
 #' @export
 
-est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma = 3, parallel = F) {
+rsc2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma = 3, parallel = F) {
 
   stopifnot(ncol(resp) == nrow(parms),
             nrow(resp) == length(theta1),
@@ -701,23 +709,21 @@ est_RSC2 <- function(resp, parms, theta1, theta2, method = "MAP", obs = F, sigma
 }
 
 
-
-
 #--------------------------------------------------------------------------
 #' Simulate item responses from the one-parameter RSC model.
 #'
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively. See details for information on formatting.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait of member 1.
 #' @param theta1 the latent trait of member 2.
-#' @return \code{length(theta1)} by \code{nrow(parms)} matrix of binary responses.
+#' @return \code{length(u)} by \code{nrow(parms)} matrix of binary responses.
 #' @export
 
-sim_RSC <- function(u, parms, theta1 = 0, theta2 = 0) {
+sim_rsc <- function(u, parms, theta1 = 0, theta2 = 0) {
   n_row <- length(theta1)
   n_col <- nrow(parms)
   r <- array(runif(n_row * n_col), dim = c(n_row, n_col))
-  p <- RSC(u, parms, theta1, theta2)
+  p <- RSC_IRF(u, parms, theta1, theta2)
   out <- ifelse(p > r, 1, 0)
   colnames(out) <- row.names(parms)
   out
@@ -726,20 +732,18 @@ sim_RSC <- function(u, parms, theta1 = 0, theta2 = 0) {
 #--------------------------------------------------------------------------
 #' Generate data from the one-parameter RSC model.
 #'
-#' This is a wrapper for \code{sim_RSC} that saves the data generating parms and allows for multple response patterns per group.
-#'
-#' To generate data from a 2PL model, set \code{theta1 = theta2} and \code{w = 1/2}. See Halpin and Bergner (2017) for discussion.
+#' This is a wrapper for \code{sim_RSC} that saves the data generating parms and allows for multple response patterns per group. To generate data from a 2PL model, set \code{theta1 = theta2} and \code{w = 1/2}.
 #'
 #' @param n_reps integer indicating how many datasets to generate.
-#' @param u is the logit of the weight parameter of the RSC model.
-#' @param parms a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
+#' @param u the logit of the weight parameter of the RSC model.
+#' @param parms a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.
 #' @param theta1 the latent trait for member 1.
 #' @param theta2 the latent trait for member 2.
-#' @param theta1_se the standard error of the latent trait for member 1 (Optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta1, theta1_se)}.
-#' @param theta2_se the standard error of the latent trait for member 2 (Optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta2, theta2_se)}.
-#' @param NA_pattern an (optional) \code{length(w)} by \code{nrow(parms)} data.frame with \code{NA} entries denoting missing data. The missing values are preserved in the generated data.
+#' @param theta1_se the standard error of the latent trait for member 1 (optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta1, theta1_se)}.
+#' @param theta2_se the standard error of the latent trait for member 2 (optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta2, theta2_se)}.
+#' @param NA_pattern an (optional) \code{length(u)} by \code{nrow(parms)} data.frame with \code{NA} entries denoting missing data. The missing values are preserved in the generated data.
 
-#' @return A data.frame with \code{length(w)} rows containing an id variable for each pair and each sample, the data generating values of \code{w}, \code{theta1}, and \code{theta2}, and the simulated response patterns.
+#' @return A data.frame with \code{length(u)} rows containing an id variable for each pair and each sample, the data generating values of \code{u}, \code{theta1}, and \code{theta2}, and the simulated response patterns.
 #' @export
 
 data_gen <- function(n_reps, u, parms, theta1, theta2, theta1_se = NULL, theta2_se = NULL, NA_pattern = NULL) {
@@ -755,12 +759,10 @@ data_gen <- function(n_reps, u, parms, theta1, theta2, theta1_se = NULL, theta2_
   # Simulate data
   data <- data.frame(matrix(NA, nrow = n_reps*n_obs, ncol = nrow(parms)))
   names(data) <- row.names(parms)
-  data <- sim_RSC(out$u, parms, out$theta1, out$theta2)
+  data <- sim_rsc(out$u, parms, out$theta1, out$theta2)
   data <- format_NA(data, NA_pattern)
   cbind(out[], data[])
 }
-
-
 
 #--------------------------------------------------------------------------
 #' Formats a data.frame to have the same variables (column names) as that of another data.frame
@@ -806,7 +808,7 @@ format_NA <- function(data, NA_pattern = NULL){
 
 
 #--------------------------------------------------------------------------
-#' Generates or replicates values of latent variable.
+#' Generates or replicates values of latent trait
 #'
 #' If \code{theta_se}' is not null, values are generated using \code{rnorm}. Otherwise, each value is replicated.
 

@@ -4,32 +4,29 @@
 \alias{data_gen}
 \title{Generate data from the one-parameter RSC model.}
 \usage{
-data_gen(n_reps, w, parms, theta1, theta2, theta1_se = NULL,
+data_gen(n_reps, u, parms, theta1, theta2, theta1_se = NULL,
   theta2_se = NULL, NA_pattern = NULL)
 }
 \arguments{
 \item{n_reps}{integer indicating how many datasets to generate.}
 
-\item{w}{the weight parameter of the RSC model.}
+\item{u}{the logit of the weight parameter of the RSC model.}
 
-\item{parms}{a named list or data.frame with elements \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
+\item{parms}{a data.frame with columns \code{parms$alpha} and \code{parms$beta} corresponding to the discrimination and difficulty parameters of the 2PL model, respectively.}
 
 \item{theta1}{the latent trait for member 1.}
 
 \item{theta2}{the latent trait for member 2.}
 
-\item{theta1_se}{the standard error of the latent trait for member 1 (Optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta1, theta1_se)}.}
+\item{theta1_se}{the standard error of the latent trait for member 1 (optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta1, theta1_se)}.}
 
-\item{theta2_se}{the standard error of the latent trait for member 2 (Optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta2, theta2_se)}.}
+\item{theta2_se}{the standard error of the latent trait for member 2 (optional). If included, data generation samples \code{n_reps} values from \code{rnorm(theta2, theta2_se)}.}
 
-\item{NA_pattern}{an (optional) \code{length(w)} by \code{nrow(parms)} data.frame with \code{NA} entries denoting missing data. The missing values are preserved in the generated data.}
+\item{NA_pattern}{an (optional) \code{length(u)} by \code{nrow(parms)} data.frame with \code{NA} entries denoting missing data. The missing values are preserved in the generated data.}
 }
 \value{
-A data.frame with \code{length(w)} rows containing an id variable for each pair and each sample, the data generating values of \code{w}, \code{theta1}, and \code{theta2}, and the simulated response patterns.
+A data.frame with \code{length(u)} rows containing an id variable for each pair and each sample, the data generating values of \code{u}, \code{theta1}, and \code{theta2}, and the simulated response patterns.
 }
 \description{
-This is a wrapper for \code{sim_RSC} that saves the data generating parms and allows for multple response patterns per group.
-}
-\details{
-To generate data from a 2PL model, set \code{theta1 = theta2} and \code{w = 1/2}. See Halpin and Bergner (2017) for discussion.
+This is a wrapper for \code{sim_RSC} that saves the data generating parms and allows for multple response patterns per group. To generate data from a 2PL model, set \code{theta1 = theta2} and \code{w = 1/2}.
 }
