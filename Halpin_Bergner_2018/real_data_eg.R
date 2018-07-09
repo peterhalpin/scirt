@@ -1,6 +1,5 @@
 # ------------------------------------------------------------
-# Real data example for paper: Psychometric models of small group collaborations
-# Last updated: 8/23/2017
+# Real data example for paper: Psychometric models of small group collaborations.
 # ------------------------------------------------------------
 
 # devtools::install_github("peterhalpin/scirt")
@@ -8,8 +7,9 @@ library("scirt")
 library("ggplot2")
 
 # ------------------------------------------------------------
-# Load item parms
+# Load item parms (local machine)
 # ------------------------------------------------------------
+
 setwd("~/Dropbox/Academic/Projects/CA/Data/response_matrices")
 temp_parms <- read.csv("calibration_parms.csv", row.names = 1)
 
@@ -29,8 +29,9 @@ row.names(col_parms) <- paste0(row.names(col_parms), "_COL")
 parms <- rbind(ind_parms, col_parms)
 
 # ------------------------------------------------------------
-# Load response data
+# Load response data (local machine)
 # ------------------------------------------------------------
+
 collab <- read.csv("collaboration_2016_0.csv", check.names = F)
 col_form <- format_resp(collab, row.names(col_parms), "COL")
 ind_form <- format_resp(collab, row.names(ind_parms), "IND")
@@ -54,67 +55,66 @@ odd <- seq(1, nrow(col_form), by = 2)
 # Final response data
 resp <- cbind(ind_form, col_form)
 nrow(resp) / 2
+
 # ------------------------------------------------------------
 # Estimate RSC using logit parameterization
 # ------------------------------------------------------------
+
 est <- rsc(resp, parms, obs = T, sigma = 3)
-
-
 
 # ------------------------------------------------------------
 # Goodness of fit
 # ------------------------------------------------------------
+
 # Simulate data
 n_reps <- 500
 n_obs <- nrow(est)
 sim <- data_gen(n_reps, est$u, col_parms, est$theta1, est$theta2, NA_pattern = col_form[odd,])
 
-# Re-Estimate model on simulated data
+# Re-estimate model on simulated data
 sim_est <- est_RSC2(sim_resp, col_parms, sim$theta1, sim$theta2, sigma = 3, parallel = T)
 head(sim_est, 100)
 
-  # Compute quantiles of simulated reference distribtuion
-  l_sim <- -2*l_RSC(sim_resp, sim_est$u, col_parms, sim$theta1, sim$theta2)
-  l_sim[1:100]
-  probs <- c(.025, .05, .10, .5, .80, .93, .975)
-  quant <- tapply(l_sim, sim$pairs, function(x) quantile(x, p = probs)) %>% unlist %>% matrix(, nrow = length(probs), ncol = n_obs) %>% t()
+# Compute quantiles of simulated reference distribtuion
+l_sim <- -2*l_RSC(sim_resp, sim_est$u, col_parms, sim$theta1, sim$theta2)
+l_sim[1:100]
+probs <- c(.025, .05, .10, .5, .80, .93, .975)
+quant <- tapply(l_sim, sim$pairs, function(x) quantile(x, p = probs)) %>% unlist %>% matrix(, nrow = length(probs), ncol = n_obs) %>% t()
 
-  colnames(quant) <- c("p_025", "p_05", "p_10", "p_50", "p_90", "p_95", "p_975")
+colnames(quant) <- c("p_025", "p_05", "p_10", "p_50", "p_90", "p_95", "p_975")
 
-  # Compute likelihoods from original data
-  l_obs <- -2*l_RSC(col_form[odd,], est$u, col_parms, est$theta1, est$theta2)
+# Compute likelihoods from original data
+l_obs <- -2*l_RSC(col_form[odd,], est$u, col_parms, est$theta1, est$theta2)
 
-  # Format data
-  gg <- data.frame(l_obs, quant)
-  head(gg)
+# Format data
+gg <- data.frame(l_obs, quant)
+head(gg)
 
-  # Visual indicator for fit
-  gg$Fit <- rep("<.95", times = n_obs)
-  gg$Fit[gg$l_obs > gg$p_95] <- ">.95"
-  gg$Fit <- ordered(gg$Fit, c(">.95", "<.95"))
-  poor_fit <- which(gg$Fit == ">.95")
+# Visual indicator for fit
+gg$Fit <- rep("<.95", times = n_obs)
+gg$Fit[gg$l_obs > gg$p_95] <- ">.95"
+gg$Fit <- ordered(gg$Fit, c(">.95", "<.95"))
+poor_fit <- which(gg$Fit == ">.95")
 
-  # Sort
-  gg <- gg[order(gg$p_50), ]
-  gg$group <- 1:nrow(gg)
+# Sort
+gg <- gg[order(gg$p_50), ]
+gg$group <- 1:nrow(gg)
 
-  # Plot
-  ggplot(gg[, ], aes(x = group, y = l_obs, group = Fit)) +
-      geom_errorbar(aes(ymin = p_10, ymax = p_90, color = Fit), size = 2, width = 0) +
-      geom_errorbar(aes(ymin = p_05, ymax = p_95, color = Fit), size = .5, width = 0, alpha = 1) +
-      geom_point(aes(x = group, y = l_obs, pch = Fit, size = Fit)) +
-      scale_shape_manual(values = c(4, 20)) +
-      scale_size_manual(values = c(4, 1)) +
-      #scale_color_manual(values = c("#132B43", "#56B1F7")) +
-      scale_color_manual(values = c("grey10", "grey70")) +
-      xlab("Group") +
-      ylab("-2 * log-likelihood") +
-      theme_bw() +
-      theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
-            text = element_text(size=20))
-            #, legend.title=element_blank()))
-
-
+# Plot
+ggplot(gg[, ], aes(x = group, y = l_obs, group = Fit)) +
+    geom_errorbar(aes(ymin = p_10, ymax = p_90, color = Fit), size = 2, width = 0) +
+    geom_errorbar(aes(ymin = p_05, ymax = p_95, color = Fit), size = .5, width = 0, alpha = 1) +
+    geom_point(aes(x = group, y = l_obs, pch = Fit, size = Fit)) +
+    scale_shape_manual(values = c(4, 20)) +
+    scale_size_manual(values = c(4, 1)) +
+     #scale_color_manual(values = c("#132B43", "#56B1F7")) +
+    scale_color_manual(values = c("grey10", "grey70")) +
+    xlab("Group") +
+    ylab("-2 * log-likelihood") +
+    theme_bw() +
+    theme(panel.border = element_rect(colour = "black", fill = NA, size = 1),
+    text = element_text(size=20))
+    #, legend.title=element_blank()))
 
 # ------------------------------------------------------------
 # Estimates of u
@@ -122,8 +122,8 @@ head(sim_est, 100)
 
 # 95% and 80 %Confidence intervals
 gg <- est
-q80 <- qnorm(.18)
-q95 <- qnorm(.09)
+q80 <- qnorm(.90)
+q95 <- qnorm(.975)
 
 gg$lower_80 <- gg$u + q80*gg$u_se
 gg$upper_80 <- gg$u - q80*gg$u_se
@@ -167,7 +167,6 @@ ggplot(gg[, ], aes(x = group, y = u, group = Ability)) +
 
 (var(est$u) - mean(est$u_se^2))/var(est$u)
 
-
 # ------------------------------------------------------------
 # Sample Demographics
 #------------------------------------------------------------
@@ -190,7 +189,6 @@ head(temp)
 
 apply(temp, 2, mean)
 summary(temp$Age)
-
 
 #------------------------------------------------------------
 # DIF with Mplus: Items 45 and 65 identified as problematic in

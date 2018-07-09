@@ -35,7 +35,7 @@ The first five colums of `sim_data` indicate
 
 1. which dyad
 2. which sample from each dyad (in this case there is only one sample per dyad, although multiple can be generated)
-3. the data-generating value of the RSC weight of each dyad
+3. the data-generating value of the (logit of the) RSC weight
 4. the data-generating values of the latent trait of member 1
 5. the data-generating values of the latent trait of member 2
 
@@ -52,11 +52,11 @@ head(sim_data[c(1:7, 105:107, 205)])
 Lastly, we have some additional data-generating parameters for the simulation.
 
 ```{r 3}
-n_obs <- 1000 # n respondents
+n_obs <- nrow(sim_data) # n respondents
 K <- n_obs/2 # n groups
 odd <- seq(1, n_obs, by = 2) # indexes odd rows of sim_data
 
-n_items <- 100 # n items
+n_items <-nrow(sim_parms)/2 # n items per form
 i <- 20 # n items for short form
 
 ind_names <- row.names(sim_parms)[grep("IND", row.names(sim_parms)) ] # individual test
@@ -106,18 +106,18 @@ gg <- rbind(ml_ll, map_ll, ml_sl, map_sl, ml_ls, map_ls, ml_ss, map_ss)
 gg$ind_form <- rep(c("Individual long", "Indvidual short"), each = K*4)
 gg$col_form <- rep(c("Group long", "Group short"), each = K*2) %>% rep(times = 2)
 gg$Method <- rep(c("ML", "MAP"), each = K) %>% rep(times = 4)
-gg$dgp_w <- rep(sim_data$w[odd], times = 8)
+gg$dgp_u <- rep(sim_data$u[odd], times = 8)
 
 gg$sample <- 0
 gg$sample[sample(nrow(gg), nrow(gg)/10)] <- 1
 
-# omit estimates of u with large SEs
-drop <- gg[gg$u_se > 15,]
-table(drop$Method)
-gg <- gg[gg$u_se < 15,]
+# Omit MLEs that diverged to +/- inf
+# drops <- gg[abs(gg$u) > 5, ]
+# table(drops$ind_form, drops$col_form, drops$Method) 
+gg <- gg[abs(gg$u) < 5, ]
 
 # Plot
-p <- ggplot(gg, aes(x = dgp_w, y = w, group = Method)) +
+p <- ggplot(gg, aes(x = dgp_u, y = u, group = Method)) +
       geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
       geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
       scale_color_manual(values = c("grey10", "grey10")) +
@@ -131,7 +131,7 @@ p + facet_grid(ind_form ~ col_form)
 ```
 
 ```{r 7}
-q <- ggplot(gg, aes(x = w, y = w_se, group = Method)) +
+q <- ggplot(gg, aes(x = u, y = u_se, group = Method)) +
       geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
       geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
       scale_color_manual(values = c("grey10", "grey10")) +

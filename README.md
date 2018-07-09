@@ -2,7 +2,7 @@
 
 This package contains code for running the analyses described in the paper *Psychometric models of small group collaborations* (see Halpin_Bergner_2018.pdf). The package is under construction, but for a working example, see `demo.md`.
 
-Version 0.3.2: Reparameterize to logit parameterization of decision weight (July 2018) 
+Version 0.3.2: Reparameterize to logit of decision weight (July 2018) 
 
 Version 0.3.1: Debugging and rename to scirt (Sept 2017)
 

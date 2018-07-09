@@ -1,15 +1,13 @@
 # ------------------------------------------------------------
-# Data simulation for paper
+# Data simulation for paper: Psychometric models of small group collaborations.
 # ------------------------------------------------------------
 
-# devtools::install_github("peterhalpin/cirt")
-# library("cirt")
-# devtools::use_data(sim_parms)
-# source("~/github/cirt/R/cIRF_functions.R")
-# source("~/github/cirt/R/IRF_functions.R")
+# devtools::install_github("peterhalpin/scirt")
+library("scirt")
+library("ggplot2")
 
 # ------------------------------------------------------------
-# Data simulation for weighted addtive model
+# Data simulation for one-parameter RSC model
 # ------------------------------------------------------------
 
 # Data generating parameters
@@ -17,8 +15,6 @@ n_obs <- 1000 # n respondents
 n_items <- 100 # n items
 i <- 20 # n items for short form
 K <- n_obs/2 # n groups
-e <- .05 # beta prior parm
-sigma <- 3
 set.seed(101)
 
 # Individual test
@@ -47,15 +43,18 @@ theta1 <- theta[odd] # odds
 theta2 <- theta[odd + 1] # evens
 
 # RSC parameter
-#w <- rbeta(K, 1 + e, 1 + e)
 u <- rnorm(K, 0, 1)
-
 
 # Generate group data
 col_data <- data_gen(1, u, col_parms, theta1, theta2)
-ind_data <- data_gen(1, rep(.5, n_obs), ind_parms, theta, theta)
+ind_data <- data_gen(1, rep(0, n_obs), ind_parms, theta, theta)
 data <- cbind(col_data[rep(1:K, each = 2),], ind_data[, -c(1:5)])
 head(data)
+
+# Save data
+#sim_parms <- parms
+#sim_data <- data
+#devtools::use_data(sim_parms, sim_data, overwrite = T)
 
 # ------------------------------------------------------------
 # Parameter estimation for 4 conditions
@@ -81,11 +80,11 @@ ss_items <- c(col_names_short, ind_names_short)
 ml_ss <-  rsc(data[ss_items], parms[ss_items, ], method = "ML")
 map_ss <- rsc(data[ss_items], parms[ss_items, ], method = "MAP")
 
-
 # ------------------------------------------------------------
 # Plots
 # ------------------------------------------------------------
 
+# Set up data.frame
 gg <- rbind(ml_ll, map_ll, ml_sl, map_sl, ml_ls, map_ls, ml_ss, map_ss)
 gg$ind_form <- rep(c("Individual long", "Indvidual short"), each = K*4)
 gg$col_form <- rep(c("Group long", "Group short"), each = K*2) %>% rep(times = 2)
@@ -95,15 +94,16 @@ gg$dgp_u <- rep(u, times = 8)
 gg$sample <- 0
 gg$sample[sample(nrow(gg), nrow(gg)/10)] <- 1
 
-drops <- gg[abs(gg$u) > 4, ]
+# Drop MLEs that diverged to boundary
+drops <- gg[abs(gg$u) > 5, ]
 #drops <- gg[abs(gg$u_se) > 15, ]
-table(drops$ind_form, drops$col_form)
-gg <- gg[abs(gg$u) < 4, ]
+table(drops$ind_form, drops$col_form, drops$Method)
+gg <- gg[abs(gg$u) < 5, ]
 
-
+# Plot bias
 p <- ggplot(gg, aes(x = dgp_u, y = u, group = Method)) +
      geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
-    geom_smooth(se = F, size = .8,  aes(linetype = Method, color = Method)) +
+    geom_smooth(se = F, size = .75,  aes(linetype = Method, color = Method)) +
     scale_color_manual(values = c("grey10", "grey10")) +
     scale_shape_discrete(solid=F) +
     xlab("Data generating values") +
@@ -113,7 +113,7 @@ p <- ggplot(gg, aes(x = dgp_u, y = u, group = Method)) +
 
 p + facet_grid(ind_form ~ col_form)
 
-
+# Plot SE
 q <- ggplot(gg, aes(x = u, y = u_se, group = Method)) +
     geom_point(data = gg[gg$sample == 1,], size = 3, aes(shape = Method, color = Method)) +
     geom_smooth(se = F, size = .8, aes(linetype = Method, color = Method)) +
