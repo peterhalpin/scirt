@@ -149,7 +149,9 @@ q <- ggplot(gg, aes(x = u, y = u_se, group = Method)) +
       scale_shape_discrete(solid=F) +
       xlab("Estimate") +
       ylab("Standard error")  +
-      theme_bw(base_size = 15)
+      theme_bw(base_size = 15) + 
+      coord_cartesian(ylim=c(0,5), xlim=c(-4,4))
+
 
 q + facet_grid(ind_form ~ col_form)
 ```

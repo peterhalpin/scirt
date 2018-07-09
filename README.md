@@ -1,6 +1,6 @@
 # scirt (formerly cirt, BearShare)
 
-This package contains code for running the analyses described in the paper *Psychometric models of small group collaborations* (see Halpin_Bergner_2018.pdf). The package is under construction, but for a working example, see `demo.md`.
+This package contains code for running the analyses described in the paper *Psychometric models of small group collaborations* (see `Halpin_Bergner_2018`). The package is under construction, but for a working example, see `demo.md`.
 
 Version 0.3.2: Reparameterize to logit of decision weight (July 2018) 
 
